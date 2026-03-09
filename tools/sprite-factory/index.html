@@ -589,6 +589,156 @@
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.error { border-color: var(--danger); }
 
+  /* ─── Character Options ─── */
+  .char-option {
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface);
+    position: relative;
+  }
+  .char-option:hover { border-color: var(--accent3); }
+  .char-option.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), var(--shadow-accent); }
+  .char-option img {
+    width: 100%;
+    aspect-ratio: 3/4;
+    object-fit: contain;
+    image-rendering: pixelated;
+    background: white;
+  }
+  .char-option .option-label {
+    position: absolute;
+    top: 6px; left: 6px;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--text-dim);
+  }
+  .char-option.selected .option-label { background: var(--accent); color: white; }
+
+  /* ─── Roster View ─── */
+  .roster-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 200;
+    overflow-y: auto;
+    padding: 24px 32px;
+  }
+  .roster-overlay.visible { display: block; }
+
+  .roster-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .roster-header h1 {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .roster-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+
+  .roster-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.15s;
+  }
+  .roster-card:hover { border-color: var(--accent3); transform: translateY(-2px); box-shadow: var(--shadow); }
+
+  .roster-card-top {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    align-items: flex-start;
+  }
+
+  .roster-portrait {
+    width: 100px;
+    height: 130px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    border-radius: 6px;
+    background: var(--surface2);
+    flex-shrink: 0;
+  }
+
+  .roster-info { flex: 1; }
+  .roster-info h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .roster-info .stat {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin: 2px 0;
+  }
+
+  .roster-progress {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    margin: 8px 0;
+    overflow: hidden;
+  }
+  .roster-progress .fill {
+    height: 100%;
+    background: var(--accent2);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  .roster-anims {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .roster-anim-badge {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .roster-anim-badge.done { border-color: var(--accent2); color: var(--accent2); background: rgba(0,255,136,0.06); }
+
+  .roster-card-actions {
+    display: flex;
+    gap: 6px;
+    padding: 0 16px 14px;
+    flex-wrap: wrap;
+  }
+
+  .roster-grid-preview {
+    padding: 0 16px 14px;
+  }
+  .roster-grid-preview img {
+    width: 100%;
+    image-rendering: pixelated;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
   /* Responsive */
   @media (max-width: 1100px) {
     .main { grid-template-columns: 1fr; }
@@ -605,6 +755,7 @@
       <button class="mode-tab active" onclick="setMode('replicate')">Replicate</button>
       <button class="mode-tab" onclick="setMode('video')">Video</button>
       <button class="mode-tab" onclick="setMode('character')">New Character</button>
+      <button class="mode-tab" onclick="openRoster()">Roster</button>
     </div>
     <div class="status">
       <div class="status-dot" id="statusDot"></div>
@@ -721,44 +872,52 @@
     <!-- Character Creator -->
     <div class="video-pipeline" id="characterCreator">
       <div class="section-label">Create New Character</div>
-      <p style="font-size:11px;color:var(--text-dim);margin:8px 0">Upload a photo to generate a 16-bit pixel art character reference. The AI will convert it to arcade pixel art style while preserving the exact appearance.</p>
+      <p style="font-size:11px;color:var(--text-dim);margin:6px 0">Upload a photo — 4 pixel art options will be generated. Pick the best, request changes if needed.</p>
 
-      <div style="display:flex;gap:8px;margin:12px 0;align-items:center">
+      <div style="display:flex;gap:8px;margin:10px 0;align-items:center">
         <input class="path-input" id="newCharName" placeholder="Character name (e.g. drake, marcus)" style="flex:1" />
       </div>
 
-      <div class="drop-zone" id="charDropZone" style="margin:8px 0">
+      <div class="drop-zone" id="charDropZone" style="margin:6px 0">
         <p>Drop a character photo here or click to browse</p>
         <input type="file" id="charPhotoFile" accept="image/*" style="display:none" />
       </div>
 
-      <div style="display:flex;gap:8px;margin:8px 0;align-items:center">
+      <div style="display:flex;gap:8px;margin:6px 0;align-items:center">
         <input class="path-input" id="charPhotoPath" placeholder="Or paste image path..." style="flex:1" />
       </div>
 
-      <!-- Photo preview -->
-      <div id="charPhotoPreview" style="display:none;margin:8px 0">
-        <div style="display:flex;gap:12px;align-items:flex-start">
-          <div style="flex:1">
-            <div class="section-label" style="margin-bottom:6px">Original Photo</div>
-            <img id="charOriginalImg" style="max-height:200px;border-radius:6px;border:1px solid var(--border)" />
-          </div>
-          <div style="flex:1">
-            <div class="section-label" style="margin-bottom:6px">Pixel Art Result</div>
-            <img id="charPixelImg" style="max-height:200px;border-radius:6px;border:1px solid var(--border);image-rendering:pixelated;display:none" />
-            <div id="charPixelSpinnerWrap" style="display:none;padding:40px;text-align:center">
-              <div class="spinner active" style="margin:0 auto"></div>
-              <p style="font-size:10px;color:var(--text-dim);margin-top:8px;font-family:var(--mono)">Converting to pixel art...</p>
-            </div>
-          </div>
-        </div>
+      <!-- Original photo thumbnail -->
+      <div id="charPhotoThumb" style="display:none;margin:8px 0">
+        <img id="charOriginalImg" style="height:80px;border-radius:6px;border:1px solid var(--border)" />
       </div>
 
-      <div class="actions" style="margin-top:10px">
+      <!-- Change request input -->
+      <div id="charChangeSection" style="margin:8px 0">
+        <input class="path-input" id="charChangeRequest" placeholder="Change request (e.g. 'lighter skin tone', 'fix hair', 'add headband')" />
+      </div>
+
+      <div class="actions" style="margin-top:8px">
         <button class="btn btn-primary btn-sm" style="flex:1" id="createCharBtn" onclick="createCharacter()">
           <span class="spinner" id="charSpinner"></span>
-          Create Character
+          Generate 4 Options
         </button>
+      </div>
+
+      <!-- Loading state -->
+      <div id="charLoadingState" style="display:none;text-align:center;padding:24px">
+        <div class="spinner active" style="margin:0 auto"></div>
+        <p style="font-size:10px;color:var(--text-dim);margin-top:8px;font-family:var(--mono)" id="charLoadingText">Generating 4 options...</p>
+      </div>
+
+      <!-- 4-option picker grid -->
+      <div id="charOptionsGrid" style="display:none;margin:12px 0">
+        <div class="section-label">Pick the best option <span style="color:var(--text-muted)">(click to select)</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px" id="charOptionsInner"></div>
+        <div class="actions" style="margin-top:10px">
+          <button class="btn btn-success btn-sm" style="flex:1" id="confirmCharBtn" onclick="confirmCharacter()" disabled>Confirm Selection</button>
+          <button class="btn btn-secondary btn-sm" onclick="createCharacter()">Regenerate</button>
+        </div>
       </div>
     </div>
 
@@ -833,6 +992,18 @@
       <div class="log" id="logArea">Ready.</div>
     </div>
   </div>
+</div>
+
+<!-- ROSTER OVERLAY -->
+<div class="roster-overlay" id="rosterOverlay">
+  <div class="roster-header">
+    <h1>Player Roster</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="rosterCount" style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">0 characters</span>
+      <button class="btn btn-secondary btn-sm" onclick="closeRoster()">Back</button>
+    </div>
+  </div>
+  <div class="roster-grid" id="rosterGrid"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1345,8 +1516,130 @@ function toast(msg, isError = false) {
   setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// ─── Character Creator ───
+// ─── Roster ───
+async function openRoster() {
+  document.getElementById('rosterOverlay').classList.add('visible');
+  await loadRoster();
+}
+
+function closeRoster() {
+  document.getElementById('rosterOverlay').classList.remove('visible');
+}
+
+async function loadRoster() {
+  try {
+    const res = await fetch(`${API}/api/roster`);
+    const data = await res.json();
+    renderRoster(data.roster);
+    document.getElementById('rosterCount').textContent = `${data.totalCharacters} characters`;
+  } catch (err) {
+    log(`Roster error: ${err.message}`, 'error');
+  }
+}
+
+function renderRoster(roster) {
+  const grid = document.getElementById('rosterGrid');
+  grid.innerHTML = '';
+  const animNames = Object.keys(animations);
+
+  for (const char of roster) {
+    const pct = Math.round((char.completedAnims / char.totalAnims) * 100);
+    const displayName = char.name === '99' ? '99' : char.name.charAt(0).toUpperCase() + char.name.slice(1);
+
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+    card.innerHTML = `
+      <div class="roster-card-top">
+        <img class="roster-portrait" src="${char.portrait}?t=${Date.now()}" onerror="this.style.display='none'" />
+        <div class="roster-info">
+          <h3>${displayName}</h3>
+          <p class="stat">${char.completedAnims}/${char.totalAnims} animations</p>
+          <div class="roster-progress"><div class="fill" style="width:${pct}%"></div></div>
+          <p class="stat">${char.hasGrid ? 'Grid sheet ready' : 'No grid sheet'}</p>
+          <div class="roster-anims">
+            ${animNames.map(a => `<span class="roster-anim-badge ${char.sprites[a]?.exists ? 'done' : ''}">${a}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      ${char.hasGrid ? `<div class="roster-grid-preview"><img src="${char.gridUrl}?t=${Date.now()}" /></div>` : ''}
+      <div class="roster-card-actions">
+        <button class="btn btn-secondary btn-sm" onclick="selectCharFromRoster('${char.name}')">Select</button>
+        ${char.hasGrid ? `<a class="btn btn-success btn-sm" href="${char.gridUrl}" download="${char.name}-spritesheet.png">Grid Sheet</a>` : `<button class="btn btn-secondary btn-sm" onclick="buildGridFromRoster('${char.name}')">Build Grid</button>`}
+        <button class="btn btn-secondary btn-sm" onclick="downloadCharAssets('${char.name}')">All Assets</button>
+        ${!['breezy','99'].includes(char.name) ? `<button class="btn btn-sm" style="color:var(--danger);background:rgba(255,34,68,0.1);border:1px solid rgba(255,34,68,0.2)" onclick="deleteCharacter('${char.name}')">Delete</button>` : ''}
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function selectCharFromRoster(name) {
+  selectedChar = name;
+  if (!characters[name]) {
+    characters[name] = { description: 'the character shown in Image 2', style: '16-bit pixel art, GBA style' };
+  }
+  renderCharacters();
+  updatePrompt();
+  checkExisting();
+  closeRoster();
+  setMode('replicate');
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active', t.textContent === 'Replicate');
+  });
+}
+
+async function buildGridFromRoster(name) {
+  log(`Building grid for ${name}...`, 'info');
+  try {
+    const res = await fetch(`${API}/api/grid/${name}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    log(`Grid built: ${data.width}x${data.height}px`, 'success');
+    toast('Grid sheet built!');
+    await loadRoster(); // Refresh to show grid
+  } catch (err) {
+    log(`Grid error: ${err.message}`, 'error');
+    toast(err.message.substring(0, 100), true);
+  }
+}
+
+async function downloadCharAssets(name) {
+  try {
+    const res = await fetch(`${API}/api/roster/${name}/download`);
+    const data = await res.json();
+    // Download each file
+    for (const asset of data.assets) {
+      const a = document.createElement('a');
+      a.href = asset.url;
+      a.download = asset.file;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      await new Promise(r => setTimeout(r, 300));
+    }
+    toast(`Downloaded ${data.assets.length} files`);
+  } catch (err) {
+    toast('Download failed', true);
+  }
+}
+
+async function deleteCharacter(name) {
+  if (!confirm(`Delete character "${name}"? This removes their portrait.`)) return;
+  try {
+    await fetch(`${API}/api/character/${name}`, { method: 'DELETE' });
+    delete characters[name];
+    renderCharacters();
+    await loadRoster();
+    toast(`${name} deleted`);
+  } catch (err) {
+    toast('Delete failed', true);
+  }
+}
+
+// ─── Character Creator (4-option picker) ───
 let charPhotoData = null;
+let selectedCharOption = -1;
+let currentCharName = '';
 
 const charDropZone = document.getElementById('charDropZone');
 const charFileInput = document.getElementById('charPhotoFile');
@@ -1368,9 +1661,7 @@ function loadCharPhoto(file) {
   reader.onload = (e) => {
     charPhotoData = e.target.result;
     document.getElementById('charOriginalImg').src = charPhotoData;
-    document.getElementById('charPhotoPreview').style.display = 'block';
-    document.getElementById('charPixelImg').style.display = 'none';
-    document.getElementById('charPixelSpinnerWrap').style.display = 'none';
+    document.getElementById('charPhotoThumb').style.display = 'block';
     log(`Photo loaded: ${file.name}`, 'info');
   };
   reader.readAsDataURL(file);
@@ -1379,29 +1670,42 @@ function loadCharPhoto(file) {
 async function createCharacter() {
   const name = document.getElementById('newCharName').value.trim().toLowerCase().replace(/\s+/g, '-');
   const photoPath = document.getElementById('charPhotoPath').value.trim();
+  const changeRequest = document.getElementById('charChangeRequest').value.trim();
 
   if (!name) { toast('Enter a character name', true); return; }
-  if (!charPhotoData && !photoPath) { toast('Upload a photo or enter a path', true); return; }
+  if (!charPhotoData && !photoPath && !currentCharName) { toast('Upload a photo or enter a path', true); return; }
+
+  currentCharName = name;
+  selectedCharOption = -1;
 
   const spinner = document.getElementById('charSpinner');
   const btn = document.getElementById('createCharBtn');
   spinner.classList.add('active');
   btn.disabled = true;
 
-  // Show pixel art spinner
-  document.getElementById('charPixelSpinnerWrap').style.display = 'block';
-  document.getElementById('charPixelImg').style.display = 'none';
+  // Show loading, hide options
+  document.getElementById('charLoadingState').style.display = 'block';
+  document.getElementById('charOptionsGrid').style.display = 'none';
+  document.getElementById('charLoadingText').textContent = changeRequest
+    ? `Regenerating with: "${changeRequest.substring(0, 40)}..."`
+    : 'Generating 4 options...';
 
-  log(`Creating character "${name}"...`, 'info');
+  log(`Generating 4 options for "${name}"${changeRequest ? ` (change: ${changeRequest})` : ''}...`, 'info');
 
   try {
-    const payload = { name, model: document.getElementById('modelSelect').value };
+    const payload = {
+      name,
+      model: document.getElementById('modelSelect').value,
+      count: 4,
+      changeRequest: changeRequest || undefined,
+    };
 
     if (charPhotoData) {
       payload.photoBase64 = charPhotoData;
-    } else {
+    } else if (photoPath) {
       payload.photoPath = photoPath;
     }
+    // If regenerating, the server already has the original photo saved
 
     const res = await fetch(`${API}/api/character/create`, {
       method: 'POST',
@@ -1412,28 +1716,83 @@ async function createCharacter() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    // Show result
-    document.getElementById('charPixelSpinnerWrap').style.display = 'none';
-    document.getElementById('charPixelImg').src = data.pixelArtUrl + '?t=' + Date.now();
-    document.getElementById('charPixelImg').style.display = 'block';
+    // Render 4 options
+    document.getElementById('charLoadingState').style.display = 'none';
+    document.getElementById('charOptionsGrid').style.display = 'block';
 
-    // Add to character list
-    characters[name] = {
-      description: 'the character shown in Image 2',
-      style: '16-bit pixel art, GBA style',
-    };
-    renderCharacters();
+    const grid = document.getElementById('charOptionsInner');
+    grid.innerHTML = '';
+    data.options.forEach((opt, i) => {
+      const div = document.createElement('div');
+      div.className = 'char-option';
+      div.onclick = () => selectCharOption(i);
+      div.id = `charOpt${i}`;
+      div.innerHTML = `
+        <span class="option-label">${i + 1}</span>
+        <img src="${opt.url}?t=${Date.now()}" />
+      `;
+      grid.appendChild(div);
+    });
 
-    log(`Character "${name}" created!`, 'success');
-    toast(`${name} added! Switch to Replicate to generate sprites.`);
+    if (data.errors?.length) {
+      log(`${data.errors.length} options failed`, 'warn');
+    }
+
+    log(`${data.options.length} options ready — pick the best one`, 'success');
+    document.getElementById('confirmCharBtn').disabled = true;
   } catch (err) {
-    document.getElementById('charPixelSpinnerWrap').style.display = 'none';
+    document.getElementById('charLoadingState').style.display = 'none';
     log(`Character error: ${err.message}`, 'error');
     toast(err.message.substring(0, 100), true);
   }
 
   spinner.classList.remove('active');
   btn.disabled = false;
+}
+
+function selectCharOption(index) {
+  selectedCharOption = index;
+  document.querySelectorAll('.char-option').forEach((el, i) => {
+    el.classList.toggle('selected', i === index);
+  });
+  document.getElementById('confirmCharBtn').disabled = false;
+}
+
+async function confirmCharacter() {
+  if (selectedCharOption < 0 || !currentCharName) return;
+
+  log(`Confirming option ${selectedCharOption + 1} for "${currentCharName}"...`, 'info');
+
+  try {
+    const res = await fetch(`${API}/api/character/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: currentCharName,
+        optionIndex: selectedCharOption,
+        feedback: document.getElementById('charChangeRequest').value.trim(),
+      }),
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Add to character list
+    characters[currentCharName] = {
+      description: 'the character shown in Image 2',
+      style: '16-bit pixel art, GBA style',
+    };
+    renderCharacters();
+
+    log(`"${currentCharName}" confirmed and saved!`, 'success');
+    toast(`${currentCharName} added! Switch to Replicate to generate sprites.`);
+
+    // Clear change request for next round
+    document.getElementById('charChangeRequest').value = '';
+  } catch (err) {
+    log(`Confirm error: ${err.message}`, 'error');
+    toast(err.message.substring(0, 100), true);
+  }
 }
 
 init();

@@ -73,6 +73,19 @@ function serveImage(res, imagePath) {
 async function handleAPI(req, res, pathname) {
   // GET /api/characters
   if (pathname === '/api/characters' && req.method === 'GET') {
+    // Auto-discover characters from *full.png files in assets
+    if (fs.existsSync(ASSETS_DIR)) {
+      const files = fs.readdirSync(ASSETS_DIR).filter(f => f.endsWith('full.png'));
+      for (const f of files) {
+        const name = f.replace('full.png', '');
+        if (!CHARACTERS[name]) {
+          CHARACTERS[name] = {
+            description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
+            style: '16-bit pixel art, GBA style',
+          };
+        }
+      }
+    }
     return json(res, { characters: CHARACTERS, animations: ANIMATIONS });
   }
 
@@ -102,6 +115,15 @@ async function handleAPI(req, res, pathname) {
     try {
       const client = new NanaBananaClient({ model: model || 'gemini-2.5-flash-image' });
 
+      // Auto-register character if they have a portrait but aren't in CHARACTERS yet
+      const portraitPath = path.join(ASSETS_DIR, `${character}full.png`);
+      if (!CHARACTERS[character] && fs.existsSync(portraitPath)) {
+        CHARACTERS[character] = {
+          description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
+          style: '16-bit pixel art, GBA style',
+        };
+      }
+
       let prompt, poseRef, charRef;
 
       if (customPrompt) {
@@ -116,7 +138,8 @@ async function handleAPI(req, res, pathname) {
       if (anim?.breezyFile) {
         poseRef = path.join(ASSETS_DIR, anim.breezyFile);
       }
-      charRef = CHARACTERS[character] ? path.join(ASSETS_DIR, `${character === '99' ? '99' : character}full.png`) : null;
+      // Character reference = their full portrait
+      charRef = fs.existsSync(portraitPath) ? portraitPath : null;
 
       const frames = anim?.frames || 6;
       // Aspect ratio should match the sprite strip: N frames wide, 1 frame tall
@@ -358,82 +381,148 @@ async function handleAPI(req, res, pathname) {
     return json(res, { success: true });
   }
 
-  // ─── Character Creation ───────────────────────────────────────────────
+  // ─── Character Creation (4-option picker) ──────────────────────────────
 
-  // POST /api/character/create — Upload photo + convert to pixel art reference
+  // Build the character creation prompt
+  function buildCharPrompt(extraInstructions) {
+    const styleRef = path.join(ASSETS_DIR, '99full.png');
+    const hasStyleRef = fs.existsSync(styleRef);
+
+    const lines = [
+      hasStyleRef
+        ? 'Image 1 is the style reference — match this exact pixel art style. Image 2 is the person to convert.'
+        : 'Convert the uploaded photo into 16-bit arcade pixel art.',
+      '',
+      'Create a FULL BODY standing character portrait showing the complete person from head to shoes.',
+      'The character must be standing upright, facing forward, arms relaxed at sides, in a neutral standing pose.',
+      'Show the ENTIRE body — head, torso, arms, hands, legs, feet/shoes. Do NOT crop or zoom in.',
+      '',
+      'ACCURACY IS CRITICAL:',
+      '- Match the person\'s EXACT skin tone — do not lighten or darken it',
+      '- Match their EXACT facial features, face shape, eyes, nose, mouth',
+      '- Match their EXACT hairstyle, hair color, hair texture',
+      '- Match their EXACT outfit, clothing colors, and shoes from the photo',
+      '- Match their body type and proportions',
+      '',
+      'STYLE:',
+      '- 16-bit arcade pixel art, GBA game style — chunky pixels, NOT high-resolution',
+      '- Bold thick black pixel outlines around the entire character body',
+      '- Limited color palette with high contrast arcade shading',
+      '- Sharp pixel edges — NO anti-aliasing, NO blur, NO smooth gradients',
+      '- The character should look like they belong in a retro basketball arcade game',
+      '',
+      'Output on a pure white background (#FFFFFF only).',
+      'FULL BODY only. No environment. No extra elements. No cropping.',
+    ];
+
+    if (extraInstructions) {
+      lines.push('', 'ADDITIONAL INSTRUCTIONS:', extraInstructions);
+    }
+
+    return { prompt: lines.join('\n'), hasStyleRef, styleRefPath: hasStyleRef ? styleRef : null };
+  }
+
+  // POST /api/character/create — Generate 4 options from photo
   if (pathname === '/api/character/create' && req.method === 'POST') {
     const body = await parseBody(req);
-    const { name, photoBase64, photoPath, model } = body;
+    const { name, photoBase64, photoPath, model, changeRequest, count } = body;
     if (!name) return json(res, { error: 'Character name required' }, 400);
 
     try {
-      // Get the photo — either from base64 data or file path
-      let photoBuffer;
-      if (photoBase64) {
-        // Strip data URL prefix if present
-        const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, '');
-        photoBuffer = Buffer.from(base64Data, 'base64');
-      } else if (photoPath && fs.existsSync(photoPath)) {
-        photoBuffer = fs.readFileSync(photoPath);
-      } else {
-        return json(res, { error: 'Photo required (base64 or file path)' }, 400);
-      }
-
-      // Save original photo
       const charDir = path.join(TMP_DIR, 'characters', name);
       fs.mkdirSync(charDir, { recursive: true });
-      const originalPath = path.join(charDir, 'original.png');
-      fs.writeFileSync(originalPath, photoBuffer);
 
-      // Convert to pixel art via Nano Banana
-      const pixelArtPrompt = [
-        'Transform the uploaded image into 16-bit arcade pixel art.',
-        '',
-        'IMPORTANT RULES:',
-        'Do NOT change the pose.',
-        'Do NOT change facial features.',
-        'Do NOT add new objects.',
-        'Do NOT change clothing design.',
-        'Do NOT modify hairstyle.',
-        'Do NOT add accessories.',
-        'Do NOT change proportions.',
-        'Do NOT add background elements.',
-        '',
-        'Only convert the image into clean 16-bit arcade pixel style with:',
-        '- Sharp pixel edges',
-        '- Limited color palette',
-        '- Thick black outlines',
-        '- High contrast arcade shading',
-        '- No anti-aliasing',
-        '- No blur',
-        '',
-        'Keep the character exactly as shown.',
-        'Output on a pure white background (#FFFFFF only).',
-        'No environment. No extra elements. Only the character.',
-      ].join('\n');
+      // Save or use existing photo
+      let originalPath = path.join(charDir, 'original.png');
+      if (photoBase64) {
+        const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, '');
+        fs.writeFileSync(originalPath, Buffer.from(base64Data, 'base64'));
+      } else if (photoPath && fs.existsSync(photoPath)) {
+        fs.copyFileSync(photoPath, originalPath);
+      } else if (!fs.existsSync(originalPath)) {
+        return json(res, { error: 'Photo required' }, 400);
+      }
 
+      const { prompt, hasStyleRef, styleRefPath } = buildCharPrompt(changeRequest);
       const client = new NanaBananaClient({ model: model || 'gemini-2.5-flash-image' });
-      const pixelPath = path.join(ASSETS_DIR, `${name}full.png`);
+      const numOptions = count || 4;
 
-      const result = await client.generate(pixelArtPrompt, {
-        referenceImages: [originalPath],
-        aspectRatio: '3:4',
-        resolution: '2K',
-        model: model || 'gemini-2.5-flash-image',
-      });
+      const referenceImages = [];
+      if (styleRefPath) referenceImages.push(styleRefPath);
+      referenceImages.push(originalPath);
 
-      fs.writeFileSync(pixelPath, result.imageBuffer);
+      // Generate N options in parallel
+      const optionPromises = [];
+      for (let i = 0; i < numOptions; i++) {
+        optionPromises.push(
+          client.generate(prompt, {
+            referenceImages,
+            aspectRatio: '3:4',
+            resolution: '2K',
+            model: model || 'gemini-2.5-flash-image',
+          }).then(result => {
+            const optPath = path.join(charDir, `option-${i}.png`);
+            fs.writeFileSync(optPath, result.imageBuffer);
+            return { index: i, url: `/api/character/image/${name}/option-${i}.png` };
+          }).catch(err => {
+            return { index: i, error: err.message };
+          })
+        );
+      }
 
-      // Register character in prompts system (runtime only — persists via training overrides)
-      CHARACTERS[name] = {
-        description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
-        style: '16-bit pixel art, GBA style',
-      };
+      const options = await Promise.all(optionPromises);
+      const successful = options.filter(o => !o.error);
 
       return json(res, {
         success: true,
         name,
         originalUrl: `/api/character/image/${name}/original.png`,
+        options: successful,
+        errors: options.filter(o => o.error),
+        changeRequest: changeRequest || null,
+      });
+    } catch (err) {
+      return json(res, { error: err.message }, 500);
+    }
+  }
+
+  // POST /api/character/confirm — Pick the best option and save as final
+  if (pathname === '/api/character/confirm' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const { name, optionIndex, feedback } = body;
+    if (!name) return json(res, { error: 'Character name required' }, 400);
+
+    try {
+      const charDir = path.join(TMP_DIR, 'characters', name);
+      const optPath = path.join(charDir, `option-${optionIndex}.png`);
+      if (!fs.existsSync(optPath)) return json(res, { error: 'Option not found' }, 404);
+
+      // Copy selected option to assets
+      const pixelPath = path.join(ASSETS_DIR, `${name}full.png`);
+      fs.copyFileSync(optPath, pixelPath);
+
+      // Register character
+      CHARACTERS[name] = {
+        description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
+        style: '16-bit pixel art, GBA style',
+      };
+
+      // Save training feedback
+      const trainingFile = path.join(TMP_DIR, 'characters', 'training.json');
+      let training = {};
+      if (fs.existsSync(trainingFile)) training = JSON.parse(fs.readFileSync(trainingFile, 'utf8'));
+      if (!training.sessions) training.sessions = [];
+      training.sessions.push({
+        name,
+        selectedOption: optionIndex,
+        feedback: feedback || '',
+        timestamp: new Date().toISOString(),
+      });
+      fs.writeFileSync(trainingFile, JSON.stringify(training, null, 2));
+
+      return json(res, {
+        success: true,
+        name,
         pixelArtUrl: `/assets/${name}full.png`,
       });
     } catch (err) {
@@ -471,6 +560,73 @@ async function handleAPI(req, res, pathname) {
     return serveImage(res, path.join(TMP_DIR, 'characters', name, file));
   }
 
+  // ─── Roster / Gallery ─────────────────────────────────────────────────
+
+  // GET /api/roster — Full roster of all characters with their assets
+  if (pathname === '/api/roster' && req.method === 'GET') {
+    const roster = [];
+    // Scan assets dir for *full.png files
+    const files = fs.existsSync(ASSETS_DIR) ? fs.readdirSync(ASSETS_DIR) : [];
+    const fullFiles = files.filter(f => f.endsWith('full.png'));
+
+    for (const f of fullFiles) {
+      const name = f.replace('full.png', '');
+      const anims = Object.keys(ANIMATIONS);
+      const sprites = {};
+      let completedCount = 0;
+      for (const anim of anims) {
+        const spriteFile = `${name}-${anim}.png`;
+        const exists = fs.existsSync(path.join(ASSETS_DIR, spriteFile));
+        sprites[anim] = { exists, file: spriteFile, url: `/assets/${spriteFile}` };
+        if (exists) completedCount++;
+      }
+      const gridFile = `${name}-spritesheet.png`;
+      const hasGrid = fs.existsSync(path.join(ASSETS_DIR, gridFile));
+
+      roster.push({
+        name,
+        portrait: `/assets/${f}`,
+        portraitFile: f,
+        sprites,
+        completedAnims: completedCount,
+        totalAnims: anims.length,
+        hasGrid,
+        gridUrl: hasGrid ? `/assets/${gridFile}` : null,
+      });
+    }
+
+    return json(res, { roster, totalCharacters: roster.length });
+  }
+
+  // GET /api/roster/:char/download — Download all assets for a character as individual files list
+  if (pathname.startsWith('/api/roster/') && pathname.endsWith('/download') && req.method === 'GET') {
+    const charName = pathname.split('/')[3];
+    const files = fs.existsSync(ASSETS_DIR) ? fs.readdirSync(ASSETS_DIR) : [];
+    const charFiles = files.filter(f => f.startsWith(charName));
+    const assets = charFiles.map(f => ({
+      file: f,
+      url: `/assets/${f}`,
+      size: fs.statSync(path.join(ASSETS_DIR, f)).size,
+    }));
+    return json(res, { character: charName, assets });
+  }
+
+  // DELETE /api/character/:name — Remove a character
+  if (pathname.startsWith('/api/character/') && req.method === 'DELETE') {
+    const name = pathname.split('/')[3];
+    // Don't delete core characters
+    const protectedChars = ['breezy', '99'];
+    if (protectedChars.includes(name)) {
+      return json(res, { error: 'Cannot delete core character' }, 400);
+    }
+    // Remove portrait
+    const portraitPath = path.join(ASSETS_DIR, `${name}full.png`);
+    if (fs.existsSync(portraitPath)) fs.unlinkSync(portraitPath);
+    // Remove from runtime characters
+    delete CHARACTERS[name];
+    return json(res, { success: true, deleted: name });
+  }
+
   return json(res, { error: 'Not found' }, 404);
 }
 
@@ -482,7 +638,7 @@ const server = http.createServer(async (req, res) => {
 
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
 
