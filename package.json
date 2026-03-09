@@ -15,6 +15,7 @@
     "sprite:info": "node tools/sprite-processor/cli.js info",
     "sprite:batch": "node tools/sprite-processor/cli.js batch",
     "sprite:watch": "node tools/sprite-generator/watcher.js",
+    "sprite:batch-prompts": "node tools/sprite-generator/batch-prompts.js",
     "sprite:remove-bg": "node tools/sprite-processor/cli.js remove-bg"
   }
 }

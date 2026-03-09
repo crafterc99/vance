@@ -3,16 +3,16 @@
  * These generate optimized prompts for Higgsfield/Nano Banana Pro.
  */
 
-const STYLE_PREAMBLE = `2D pixel art game sprite sheet, horizontal strip layout, clean solid #0047FF blue background, each frame clearly separated, consistent character proportions across all frames, side-view perspective, no shadows on background, crisp pixel edges`;
+const STYLE_PREAMBLE = `2D pixel art game sprite sheet, exactly {FRAMES} equal-sized character frames arranged in a single horizontal row left to right, solid flat #0047FF blue background filling entire image, thick black pixel outlines on character, each frame evenly spaced with identical character scale and proportions, 3/4 front-facing perspective, no shadows on background, no ground plane, character floating centered in each frame, retro arcade pixel art style`;
 
 const CHARACTERS = {
   breezy: {
-    description: 'athletic basketball player with braids, wearing white jersey #7, white shorts, white sneakers, medium-dark skin tone, lean build',
-    style: 'urban street-style basketball aesthetic',
+    description: 'athletic basketball player with braids, wearing white jersey #7, white shorts, white sneakers, medium-dark skin tone, lean build, thick black pixel outlines',
+    style: 'retro arcade basketball pixel art, clean sharp pixels, consistent character across every frame',
   },
   '99': {
-    description: 'stocky powerful basketball player wearing red jersey #99, red shorts, red sneakers, light skin tone, muscular build, short hair',
-    style: 'intense competitive basketball aesthetic',
+    description: 'young Black male basketball player with short curly black hair, medium-dark brown skin, wearing oversized white t-shirt, red and black basketball shorts with grey geometric pattern, black sneakers, athletic build, thick black pixel outlines',
+    style: 'retro arcade basketball pixel art, clean sharp pixels, consistent character across every frame',
   },
 };
 
@@ -122,8 +122,10 @@ function buildPrompt(characterName, animationName, opts = {}) {
   const charDesc = `${char.description}`;
   const animDesc = anim.description(charDesc);
 
+  const preamble = STYLE_PREAMBLE.replace('{FRAMES}', frameCount);
+
   return {
-    prompt: `${STYLE_PREAMBLE}, ${frameCount} frames in a single horizontal row, ${animDesc}, ${char.style}`,
+    prompt: `${preamble}, ${animDesc}, ${char.style}`,
     frames: frameCount,
     fps: anim.fps,
     loop: anim.loop,
@@ -155,8 +157,10 @@ function buildCustomPrompt(characterName, description, frameCount) {
     throw new Error(`Unknown character: ${characterName}`);
   }
 
+  const preamble = STYLE_PREAMBLE.replace('{FRAMES}', frameCount);
+
   return {
-    prompt: `${STYLE_PREAMBLE}, ${frameCount} frames in a single horizontal row, ${char.description} ${description}, ${char.style}`,
+    prompt: `${preamble}, ${char.description} ${description}, ${char.style}`,
     frames: frameCount,
     outputName: `${characterName}-custom`,
   };
