@@ -1,176 +1,282 @@
 /**
- * Sprite prompt templates for Soul Jam characters.
- * These generate optimized prompts for Higgsfield/Nano Banana Pro.
+ * Sprite Prompt System — Strict Pose Transfer + Prompt Training
+ *
+ * Two prompt modes:
+ * 1. POSE TRANSFER (primary): Image 1 = pose ref, Image 2 = character ref
+ *    Recreates Image 1 exactly but replaces character with Image 2
+ * 2. TEXT-ONLY: No reference images, pure prompt-based generation
+ *
+ * Prompts are trainable — feedback adjusts prompt templates over time.
  */
+const fs = require('fs');
+const path = require('path');
 
-const STYLE_PREAMBLE = `2D pixel art game sprite sheet, exactly {FRAMES} equal-sized character frames arranged in a single horizontal row left to right, solid flat #0047FF blue background filling entire image, thick black pixel outlines on character, each frame evenly spaced with identical character scale and proportions, 3/4 front-facing perspective, no shadows on background, no ground plane, character floating centered in each frame, retro arcade pixel art style`;
+const TRAINING_FILE = path.resolve(__dirname, '../../.training-data/prompt-training.json');
 
 const CHARACTERS = {
   breezy: {
-    description: 'athletic basketball player with braids, wearing white jersey #7, white shorts, white sneakers, medium-dark skin tone, lean build, thick black pixel outlines',
-    style: 'retro arcade basketball pixel art, clean sharp pixels, consistent character across every frame',
+    description: 'athletic basketball player with braids, wearing white jersey #7, white shorts, white sneakers, medium-dark skin tone, lean build',
+    style: '16-bit pixel art, GBA style',
   },
   '99': {
-    description: 'young Black male basketball player with short curly black hair, medium-dark brown skin, wearing oversized white t-shirt, red and black basketball shorts with grey geometric pattern, black sneakers, athletic build, thick black pixel outlines',
-    style: 'retro arcade basketball pixel art, clean sharp pixels, consistent character across every frame',
+    description: 'young Black male with short curly black hair, medium-dark brown skin, wearing oversized white t-shirt, red and black basketball shorts with grey geometric pattern, black sneakers, athletic build',
+    style: '16-bit pixel art, GBA style',
   },
 };
 
-// Animation templates with frame-by-frame breakdowns
 const ANIMATIONS = {
-  'idle-dribble': {
-    frames: 6,
-    fps: 8,
-    loop: true,
-    description: (char) =>
-      `${char} standing in place doing a stationary basketball dribble, 6 frames showing: (1) ball at hip height right hand, (2) pushing ball down, (3) ball hitting ground, (4) ball bouncing up, (5) ball rising to waist, (6) ball back at hip. Slight body bob on frames 3-4. Knees slightly bent throughout.`,
+  'static-dribble': {
+    frames: 6, fps: 8, loop: true,
+    breezyFile: 'breezy-static-dribble.png',
+    action: 'stationary dribble, ball bouncing at side',
+    frameBreakdown: '(1) ball at hip right hand (2) pushing ball down (3) ball hitting ground (4) ball bouncing up (5) ball rising to waist (6) ball back at hip, slight body bob on frames 3-4, knees bent',
   },
   'dribble': {
-    frames: 8,
-    fps: 10,
-    loop: true,
-    description: (char) =>
-      `${char} running while dribbling basketball, 8 frames showing full run cycle: (1) right foot forward, ball in right hand high, (2) pushing off, ball going down, (3) mid-stride ball bouncing, (4) left foot forward ball low, (5) left foot planted ball rising, (6) pushing off left, ball up, (7) both feet airborne mid-stride, (8) right foot about to land. Body leaning forward, athletic running form.`,
+    frames: 8, fps: 10, loop: true,
+    breezyFile: 'breezy-dribble.png',
+    action: 'running dribble, full run cycle with basketball',
+    frameBreakdown: '(1) right foot forward ball high (2) pushing off ball going down (3) mid-stride ball bouncing (4) left foot forward ball low (5) left foot planted ball rising (6) pushing off left ball up (7) airborne mid-stride (8) right foot landing, body leaning forward',
   },
   'jumpshot': {
-    frames: 7,
-    fps: 8,
-    loop: false,
-    description: (char) =>
-      `${char} performing a basketball jump shot, 7 frames showing: (1) crouching with ball at chest, (2) beginning jump knees extending, (3) rising ball going overhead, (4) peak of jump ball cocked behind head, (5) release point ball leaving hands with flick, (6) follow through arm extended ball gone, (7) landing position arms still up. Clean shooting form.`,
+    frames: 7, fps: 8, loop: false,
+    breezyFile: 'breezy-jumpshot.png',
+    action: 'basketball jump shot sequence',
+    frameBreakdown: '(1) crouching ball at chest (2) beginning jump knees extending (3) rising ball overhead (4) peak of jump ball cocked back (5) release point ball leaving hands (6) follow through arm extended (7) landing arms up',
   },
   'stepback': {
-    frames: 4,
-    fps: 8,
-    loop: false,
-    description: (char) =>
-      `${char} doing a basketball stepback move, 4 frames: (1) facing right dribbling normally, (2) planting front foot hard, (3) pushing back creating space ball in hands, (4) fading back in shooting position ready to shoot. Quick explosive move.`,
+    frames: 4, fps: 8, loop: false,
+    breezyFile: 'breezy-stepback.png',
+    action: 'stepback jumper creating space',
+    frameBreakdown: '(1) dribbling forward (2) planting front foot hard (3) pushing back creating space ball in hands (4) fading back in shooting position',
   },
   'crossover': {
-    frames: 4,
-    fps: 13,
-    loop: false,
-    description: (char) =>
-      `${char} doing a crossover dribble, 4 frames: (1) ball in right hand approaching, (2) ball crossing in front of body low to ground, (3) ball now in left hand pushing past, (4) exploding past with ball in left hand body shifted. Quick explosive move.`,
+    frames: 4, fps: 13, loop: false,
+    breezyFile: 'breezy-crossover.png',
+    action: 'crossover dribble move',
+    frameBreakdown: '(1) ball in right hand approaching (2) ball crossing low in front of body (3) ball now in left hand pushing past (4) exploding past with ball in left hand',
   },
   'defense-backpedal': {
-    frames: 4,
-    fps: 8,
-    loop: true,
-    description: (char) =>
-      `${char} in defensive stance backpedaling, 4 frames: (1) wide stance arms out low, (2) right foot stepping back, (3) left foot sliding back to match, (4) resetting stance. Low center of gravity, hands active. No basketball.`,
+    frames: 4, fps: 8, loop: true,
+    breezyFile: 'breezy-defense-backpedal.png',
+    action: 'defensive backpedal, no basketball',
+    frameBreakdown: '(1) wide stance arms out low (2) right foot stepping back (3) left foot sliding back (4) resetting stance, low center of gravity hands active',
   },
   'defense-shuffle': {
-    frames: 2,
-    fps: 6,
-    loop: true,
-    description: (char) =>
-      `${char} in defensive stance doing lateral shuffle, 2 frames: (1) wide athletic stance arms spread low ready, (2) slightly shifted weight to one side mid-shuffle. Low stance, knees bent, eyes forward. No basketball.`,
+    frames: 2, fps: 6, loop: true,
+    breezyFile: 'breezy-defense-shuffle.png',
+    action: 'defensive lateral shuffle, no basketball',
+    frameBreakdown: '(1) wide athletic stance arms spread low (2) weight shifted to one side mid-shuffle, knees bent eyes forward',
   },
   'steal': {
-    frames: 3,
-    fps: 8,
-    loop: false,
-    description: (char) =>
-      `${char} attempting a steal in basketball, 3 frames: (1) defensive stance ready, (2) lunging forward arm reaching out to swipe ball, (3) follow through with reaching arm extended fully. Aggressive reaching motion. No basketball in hand.`,
-  },
-  'block': {
-    frames: 5,
-    fps: 10,
-    loop: false,
-    description: (char) =>
-      `${char} doing a shot block, 5 frames: (1) defensive crouch, (2) jumping up explosively, (3) at peak arm stretched high swatting, (4) contact hand hitting imaginary ball above head, (5) landing with authority. Vertical leap, arm fully extended at peak.`,
-  },
-  'dunk': {
-    frames: 6,
-    fps: 10,
-    loop: false,
-    description: (char) =>
-      `${char} performing a basketball dunk, 6 frames: (1) driving forward ball in right hand, (2) planting foot for takeoff, (3) rising ball cocked back, (4) at peak reaching toward rim, (5) slamming ball down through rim, (6) hanging on rim momentarily. Explosive athletic movement.`,
-  },
-  'pass': {
-    frames: 4,
-    fps: 10,
-    loop: false,
-    description: (char) =>
-      `${char} making a chest pass, 4 frames: (1) ball held at chest both hands, (2) stepping forward extending arms, (3) releasing ball arms pushing forward, (4) follow through arms extended fingers pointing at target. Ball visible leaving hands on frame 3.`,
-  },
-  'celebration': {
-    frames: 4,
-    fps: 8,
-    loop: true,
-    description: (char) =>
-      `${char} celebrating after a big play, 4 frames: (1) arms going up in excitement, (2) fist pump both arms overhead, (3) pointing at crowd/camera with swagger, (4) chest pounding with one fist. Confident energetic body language. No basketball.`,
+    frames: 3, fps: 8, loop: false,
+    breezyFile: 'breezy-steal.png',
+    action: 'steal attempt reaching for ball',
+    frameBreakdown: '(1) defensive stance ready (2) lunging forward arm reaching out to swipe (3) follow through arm fully extended',
   },
 };
 
+// ─── Strict Pose Transfer Prompt ────────────────────────────────────────
+
 /**
- * Build a full Higgsfield prompt for a character animation.
+ * Build the strict pose-transfer prompt.
+ * This is the primary prompt mode — treats Image 1 as motion-capture reference.
  */
-function buildPrompt(characterName, animationName, opts = {}) {
+function buildPoseTransferPrompt(characterName, animationName, opts = {}) {
   const char = CHARACTERS[characterName];
-  if (!char) {
-    throw new Error(`Unknown character: ${characterName}. Available: ${Object.keys(CHARACTERS).join(', ')}`);
-  }
+  if (!char) throw new Error(`Unknown character: ${characterName}. Available: ${Object.keys(CHARACTERS).join(', ')}`);
 
   const anim = ANIMATIONS[animationName];
-  if (!anim) {
-    throw new Error(`Unknown animation: ${animationName}. Available: ${Object.keys(ANIMATIONS).join(', ')}`);
-  }
+  if (!anim) throw new Error(`Unknown animation: ${animationName}. Available: ${Object.keys(ANIMATIONS).join(', ')}`);
 
-  const frameCount = opts.frames || anim.frames;
-  const charDesc = `${char.description}`;
-  const animDesc = anim.description(charDesc);
+  const frames = opts.frames || anim.frames;
+  const training = loadTraining();
+  const overrides = training.promptOverrides?.[animationName] || {};
 
-  const preamble = STYLE_PREAMBLE.replace('{FRAMES}', frameCount);
+  const prompt = [
+    // STRUCTURE
+    `STRICT POSE AND COMPOSITION TRANSFER`,
+    ``,
+    `Use the uploaded images in the following roles:`,
+    `Image 1 = pose and composition reference`,
+    `Image 2 = character appearance reference`,
+    ``,
+    `Your task is to recreate Image 1 exactly as a pixel art sprite sheet, but replace the character with the character from Image 2.`,
+    ``,
+    // OUTPUT FORMAT
+    `OUTPUT FORMAT: A single horizontal sprite sheet with EXACTLY ${frames} equally-sized square frames in a row. Each frame must be the EXACT same width and height. No gaps between frames.`,
+    ``,
+    // POSE RULES
+    `POSE AND COMPOSITION RULES:`,
+    `- Copy the exact body pose from Image 1`,
+    `- Copy the exact limb placement from Image 1`,
+    `- Copy the exact character positions and spacing`,
+    `- Do NOT alter the pose or reposition the body`,
+    `- The animation shows: ${anim.action}`,
+    `- Frame breakdown: ${overrides.frameBreakdown || anim.frameBreakdown}`,
+    ``,
+    // CHARACTER RULES
+    `CHARACTER REPLACEMENT RULES:`,
+    `- Replace the character in Image 1 with the character from Image 2`,
+    `- Character: ${char.description}`,
+    `- Preserve the face, hairstyle, clothing, colors, and proportions from Image 2`,
+    `- Do not redesign the outfit`,
+    `- Do not change the character identity`,
+    ``,
+    // STYLE RULES
+    `STYLE RULES:`,
+    `- ${overrides.style || char.style}`,
+    `- Bold black pixel outlines on the character`,
+    `- 2px white outline around the entire character body`,
+    `- Maintain consistent character size across ALL ${frames} frames`,
+    `- Same baseline alignment for all poses — feet on the same line`,
+    ``,
+    // BACKGROUND
+    `BACKGROUND:`,
+    `- Pure solid green (#00FF00) background filling the entire image`,
+    `- CRITICAL: absolutely NO green color (#00FF00) anywhere on the character sprites`,
+    `- NO anti-aliasing between character and background`,
+    `- NO gradients, NO shadows on the background`,
+    `- NO ground shadows or floor reflections`,
+    ``,
+    // IMPORTANT
+    `IMPORTANT:`,
+    `- This is a strict pose-transfer operation, NOT a reinterpretation`,
+    `- Treat Image 1 as motion-capture reference`,
+    `- The body pose and composition must match Image 1 exactly`,
+    `- Only the character appearance comes from Image 2`,
+  ].join('\n');
 
   return {
-    prompt: `${preamble}, ${animDesc}, ${char.style}`,
-    frames: frameCount,
+    prompt,
+    frames,
     fps: anim.fps,
     loop: anim.loop,
+    breezyFile: anim.breezyFile,
     outputName: `${characterName}-${animationName}`,
+    mode: 'pose-transfer',
   };
 }
 
 /**
- * List all available animations for a character.
+ * Build a film-to-sprite prompt (real footage → pixel art).
+ * Similar to pose transfer but the reference is real video frames.
  */
-function listAnimations(characterName) {
+function buildFilmToSpritePrompt(characterName, animDescription, frameCount, opts = {}) {
   const char = CHARACTERS[characterName];
-  if (!char) return null;
+  if (!char) throw new Error(`Unknown character: ${characterName}`);
 
+  const prompt = [
+    `STRICT POSE AND COMPOSITION TRANSFER — FILM TO SPRITE`,
+    ``,
+    `Use the uploaded images in the following roles:`,
+    `Image 1 = real video frame reference strip showing the exact poses to replicate`,
+    `Image 2 = character appearance reference`,
+    ``,
+    `Your task is to convert the real-world poses from Image 1 into a pixel art sprite sheet, using the character from Image 2.`,
+    ``,
+    `OUTPUT FORMAT: A single horizontal sprite sheet with EXACTLY ${frameCount} equally-sized square frames in a row. Each frame must be the EXACT same width and height.`,
+    ``,
+    `POSE RULES:`,
+    `- Each frame in the output must match the corresponding frame in Image 1`,
+    `- Copy the exact body pose, limb positions, and weight distribution`,
+    `- The animation shows: ${animDescription}`,
+    `- Read the poses LEFT TO RIGHT from Image 1`,
+    ``,
+    `CHARACTER RULES:`,
+    `- Use the character from Image 2: ${char.description}`,
+    `- Preserve face, hairstyle, clothing, colors from Image 2`,
+    ``,
+    `STYLE: ${char.style}, bold black pixel outlines, 2px white outline around character`,
+    ``,
+    `BACKGROUND: Pure solid green (#00FF00). NO green on the character. NO anti-aliasing, NO gradients, NO shadows.`,
+    ``,
+    `Consistent character size across all frames, same baseline.`,
+  ].join('\n');
+
+  return {
+    prompt,
+    frames: frameCount,
+    outputName: `${characterName}-custom`,
+    mode: 'film-to-sprite',
+  };
+}
+
+// ─── Legacy prompt (backward compat) ────────────────────────────────────
+
+function buildPrompt(characterName, animationName, opts = {}) {
+  return buildPoseTransferPrompt(characterName, animationName, opts);
+}
+
+function buildCustomPrompt(characterName, description, frameCount) {
+  return buildFilmToSpritePrompt(characterName, description, frameCount);
+}
+
+// ─── Prompt Training System ─────────────────────────────────────────────
+
+function loadTraining() {
+  const dir = path.dirname(TRAINING_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(TRAINING_FILE)) {
+    return { promptOverrides: {}, history: [], totalIterations: 0 };
+  }
+  return JSON.parse(fs.readFileSync(TRAINING_FILE, 'utf8'));
+}
+
+function saveTraining(data) {
+  const dir = path.dirname(TRAINING_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(TRAINING_FILE, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Record prompt feedback and adjust future prompts.
+ *
+ * @param {string} animName - Animation that was generated
+ * @param {number} rating - 1-5 quality rating
+ * @param {string} notes - What was wrong/right
+ * @param {object} details - { betterFrameBreakdown, betterStyle, promptUsed }
+ */
+function trainPrompt(animName, rating, notes, details = {}) {
+  const training = loadTraining();
+
+  training.history.push({
+    animation: animName,
+    rating,
+    notes,
+    timestamp: new Date().toISOString(),
+    promptUsed: details.promptUsed,
+  });
+  training.totalIterations++;
+
+  // If user provided better descriptions, save as overrides
+  if (details.betterFrameBreakdown) {
+    if (!training.promptOverrides[animName]) training.promptOverrides[animName] = {};
+    training.promptOverrides[animName].frameBreakdown = details.betterFrameBreakdown;
+  }
+  if (details.betterStyle) {
+    if (!training.promptOverrides[animName]) training.promptOverrides[animName] = {};
+    training.promptOverrides[animName].style = details.betterStyle;
+  }
+
+  saveTraining(training);
+  return training;
+}
+
+function listAnimations() {
   return Object.entries(ANIMATIONS).map(([name, anim]) => ({
-    name,
-    frames: anim.frames,
-    fps: anim.fps,
-    loop: anim.loop,
+    name, frames: anim.frames, fps: anim.fps, loop: anim.loop,
+    hasBreezyRef: !!anim.breezyFile,
   }));
 }
 
-/**
- * Build a custom prompt (not from templates).
- */
-function buildCustomPrompt(characterName, description, frameCount) {
-  const char = CHARACTERS[characterName];
-  if (!char) {
-    throw new Error(`Unknown character: ${characterName}`);
-  }
-
-  const preamble = STYLE_PREAMBLE.replace('{FRAMES}', frameCount);
-
-  return {
-    prompt: `${preamble}, ${char.description} ${description}, ${char.style}`,
-    frames: frameCount,
-    outputName: `${characterName}-custom`,
-  };
-}
-
 module.exports = {
-  STYLE_PREAMBLE,
   CHARACTERS,
   ANIMATIONS,
   buildPrompt,
+  buildPoseTransferPrompt,
+  buildFilmToSpritePrompt,
   buildCustomPrompt,
   listAnimations,
+  trainPrompt,
+  loadTraining,
 };

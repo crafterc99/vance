@@ -17,7 +17,25 @@ const chalk = require('chalk');
 const DEFAULT_FPS = 10;
 const TEMP_DIR = path.resolve(__dirname, '../../.video-tmp');
 
+/**
+ * Resolve the ffmpeg binary path.
+ * Prefers system ffmpeg, falls back to ffmpeg-static npm package.
+ */
+function getFFmpegPath() {
+  try {
+    execSync('which ffmpeg', { stdio: 'pipe' });
+    return 'ffmpeg';
+  } catch {
+    try {
+      return require('ffmpeg-static');
+    } catch {
+      return null;
+    }
+  }
+}
+
 function checkDependency(cmd) {
+  if (cmd === 'ffmpeg') return !!getFFmpegPath();
   try {
     execSync(`which ${cmd}`, { stdio: 'pipe' });
     return true;
@@ -72,12 +90,12 @@ function isUrl(str) {
  * @returns {{ frames: string[], count: number }}
  */
 function extractFrames(videoPath, outputDir, opts = {}) {
-  if (!checkDependency('ffmpeg')) {
+  const ffmpeg = getFFmpegPath();
+  if (!ffmpeg) {
     throw new Error(
-      'ffmpeg not installed. Install it:\n' +
+      'ffmpeg not found. Install it:\n' +
       '  macOS: brew install ffmpeg\n' +
-      '  Linux: sudo apt install ffmpeg\n' +
-      '  Windows: choco install ffmpeg'
+      '  Or:    cd vance && npm install ffmpeg-static'
     );
   }
 
@@ -90,7 +108,7 @@ function extractFrames(videoPath, outputDir, opts = {}) {
   const fps = opts.fps || DEFAULT_FPS;
   const outputPattern = path.join(outputDir, 'frame-%04d.png');
 
-  // Build ffmpeg command
+  // Build ffmpeg command (use resolved binary path)
   const args = ['-y'];
 
   // Start time
@@ -114,9 +132,9 @@ function extractFrames(videoPath, outputDir, opts = {}) {
 
   args.push(outputPattern);
 
-  console.log(chalk.gray(`  ffmpeg ${args.join(' ')}`));
+  console.log(chalk.gray(`  ${ffmpeg} ${args.join(' ')}`));
 
-  const result = spawnSync('ffmpeg', args, {
+  const result = spawnSync(ffmpeg, args, {
     stdio: 'pipe',
     timeout: 300000, // 5 min
   });

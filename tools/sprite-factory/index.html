@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPRITE FACTORY — Soul Jam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a28;
+    --surface3: #222236;
+    --border: #2a2a3a;
+    --border-focus: #4a4a6a;
+    --text: #e8e8f0;
+    --text-dim: #6a6a80;
+    --text-muted: #44445a;
+    --accent: #ff4400;
+    --accent-hover: #ff5511;
+    --accent2: #00ff88;
+    --accent3: #4488ff;
+    --warning: #ffaa00;
+    --danger: #ff2244;
+    --green-bg: #00ff00;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Outfit', sans-serif;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --shadow-accent: 0 4px 20px rgba(255,68,0,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  ::selection { background: var(--accent); color: white; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,15,0.92);
+    z-index: 100;
+    backdrop-filter: blur(20px);
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .logo span { color: var(--text-dim); font-weight: 400; }
+
+  .header-right {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 3px;
+    border: 1px solid var(--border);
+  }
+
+  .mode-tab {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .mode-tab:hover { color: var(--text); }
+  .mode-tab.active { background: var(--accent); color: white; }
+
+  .status {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 2s infinite;
+  }
+  .status-dot.offline { background: var(--danger); }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .model-select {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .model-select:focus { outline: none; border-color: var(--accent3); }
+
+  /* ─── MAIN LAYOUT ─── */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    min-height: calc(100vh - 57px);
+  }
+
+  /* ─── LEFT PANEL ─── */
+  .panel-left {
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label .count {
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+
+  .char-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .char-card:hover { border-color: var(--accent); transform: translateX(3px); }
+  .char-card.active { border-color: var(--accent); background: var(--surface2); }
+
+  .char-avatar {
+    width: 48px; height: 48px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--surface2);
+    image-rendering: pixelated;
+  }
+
+  .char-info h3 { font-size: 16px; font-weight: 700; }
+  .char-info p { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .anim-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .anim-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+    text-align: left;
+    position: relative;
+  }
+  .anim-btn:hover { border-color: var(--accent3); background: var(--surface2); }
+  .anim-btn.active { border-color: var(--accent); background: rgba(255,68,0,0.08); }
+  .anim-btn.done { border-color: var(--accent2); }
+  .anim-btn.done::after {
+    content: '';
+    position: absolute; top: 6px; right: 6px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+  }
+  .anim-btn .frames { color: var(--text-dim); font-size: 9px; display: block; margin-top: 2px; }
+
+  /* ─── CENTER PANEL ─── */
+  .panel-center {
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .preview-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .preview-area img {
+    max-width: 100%;
+    max-height: 380px;
+    image-rendering: pixelated;
+  }
+
+  .preview-empty {
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: center;
+    line-height: 2;
+  }
+
+  .preview-label {
+    position: absolute;
+    top: 10px; left: 14px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .preview-bg-toggle {
+    position: absolute;
+    top: 10px; right: 14px;
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .preview-bg-toggle:hover { border-color: var(--accent3); color: var(--text); }
+
+  /* ─── Action Buttons ─── */
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    flex: 1;
+  }
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-accent); }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent3); }
+
+  .btn-success {
+    background: rgba(0,255,136,0.12);
+    color: var(--accent2);
+    border: 1px solid rgba(0,255,136,0.3);
+  }
+  .btn-success:hover { background: rgba(0,255,136,0.2); }
+
+  .btn-sm {
+    padding: 8px 14px;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ─── Prompt Editor ─── */
+  .prompt-editor {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+
+  .prompt-editor textarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+  .prompt-editor textarea:focus { outline: none; border-color: var(--accent3); }
+
+  /* ─── Video Pipeline Section ─── */
+  .video-pipeline {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: none;
+  }
+  .video-pipeline.visible { display: block; }
+
+  .pipeline-steps {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+    align-items: center;
+  }
+
+  .step-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    background: var(--surface2);
+    transition: all 0.2s;
+  }
+  .step-badge.active { border-color: var(--accent3); color: var(--accent3); background: rgba(68,136,255,0.1); }
+  .step-badge.done { border-color: var(--accent2); color: var(--accent2); background: rgba(0,255,136,0.08); }
+  .step-arrow { color: var(--text-muted); font-size: 14px; }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 10px 0;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent3);
+    background: rgba(68,136,255,0.05);
+  }
+  .drop-zone p { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .drop-zone input { display: none; }
+
+  .frame-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  .frame-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .frame-thumb:hover { border-color: var(--accent3); }
+  .frame-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+  .selected-strip {
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    background: var(--bg);
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+
+  .selected-strip img {
+    height: 72px;
+    image-rendering: pixelated;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  .path-input {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    margin: 6px 0;
+  }
+  .path-input:focus { outline: none; border-color: var(--accent3); }
+
+  /* ─── RIGHT PANEL ─── */
+  .panel-right {
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+
+  .feedback-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+
+  .rating-row {
+    display: flex;
+    gap: 5px;
+    margin: 10px 0;
+  }
+
+  .star {
+    width: 30px; height: 30px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: var(--mono);
+    font-weight: 700;
+    transition: all 0.12s;
+    color: var(--text-dim);
+  }
+  .star:hover, .star.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .feedback-input {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 9px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    margin-top: 6px;
+  }
+  .feedback-input:focus { outline: none; border-color: var(--accent3); }
+
+  /* Training weights */
+  .weight-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0;
+    font-size: 10px;
+    font-family: var(--mono);
+  }
+
+  .weight-bar .label { width: 72px; color: var(--text-dim); font-size: 9px; }
+  .weight-bar .bar {
+    flex: 1; height: 5px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .weight-bar .bar .fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s;
+  }
+  .weight-bar .value { width: 32px; text-align: right; color: var(--text-dim); font-size: 9px; }
+
+  /* Log */
+  .log {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    max-height: 180px;
+    overflow-y: auto;
+    line-height: 1.9;
+  }
+  .log .success { color: var(--accent2); }
+  .log .error { color: var(--danger); }
+  .log .info { color: var(--accent3); }
+  .log .warn { color: var(--warning); }
+
+  /* Spinner */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .spinner.active { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--accent2);
+    color: var(--text);
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    font-family: var(--mono);
+    font-size: 11px;
+    z-index: 1000;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.25s;
+    max-width: 400px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--danger); }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .main { grid-template-columns: 1fr; }
+    .panel-left, .panel-right { border: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">SPRITE FACTORY <span>/ Soul Jam</span></div>
+  <div class="header-right">
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="setMode('replicate')">Replicate</button>
+      <button class="mode-tab" onclick="setMode('video')">Video Pipeline</button>
+    </div>
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="apiStatus">Connecting...</span>
+    </div>
+    <select class="model-select" id="modelSelect">
+      <option value="gemini-2.5-flash-image">Flash</option>
+      <option value="gemini-3-pro-image-preview">Pro</option>
+    </select>
+  </div>
+</div>
+
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="panel-left">
+    <div>
+      <div class="section-label">Character</div>
+      <div style="display:flex;flex-direction:column;gap:6px" id="charList"></div>
+    </div>
+    <div>
+      <div class="section-label">Animations <span class="count" id="animCount">0/8</span></div>
+      <div class="anim-grid" id="animGrid"></div>
+    </div>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-success btn-sm" style="width:100%" onclick="buildGridSheet()">Build Grid Sheet</button>
+      <button class="btn btn-secondary btn-sm" style="width:100%" onclick="generateAll()">Generate All</button>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL -->
+  <div class="panel-center">
+    <!-- Preview -->
+    <div class="preview-area" id="previewArea">
+      <div class="preview-label" id="previewLabel">PREVIEW</div>
+      <button class="preview-bg-toggle" id="bgToggle" onclick="togglePreviewBg()">BG: Dark</button>
+      <div class="preview-empty" id="previewEmpty">
+        Select a character + animation<br>then hit GENERATE
+      </div>
+      <img id="previewImg" style="display:none" />
+    </div>
+
+    <!-- Actions -->
+    <div class="actions" id="replicateActions">
+      <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+        <span class="spinner" id="genSpinner"></span>
+        Generate
+      </button>
+    </div>
+
+    <!-- Video Pipeline -->
+    <div class="video-pipeline" id="videoPipeline">
+      <div class="section-label">Video Pipeline</div>
+      <div class="pipeline-steps">
+        <span class="step-badge" id="stepUpload">Upload</span>
+        <span class="step-arrow">&rarr;</span>
+        <span class="step-badge" id="stepExtract">Extract</span>
+        <span class="step-arrow">&rarr;</span>
+        <span class="step-badge" id="stepSelect">Select</span>
+        <span class="step-arrow">&rarr;</span>
+        <span class="step-badge" id="stepStrip">Strip</span>
+        <span class="step-arrow">&rarr;</span>
+        <span class="step-badge" id="stepGenerate">Generate</span>
+      </div>
+
+      <!-- Upload / path -->
+      <div id="videoUploadSection">
+        <input class="path-input" id="videoPath" placeholder="Paste video path, e.g. /Users/you/Downloads/clip.mov" />
+        <div class="drop-zone" id="dropZone">
+          <p>Drop video file here or click to browse</p>
+          <input type="file" id="videoFile" accept="video/*" />
+        </div>
+        <div class="actions" style="margin-top:8px">
+          <button class="btn btn-secondary btn-sm" onclick="loadVideoFromPath()">Load from Path</button>
+          <input class="path-input" id="extractFps" value="10" style="width:60px;text-align:center" />
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">FPS</span>
+        </div>
+      </div>
+
+      <!-- Frame gallery -->
+      <div id="frameGallery" style="display:none;margin-top:12px">
+        <div class="section-label">Extracted Frames <span class="count" id="frameCountBadge">0</span></div>
+        <div class="frame-gallery" id="frameGrid"></div>
+        <div class="actions" style="margin-top:8px">
+          <input class="path-input" id="selectCount" value="6" style="width:50px;text-align:center" />
+          <button class="btn btn-primary btn-sm" onclick="smartSelectFrames()">
+            <span class="spinner" id="selectSpinner"></span>
+            Smart Select
+          </button>
+        </div>
+      </div>
+
+      <!-- Selected frames -->
+      <div id="selectedSection" style="display:none;margin-top:12px">
+        <div class="section-label">Selected Key Frames</div>
+        <div class="selected-strip" id="selectedStrip"></div>
+        <div class="actions" style="margin-top:8px">
+          <button class="btn btn-secondary btn-sm" onclick="buildStrip()">Build Strip</button>
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="generateFromVideo()">
+            <span class="spinner" id="vidGenSpinner"></span>
+            Generate Sprite
+          </button>
+        </div>
+      </div>
+
+      <!-- Strip preview -->
+      <div id="stripSection" style="display:none;margin-top:12px">
+        <div class="section-label">Reference Strip</div>
+        <div style="background:var(--bg);border-radius:6px;padding:8px;overflow-x:auto">
+          <img id="stripImg" style="height:80px;image-rendering:pixelated" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompt Editor -->
+    <div class="prompt-editor">
+      <div class="section-label">
+        Prompt
+        <span style="color:var(--accent3);cursor:pointer;font-size:9px" onclick="resetPrompt()">[reset]</span>
+        <span style="color:var(--warning);cursor:pointer;font-size:9px;margin-left:4px" onclick="copyPrompt()">[copy]</span>
+      </div>
+      <textarea id="promptText" placeholder="Select a character + animation to auto-fill..."></textarea>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+    <!-- Feedback -->
+    <div class="feedback-section">
+      <div class="section-label">Rate Output</div>
+      <p style="font-size:11px;color:var(--text-dim);margin:6px 0">Feedback trains better prompts</p>
+      <div class="rating-row" id="ratingRow">
+        <div class="star" data-rating="1" onclick="setRating(1)">1</div>
+        <div class="star" data-rating="2" onclick="setRating(2)">2</div>
+        <div class="star" data-rating="3" onclick="setRating(3)">3</div>
+        <div class="star" data-rating="4" onclick="setRating(4)">4</div>
+        <div class="star" data-rating="5" onclick="setRating(5)">5</div>
+      </div>
+      <input class="feedback-input" id="feedbackNotes" placeholder="What should change?" />
+      <input class="feedback-input" id="feedbackFrames" placeholder="Better frame breakdown? (optional)" style="margin-top:4px" />
+      <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px" onclick="submitFeedback()">Submit</button>
+    </div>
+
+    <!-- Training Weights -->
+    <div class="feedback-section">
+      <div class="section-label">Frame Selection Weights</div>
+      <div id="weightsDisplay">
+        <div class="weight-bar">
+          <span class="label">Ball pos</span>
+          <div class="bar"><div class="fill" id="wBall" style="width:35%;background:var(--accent)"></div></div>
+          <span class="value" id="wBallVal">35%</span>
+        </div>
+        <div class="weight-bar">
+          <span class="label">Motion</span>
+          <div class="bar"><div class="fill" id="wMotion" style="width:30%;background:var(--accent3)"></div></div>
+          <span class="value" id="wMotionVal">30%</span>
+        </div>
+        <div class="weight-bar">
+          <span class="label">Sharpness</span>
+          <div class="bar"><div class="fill" id="wSharp" style="width:15%;background:var(--accent2)"></div></div>
+          <span class="value" id="wSharpVal">15%</span>
+        </div>
+        <div class="weight-bar">
+          <span class="label">Spacing</span>
+          <div class="bar"><div class="fill" id="wSpace" style="width:20%;background:var(--warning)"></div></div>
+          <span class="value" id="wSpaceVal">20%</span>
+        </div>
+      </div>
+      <p style="font-size:9px;color:var(--text-dim);margin-top:6px;font-family:var(--mono)" id="trainCount">0 sessions</p>
+    </div>
+
+    <!-- Prompt Training History -->
+    <div class="feedback-section">
+      <div class="section-label">Prompt History</div>
+      <div id="promptHistory" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);max-height:120px;overflow-y:auto">
+        No training data yet.
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div>
+      <div class="section-label">Activity</div>
+      <div class="log" id="logArea">Ready.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let selectedChar = '99';
+let selectedAnim = 'static-dribble';
+let currentRating = 0;
+let currentMode = 'replicate';
+let characters = {};
+let animations = {};
+let videoSession = null;
+let previewBgDark = true;
+
+// ─── Init ───
+async function init() {
+  try {
+    const res = await fetch(`${API}/api/characters`);
+    const data = await res.json();
+    characters = data.characters;
+    animations = data.animations;
+    renderCharacters();
+    renderAnimations();
+    updatePrompt();
+    loadTrainingWeights();
+    checkExisting();
+    document.getElementById('apiStatus').textContent = 'Connected';
+    log('Sprite Factory online', 'success');
+  } catch (err) {
+    document.getElementById('apiStatus').textContent = 'Offline';
+    document.getElementById('statusDot').classList.add('offline');
+    log('Server offline — run: npm run sprite:factory', 'error');
+  }
+}
+
+// ─── Mode Switching ───
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const pipeline = document.getElementById('videoPipeline');
+  const replicateActions = document.getElementById('replicateActions');
+
+  if (mode === 'video') {
+    pipeline.classList.add('visible');
+    replicateActions.style.display = 'none';
+  } else {
+    pipeline.classList.remove('visible');
+    replicateActions.style.display = 'flex';
+  }
+}
+
+// ─── Character & Animation Rendering ───
+function renderCharacters() {
+  const el = document.getElementById('charList');
+  el.innerHTML = '';
+  for (const [key, char] of Object.entries(characters)) {
+    const name = key === '99' ? '99' : key.charAt(0).toUpperCase() + key.slice(1);
+    const card = document.createElement('div');
+    card.className = `char-card ${key === selectedChar ? 'active' : ''}`;
+    card.onclick = () => { selectedChar = key; renderCharacters(); updatePrompt(); checkExisting(); };
+    card.innerHTML = `
+      <img class="char-avatar" src="/assets/${key === '99' ? '99' : key}full.png" onerror="this.style.display='none'" />
+      <div class="char-info">
+        <h3>${name}</h3>
+        <p>${char.style}</p>
+      </div>
+    `;
+    el.appendChild(card);
+  }
+}
+
+function renderAnimations() {
+  const el = document.getElementById('animGrid');
+  el.innerHTML = '';
+  for (const [key, anim] of Object.entries(animations)) {
+    const btn = document.createElement('button');
+    btn.className = `anim-btn ${key === selectedAnim ? 'active' : ''}`;
+    btn.dataset.anim = key;
+    btn.onclick = () => { selectedAnim = key; renderAnimations(); updatePrompt(); checkExisting(); };
+    btn.innerHTML = `${key}<span class="frames">${anim.frames}f @ ${anim.fps}fps</span>`;
+    el.appendChild(btn);
+  }
+}
+
+function updatePrompt() {
+  const el = document.getElementById('promptText');
+  if (!characters[selectedChar] || !animations[selectedAnim]) return;
+  const char = characters[selectedChar];
+  const anim = animations[selectedAnim];
+  el.value = [
+    'STRICT POSE AND COMPOSITION TRANSFER',
+    '',
+    'Image 1 = pose and composition reference',
+    'Image 2 = character appearance reference',
+    '',
+    `Recreate Image 1 as a pixel art sprite sheet with EXACTLY ${anim.frames} equally-sized square frames in a row.`,
+    'Replace the character with Image 2.',
+    '',
+    `POSE: Copy exact body pose, limb placement, character positions from Image 1.`,
+    `Animation: ${anim.action}`,
+    `Frames: ${anim.frameBreakdown}`,
+    '',
+    `CHARACTER: ${char.description}`,
+    `STYLE: ${char.style}, bold black pixel outlines, 2px white outline`,
+    '',
+    'BACKGROUND: Pure solid green #00FF00. NO green on character. NO anti-aliasing.',
+    `Consistent size across all ${anim.frames} frames. Same baseline.`,
+  ].join('\n');
+}
+
+function resetPrompt() { updatePrompt(); toast('Prompt reset'); }
+function copyPrompt() {
+  navigator.clipboard.writeText(document.getElementById('promptText').value);
+  toast('Copied to clipboard');
+}
+
+async function checkExisting() {
+  try {
+    const res = await fetch(`${API}/api/sprites/${selectedChar}`);
+    const data = await res.json();
+    const sprite = data.sprites[selectedAnim];
+    if (sprite?.exists) {
+      showPreview(sprite.url + '?t=' + Date.now());
+    } else {
+      hidePreview();
+    }
+    let doneCount = 0;
+    document.querySelectorAll('.anim-btn').forEach(btn => {
+      const name = btn.dataset.anim;
+      if (data.sprites[name]?.exists) { btn.classList.add('done'); doneCount++; }
+      else btn.classList.remove('done');
+    });
+    document.getElementById('animCount').textContent = `${doneCount}/${Object.keys(animations).length}`;
+  } catch {}
+}
+
+// ─── Generation ───
+async function generate() {
+  const btn = document.getElementById('generateBtn');
+  const spinner = document.getElementById('genSpinner');
+  btn.disabled = true;
+  spinner.classList.add('active');
+  log(`Generating ${selectedChar} / ${selectedAnim}...`, 'info');
+
+  try {
+    const res = await fetch(`${API}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: selectedChar,
+        animation: selectedAnim,
+        model: document.getElementById('modelSelect').value,
+        customPrompt: document.getElementById('promptText').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    showPreview(data.processed + '?t=' + Date.now());
+    log(`Done: ${data.frames} frames`, 'success');
+    toast('Sprite generated!');
+    checkExisting();
+  } catch (err) {
+    log(`Error: ${err.message}`, 'error');
+    toast(err.message.substring(0, 100), true);
+  }
+
+  btn.disabled = false;
+  spinner.classList.remove('active');
+}
+
+async function generateAll() {
+  const anims = Object.keys(animations);
+  log(`Generating all ${anims.length} for ${selectedChar}...`, 'warn');
+  for (const anim of anims) {
+    selectedAnim = anim;
+    renderAnimations();
+    updatePrompt();
+    await generate();
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  log('All animations done!', 'success');
+  toast('Full character generated!');
+}
+
+async function buildGridSheet() {
+  log(`Building grid for ${selectedChar}...`, 'info');
+  try {
+    const res = await fetch(`${API}/api/grid/${selectedChar}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    log(`Grid: ${data.width}x${data.height}px`, 'success');
+    toast('Grid sheet built!');
+  } catch (err) {
+    log(`Grid error: ${err.message}`, 'error');
+  }
+}
+
+// ─── Video Pipeline ───
+async function loadVideoFromPath() {
+  const videoPath = document.getElementById('videoPath').value.trim();
+  if (!videoPath) { toast('Enter a video path', true); return; }
+
+  log(`Loading video: ${videoPath.split('/').pop()}`, 'info');
+  setStep('upload');
+  try {
+    const res = await fetch(`${API}/api/video/from-path`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoPath }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    videoSession = data.sessionId;
+    log(`Video loaded: ${(data.size / 1024 / 1024).toFixed(1)}MB`, 'success');
+    setStep('upload', true);
+    await extractFrames();
+  } catch (err) {
+    log(`Video error: ${err.message}`, 'error');
+  }
+}
+
+async function extractFrames() {
+  if (!videoSession) return;
+  const fps = parseInt(document.getElementById('extractFps').value) || 10;
+  log(`Extracting at ${fps}fps...`, 'info');
+  setStep('extract');
+
+  try {
+    const res = await fetch(`${API}/api/video/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: videoSession, fps }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    log(`Extracted ${data.frameCount} frames`, 'success');
+    setStep('extract', true);
+    document.getElementById('frameCountBadge').textContent = data.frameCount;
+
+    // Render gallery
+    const gallery = document.getElementById('frameGrid');
+    gallery.innerHTML = '';
+    data.frames.forEach(url => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.className = 'frame-thumb';
+      img.loading = 'lazy';
+      gallery.appendChild(img);
+    });
+    document.getElementById('frameGallery').style.display = 'block';
+  } catch (err) {
+    log(`Extract error: ${err.message}`, 'error');
+  }
+}
+
+async function smartSelectFrames() {
+  if (!videoSession) return;
+  const count = parseInt(document.getElementById('selectCount').value) || 6;
+  const spinner = document.getElementById('selectSpinner');
+  spinner.classList.add('active');
+  log(`Smart-selecting ${count} frames...`, 'info');
+  setStep('select');
+
+  try {
+    const res = await fetch(`${API}/api/video/smart-select`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: videoSession, count }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    log(`Selected ${data.count} key frames`, 'success');
+    setStep('select', true);
+
+    // Show selected
+    const strip = document.getElementById('selectedStrip');
+    strip.innerHTML = '';
+    data.frames.forEach(f => {
+      const img = document.createElement('img');
+      img.src = f.selectedUrl;
+      strip.appendChild(img);
+    });
+    document.getElementById('selectedSection').style.display = 'block';
+  } catch (err) {
+    log(`Select error: ${err.message}`, 'error');
+  }
+  spinner.classList.remove('active');
+}
+
+async function buildStrip() {
+  if (!videoSession) return;
+  log('Building reference strip...', 'info');
+  setStep('strip');
+  try {
+    const res = await fetch(`${API}/api/video/strip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: videoSession }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('stripImg').src = data.stripUrl + '?t=' + Date.now();
+    document.getElementById('stripSection').style.display = 'block';
+    log(`Strip: ${data.frameCount} frames`, 'success');
+    setStep('strip', true);
+  } catch (err) {
+    log(`Strip error: ${err.message}`, 'error');
+  }
+}
+
+async function generateFromVideo() {
+  if (!videoSession) return;
+  const spinner = document.getElementById('vidGenSpinner');
+  spinner.classList.add('active');
+  log(`Generating from video strip...`, 'info');
+  setStep('generate');
+
+  try {
+    // Build strip first if not done
+    const stripCheck = document.getElementById('stripSection');
+    if (stripCheck.style.display === 'none') await buildStrip();
+
+    const count = parseInt(document.getElementById('selectCount').value) || 6;
+    const res = await fetch(`${API}/api/video/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: videoSession,
+        character: selectedChar,
+        animName: selectedAnim,
+        frameCount: count,
+        model: document.getElementById('modelSelect').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    showPreview(data.processed + '?t=' + Date.now());
+    log(`Film-to-sprite: ${data.frames} frames`, 'success');
+    toast('Sprite from video!');
+    setStep('generate', true);
+    checkExisting();
+  } catch (err) {
+    log(`Generate error: ${err.message}`, 'error');
+  }
+  spinner.classList.remove('active');
+}
+
+function setStep(name, done = false) {
+  const el = document.getElementById('step' + name.charAt(0).toUpperCase() + name.slice(1));
+  if (!el) return;
+  if (done) { el.classList.remove('active'); el.classList.add('done'); }
+  else { el.classList.add('active'); el.classList.remove('done'); }
+}
+
+// ─── Drop zone ───
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('videoFile');
+dropZone.onclick = () => fileInput.click();
+dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+dropZone.ondrop = async (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer?.files[0];
+  if (!file) return;
+  await uploadVideo(file);
+};
+fileInput.onchange = async () => {
+  if (fileInput.files[0]) await uploadVideo(fileInput.files[0]);
+};
+
+async function uploadVideo(file) {
+  log(`Uploading ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)...`, 'info');
+  setStep('upload');
+  try {
+    const res = await fetch(`${API}/api/video/upload`, {
+      method: 'POST',
+      body: file,
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    videoSession = data.sessionId;
+    log('Video uploaded', 'success');
+    setStep('upload', true);
+    await extractFrames();
+  } catch (err) {
+    log(`Upload error: ${err.message}`, 'error');
+  }
+}
+
+// ─── Feedback ───
+function setRating(n) {
+  currentRating = n;
+  document.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.rating) <= n);
+  });
+}
+
+async function submitFeedback() {
+  const notes = document.getElementById('feedbackNotes').value;
+  const betterFrameBreakdown = document.getElementById('feedbackFrames').value;
+  if (!currentRating) { toast('Select a rating', true); return; }
+  try {
+    await fetch(`${API}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        animation: selectedAnim,
+        rating: currentRating,
+        notes,
+        betterFrameBreakdown: betterFrameBreakdown || undefined,
+      }),
+    });
+    log(`Feedback: ${currentRating}/5 — ${notes || '(no notes)'}`, 'success');
+    toast('Feedback saved');
+    document.getElementById('feedbackNotes').value = '';
+    document.getElementById('feedbackFrames').value = '';
+    setRating(0);
+    loadTrainingWeights();
+  } catch (err) {
+    log(`Feedback error: ${err.message}`, 'error');
+  }
+}
+
+async function loadTrainingWeights() {
+  try {
+    const res = await fetch(`${API}/api/training`);
+    const data = await res.json();
+    const w = data.frames?.weights || {};
+    setWeight('Ball', w.ballPosition || 0.35);
+    setWeight('Motion', w.motionPeak || 0.30);
+    setWeight('Sharp', w.sharpness || 0.15);
+    setWeight('Space', w.evenSpacing || 0.20);
+    const promptSessions = data.prompts?.totalIterations || 0;
+    const frameSessions = data.frames?.totalSessions || 0;
+    document.getElementById('trainCount').textContent =
+      `${promptSessions} prompt + ${frameSessions} frame sessions`;
+
+    // Render history
+    const hist = data.prompts?.history || [];
+    const el = document.getElementById('promptHistory');
+    if (hist.length) {
+      el.innerHTML = hist.slice(-8).reverse().map(h =>
+        `<div style="margin:4px 0;padding:4px;border-bottom:1px solid var(--border)">
+          <span style="color:var(--accent)">${h.animation}</span> — ${h.rating}/5
+          ${h.notes ? `<br>${h.notes}` : ''}
+          <br><span style="color:var(--text-muted)">${new Date(h.timestamp).toLocaleDateString()}</span>
+        </div>`
+      ).join('');
+    }
+  } catch {}
+}
+
+function setWeight(name, val) {
+  const pct = Math.round(val * 100);
+  const fill = document.getElementById('w' + name);
+  const valEl = document.getElementById('w' + name + 'Val');
+  if (fill) fill.style.width = pct + '%';
+  if (valEl) valEl.textContent = pct + '%';
+}
+
+// ─── Preview ───
+function showPreview(url) {
+  document.getElementById('previewEmpty').style.display = 'none';
+  const img = document.getElementById('previewImg');
+  img.src = url;
+  img.style.display = 'block';
+  document.getElementById('previewLabel').textContent = `${selectedChar} / ${selectedAnim}`;
+}
+
+function hidePreview() {
+  document.getElementById('previewEmpty').style.display = 'block';
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('previewLabel').textContent = 'PREVIEW';
+}
+
+function togglePreviewBg() {
+  const area = document.getElementById('previewArea');
+  const btn = document.getElementById('bgToggle');
+  previewBgDark = !previewBgDark;
+  area.style.background = previewBgDark ? 'var(--surface)' : '#00ff00';
+  btn.textContent = previewBgDark ? 'BG: Dark' : 'BG: Green';
+}
+
+// ─── Helpers ───
+function log(msg, type = '') {
+  const el = document.getElementById('logArea');
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  el.innerHTML += `\n<span class="${type}">[${time}] ${msg}</span>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>

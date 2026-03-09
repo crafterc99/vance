@@ -8,3 +8,6 @@ test-output/
 .screenshots/
 raw-sprites/references/
 tools/sprite-generator/automation/selectors.json
+.video-tmp/
+.training-data/
+.claude/
