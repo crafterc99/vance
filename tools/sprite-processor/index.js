@@ -5,7 +5,19 @@ const fs = require('fs');
 
 const SOUL_JAM_ASSETS = path.resolve(__dirname, '../../../soul-jam/public/assets/images');
 const DEFAULT_FRAME_SIZE = 180;
-const DEFAULT_BG_COLOR = { r: 0, g: 71, b: 255 }; // #0047FF
+const DEFAULT_BG_COLOR = { r: 0, g: 255, b: 0 }; // #00FF00 green (Nano Banana standard)
+
+// Animation layout for grid sheet assembly
+const GRID_LAYOUT = [
+  { name: 'static-dribble',    frames: 6 },
+  { name: 'dribble',           frames: 8 },
+  { name: 'jumpshot',          frames: 7 },
+  { name: 'stepback',          frames: 4 },
+  { name: 'crossover',         frames: 4 },
+  { name: 'defense-backpedal', frames: 4 },
+  { name: 'defense-shuffle',   frames: 2 },
+  { name: 'steal',             frames: 3 },
+];
 
 /**
  * Detect frames in a horizontal sprite strip by dividing width by frame height.
@@ -56,13 +68,50 @@ async function cutFrames(imagePath, outputDir, opts = {}) {
   return { frames, info };
 }
 
+// ─── HSV-based green chroma key ──────────────────────────────────────────
+
 /**
- * Remove a background color and replace with transparency.
- * Uses a tolerance value (0-255) to handle anti-aliasing and compression artifacts.
+ * Convert RGB (0-255) to HSV (h: 0-360, s: 0-1, v: 0-1).
+ */
+function rgbToHsv(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+
+  const s = max === 0 ? 0 : d / max;
+  const v = max;
+
+  return { h, s, v };
+}
+
+/**
+ * Remove green background using HSV-based chroma keying.
+ *
+ * Removes pixels where:
+ *   - Hue is in the green range [hueMin, hueMax] (default: 80-160)
+ *   - Saturation > satMin (default: 0.25)
+ *   - Value > valMin (default: 0.25)
+ *
+ * Also does edge feathering for semi-transparent pixels near the boundary.
  */
 async function removeBackground(imagePath, outputPath, opts = {}) {
-  const bgColor = opts.bgColor || DEFAULT_BG_COLOR;
-  const tolerance = opts.tolerance || 40;
+  const hueMin = opts.hueMin ?? 80;
+  const hueMax = opts.hueMax ?? 160;
+  const satMin = opts.satMin ?? 0.25;
+  const valMin = opts.valMin ?? 0.25;
+
+  // Legacy RGB tolerance mode (backward compat)
+  const useLegacy = opts.useLegacyRgb === true;
 
   const image = sharp(imagePath).ensureAlpha();
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
@@ -70,14 +119,44 @@ async function removeBackground(imagePath, outputPath, opts = {}) {
   const output = Buffer.alloc(data.length);
   data.copy(output);
 
+  let removedCount = 0;
+
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
-    const dr = Math.abs(r - bgColor.r);
-    const dg = Math.abs(g - bgColor.g);
-    const db = Math.abs(b - bgColor.b);
 
-    if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
-      output[i + 3] = 0; // set alpha to 0 (transparent)
+    if (useLegacy) {
+      // Legacy: simple RGB tolerance
+      const bgColor = opts.bgColor || DEFAULT_BG_COLOR;
+      const tolerance = opts.tolerance || 40;
+      const dr = Math.abs(r - bgColor.r);
+      const dg = Math.abs(g - bgColor.g);
+      const db = Math.abs(b - bgColor.b);
+      if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
+        output[i + 3] = 0;
+        removedCount++;
+      }
+    } else {
+      // HSV chroma key (default)
+      const { h, s, v } = rgbToHsv(r, g, b);
+
+      if (h >= hueMin && h <= hueMax && s > satMin && v > valMin) {
+        // Core green — fully transparent
+        output[i + 3] = 0;
+        removedCount++;
+      } else if (h >= (hueMin - 15) && h <= (hueMax + 15) && s > (satMin * 0.6) && v > (valMin * 0.6)) {
+        // Edge zone — partial transparency for smoother edges
+        const hDist = Math.min(
+          Math.abs(h - hueMin) / 15,
+          Math.abs(h - hueMax) / 15
+        );
+        const sDist = s > satMin ? 0 : (satMin - s) / (satMin * 0.4);
+        const edgeFactor = Math.max(hDist, sDist);
+        const newAlpha = Math.round(edgeFactor * data[i + 3]);
+        if (newAlpha < data[i + 3]) {
+          output[i + 3] = newAlpha;
+          removedCount++;
+        }
+      }
     }
   }
 
@@ -85,7 +164,7 @@ async function removeBackground(imagePath, outputPath, opts = {}) {
     .png()
     .toFile(outputPath || imagePath);
 
-  return outputPath || imagePath;
+  return { outputPath: outputPath || imagePath, removedPixels: removedCount };
 }
 
 /**
@@ -114,7 +193,6 @@ async function buildStrip(framePaths, outputPath, opts = {}) {
   const frameH = opts.frameHeight || DEFAULT_FRAME_SIZE;
   const count = framePaths.length;
 
-  // Create transparent canvas
   const canvas = sharp({
     create: {
       width: frameW * count,
@@ -124,7 +202,6 @@ async function buildStrip(framePaths, outputPath, opts = {}) {
     },
   });
 
-  // Composite each frame at its position
   const composites = await Promise.all(
     framePaths.map(async (fp, i) => {
       const buf = await sharp(fp)
@@ -135,16 +212,12 @@ async function buildStrip(framePaths, outputPath, opts = {}) {
   );
 
   await canvas.composite(composites).png().toFile(outputPath);
-  console.log(`Built strip: ${count} frames × ${frameW}x${frameH} → ${path.basename(outputPath)}`);
+  console.log(`Built strip: ${count} frames x ${frameW}x${frameH} -> ${path.basename(outputPath)}`);
   return outputPath;
 }
 
 /**
- * Full pipeline: take a raw generated image, cut it, remove bg, resize, and build a Soul Jam-ready strip.
- *
- * @param {string} inputImage - path to the raw sprite strip/grid from Higgsfield
- * @param {string} outputName - name for the output (e.g. "breezy-crossover")
- * @param {object} opts - { frameCount, bgColor, tolerance, frameWidth, frameHeight, targetSize, outputDir }
+ * Full pipeline: raw generated image -> cut -> remove bg -> resize -> Soul Jam-ready strip.
  */
 async function processSprite(inputImage, outputName, opts = {}) {
   const targetSize = opts.targetSize || DEFAULT_FRAME_SIZE;
@@ -152,14 +225,13 @@ async function processSprite(inputImage, outputName, opts = {}) {
   const tempDir = path.join(__dirname, '.tmp', outputName);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  console.log(`\nProcessing: ${path.basename(inputImage)} → ${outputName}`);
+  console.log(`\nProcessing: ${path.basename(inputImage)} -> ${outputName}`);
   console.log(`Target: ${targetSize}x${targetSize} frames, output to ${outputDir}\n`);
 
   // Step 1: Detect and cut frames
   const cutOpts = {};
   if (opts.frameCount) {
     const meta = await sharp(inputImage).metadata();
-    // If frameCount specified, calculate frame width from image width
     cutOpts.frameWidth = Math.round(meta.width / opts.frameCount);
     cutOpts.frameHeight = meta.height;
   }
@@ -168,13 +240,20 @@ async function processSprite(inputImage, outputName, opts = {}) {
 
   const { frames } = await cutFrames(inputImage, tempDir, cutOpts);
 
-  // Step 2: Remove background from each frame
+  // Step 2: Remove background from each frame (HSV green chroma key by default)
   const cleanFrames = [];
   for (let i = 0; i < frames.length; i++) {
     const cleanPath = path.join(tempDir, `clean-${String(i).padStart(3, '0')}.png`);
     await removeBackground(frames[i], cleanPath, {
-      bgColor: opts.bgColor || DEFAULT_BG_COLOR,
-      tolerance: opts.tolerance || 40,
+      // HSV params for green (#00FF00) background
+      hueMin: opts.hueMin ?? 80,
+      hueMax: opts.hueMax ?? 160,
+      satMin: opts.satMin ?? 0.25,
+      valMin: opts.valMin ?? 0.25,
+      // Legacy fallback
+      useLegacyRgb: opts.useLegacyRgb,
+      bgColor: opts.bgColor,
+      tolerance: opts.tolerance,
     });
     cleanFrames.push(cleanPath);
     process.stdout.write(`  BG removal: ${i + 1}/${frames.length}\r`);
@@ -191,6 +270,7 @@ async function processSprite(inputImage, outputName, opts = {}) {
   console.log(`  Resized ${resizedFrames.length} frames to ${targetSize}x${targetSize}`);
 
   // Step 4: Build horizontal strip
+  fs.mkdirSync(outputDir, { recursive: true });
   const outputPath = path.join(outputDir, `${outputName}.png`);
   await buildStrip(resizedFrames, outputPath, { frameWidth: targetSize, frameHeight: targetSize });
 
@@ -205,14 +285,140 @@ async function processSprite(inputImage, outputName, opts = {}) {
   // Cleanup temp
   fs.rmSync(tempDir, { recursive: true, force: true });
 
-  console.log(`\n✓ Done! Output: ${outputPath}`);
-  console.log(`  Strip: ${resizedFrames.length} × ${targetSize}x${targetSize} = ${resizedFrames.length * targetSize}x${targetSize}px`);
+  console.log(`\n  Done! Output: ${outputPath}`);
+  console.log(`  Strip: ${resizedFrames.length} x ${targetSize}x${targetSize} = ${resizedFrames.length * targetSize}x${targetSize}px`);
 
   return {
     outputPath,
     framesDir,
     frameCount: resizedFrames.length,
     frameSize: targetSize,
+  };
+}
+
+// ─── Grid Sheet Assembler ───────────────────────────────────────────────
+
+/**
+ * Build a grid sprite sheet from individual animation strips.
+ *
+ * Takes all animation strips for a character and composites into a single
+ * sprite grid PNG with one row per animation.
+ *
+ * Layout (rows):
+ *   0: static-dribble    (6 x 180)
+ *   1: dribble            (8 x 180) <- widest
+ *   2: jumpshot           (7 x 180)
+ *   3: stepback           (4 x 180)
+ *   4: crossover          (4 x 180)
+ *   5: defense-backpedal  (4 x 180)
+ *   6: defense-shuffle    (2 x 180)
+ *   7: steal              (3 x 180)
+ *
+ * @param {string} characterName - Character name (e.g., "99", "breezy")
+ * @param {object} opts - { frameSize, assetsDir, outputDir }
+ * @returns {{ outputPath, manifestPath, width, height, rows }}
+ */
+async function buildGrid(characterName, opts = {}) {
+  const frameSize = opts.frameSize || DEFAULT_FRAME_SIZE;
+  const assetsDir = opts.assetsDir || SOUL_JAM_ASSETS;
+  const outputDir = opts.outputDir || assetsDir;
+
+  // Find max width (most frames in any row)
+  const maxFrames = Math.max(...GRID_LAYOUT.map(r => r.frames));
+  const gridWidth = maxFrames * frameSize;
+  const gridHeight = GRID_LAYOUT.length * frameSize;
+
+  console.log(`\nBuilding grid sheet for ${characterName}`);
+  console.log(`  Grid: ${maxFrames} cols x ${GRID_LAYOUT.length} rows = ${gridWidth}x${gridHeight}px`);
+
+  const composites = [];
+  const manifest = {
+    character: characterName,
+    frameSize,
+    width: gridWidth,
+    height: gridHeight,
+    animations: {},
+  };
+
+  let missingCount = 0;
+
+  for (let row = 0; row < GRID_LAYOUT.length; row++) {
+    const { name, frames } = GRID_LAYOUT[row];
+    const stripPath = path.join(assetsDir, `${characterName}-${name}.png`);
+
+    manifest.animations[name] = {
+      row,
+      frames,
+      y: row * frameSize,
+      width: frames * frameSize,
+    };
+
+    if (!fs.existsSync(stripPath)) {
+      console.log(`  [${row}] ${name}: MISSING (${stripPath})`);
+      missingCount++;
+      continue;
+    }
+
+    // Read the strip and composite each frame into the grid
+    const stripMeta = await sharp(stripPath).metadata();
+    const stripFrameW = Math.round(stripMeta.width / frames);
+
+    for (let col = 0; col < frames; col++) {
+      const frameBuf = await sharp(stripPath)
+        .extract({
+          left: col * stripFrameW,
+          top: 0,
+          width: stripFrameW,
+          height: stripMeta.height,
+        })
+        .resize(frameSize, frameSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .toBuffer();
+
+      composites.push({
+        input: frameBuf,
+        left: col * frameSize,
+        top: row * frameSize,
+      });
+    }
+
+    console.log(`  [${row}] ${name}: ${frames} frames`);
+  }
+
+  if (missingCount > 0) {
+    console.log(`\n  WARNING: ${missingCount} animation(s) missing. Grid will have empty rows.`);
+  }
+
+  // Create the grid
+  fs.mkdirSync(outputDir, { recursive: true });
+  const outputPath = path.join(outputDir, `${characterName}-spritesheet.png`);
+  const manifestPath = path.join(outputDir, `${characterName}-spritesheet.json`);
+
+  await sharp({
+    create: {
+      width: gridWidth,
+      height: gridHeight,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .composite(composites)
+    .png()
+    .toFile(outputPath);
+
+  // Save manifest
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+  console.log(`\n  Grid sheet: ${outputPath}`);
+  console.log(`  Manifest:   ${manifestPath}`);
+  console.log(`  Size: ${gridWidth}x${gridHeight}px (${(fs.statSync(outputPath).size / 1024).toFixed(1)}KB)`);
+
+  return {
+    outputPath,
+    manifestPath,
+    width: gridWidth,
+    height: gridHeight,
+    rows: GRID_LAYOUT.length,
+    missingAnimations: missingCount,
   };
 }
 
@@ -223,7 +429,10 @@ module.exports = {
   resizeFrame,
   buildStrip,
   processSprite,
+  buildGrid,
+  rgbToHsv,
   SOUL_JAM_ASSETS,
   DEFAULT_FRAME_SIZE,
   DEFAULT_BG_COLOR,
+  GRID_LAYOUT,
 };

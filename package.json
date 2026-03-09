@@ -14,13 +14,19 @@
     "sprite:strip": "node tools/sprite-processor/cli.js strip",
     "sprite:info": "node tools/sprite-processor/cli.js info",
     "sprite:batch": "node tools/sprite-processor/cli.js batch",
+    "sprite:grid": "node tools/sprite-processor/cli.js grid",
     "sprite:watch": "node tools/sprite-generator/watcher.js",
     "sprite:batch-prompts": "node tools/sprite-generator/batch-prompts.js",
     "sprite:remove-bg": "node tools/sprite-processor/cli.js remove-bg",
-    "sprite:login": "node tools/sprite-generator/automation/auto-generate.js login",
-    "sprite:auto": "node tools/sprite-generator/automation/auto-generate.js generate",
-    "sprite:test": "node tools/sprite-generator/automation/auto-generate.js test",
-    "sprite:learn-ui": "node tools/sprite-generator/automation/learn-ui.js",
-    "sprite:refs": "node tools/sprite-generator/reference-builder.js"
+    "sprite:auto": "node tools/sprite-generator/automation/auto-generate.js",
+    "sprite:replicate": "node tools/sprite-generator/automation/auto-generate.js replicate",
+    "sprite:film": "node tools/sprite-generator/automation/auto-generate.js film",
+    "sprite:refs": "node tools/sprite-generator/reference-builder.js",
+    "sprite:extract": "node tools/sprite-generator/video-extractor.js extract",
+    "sprite:select": "node tools/sprite-generator/frame-selector.js",
+    "sprite:ref-strip": "node tools/sprite-generator/strip-builder.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.44.0"
   }
 }

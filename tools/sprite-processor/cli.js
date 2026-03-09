@@ -9,6 +9,7 @@ const {
   removeBackground,
   buildStrip,
   detectFrames,
+  buildGrid,
   SOUL_JAM_ASSETS,
 } = require('./index');
 
@@ -28,7 +29,7 @@ program
   .option('-f, --frames <n>', 'Number of frames in the strip', parseInt)
   .option('-s, --size <px>', 'Target frame size (default: 180)', parseInt, 180)
   .option('-t, --tolerance <n>', 'BG removal tolerance 0-255 (default: 40)', parseInt, 40)
-  .option('-b, --bg <hex>', 'Background color to remove (default: #0047FF)', '#0047FF')
+  .option('-b, --bg <hex>', 'Background color to remove (default: #00FF00)', '#00FF00')
   .option('-o, --output <dir>', 'Output directory', SOUL_JAM_ASSETS)
   .option('--no-bg-removal', 'Skip background removal step')
   .option('--frame-width <px>', 'Manual frame width override', parseInt)
@@ -130,7 +131,7 @@ program
   .description('Remove background color from an image')
   .argument('<input>', 'Input image')
   .argument('[output]', 'Output image (defaults to overwrite)')
-  .option('-b, --bg <hex>', 'Background color (default: #0047FF)', '#0047FF')
+  .option('-b, --bg <hex>', 'Background color (default: #00FF00)', '#00FF00')
   .option('-t, --tolerance <n>', 'Tolerance 0-255 (default: 40)', parseInt, 40)
   .action(async (input, output, opts) => {
     const inputPath = path.resolve(input);
@@ -209,6 +210,34 @@ program
     }
 
     console.log(chalk.green.bold(`\n✅ Batch complete!`));
+  });
+
+// ─── GRID: Assemble all strips into a single grid sheet ─────────────────
+program
+  .command('grid')
+  .description('Assemble all animation strips for a character into a single grid sprite sheet')
+  .argument('<character>', 'Character name (e.g., 99, breezy)')
+  .option('-s, --size <px>', 'Frame size (default: 180)', parseInt, 180)
+  .option('-a, --assets <dir>', 'Assets directory', SOUL_JAM_ASSETS)
+  .option('-o, --output <dir>', 'Output directory', SOUL_JAM_ASSETS)
+  .action(async (character, opts) => {
+    console.log(chalk.cyan.bold(`\n  Grid Sheet Assembler — ${character}\n`));
+
+    try {
+      const result = await buildGrid(character, {
+        frameSize: opts.size,
+        assetsDir: opts.assets,
+        outputDir: opts.output,
+      });
+
+      if (result.missingAnimations > 0) {
+        console.log(chalk.yellow(`\n  ${result.missingAnimations} animations missing — grid has empty rows`));
+      }
+      console.log(chalk.green.bold(`\n  Grid sheet ready: ${result.outputPath}`));
+    } catch (err) {
+      console.error(chalk.red(`Error: ${err.message}`));
+      process.exit(1);
+    }
   });
 
 // ─── Helpers ────────────────────────────────────────────────────────────
