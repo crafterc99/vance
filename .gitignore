@@ -4,3 +4,7 @@ node_modules/
 raw-sprites/processed/
 test-output/
 *.DS_Store
+.browser-profile/
+.screenshots/
+raw-sprites/references/
+tools/sprite-generator/automation/selectors.json

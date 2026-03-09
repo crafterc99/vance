@@ -16,6 +16,11 @@
     "sprite:batch": "node tools/sprite-processor/cli.js batch",
     "sprite:watch": "node tools/sprite-generator/watcher.js",
     "sprite:batch-prompts": "node tools/sprite-generator/batch-prompts.js",
-    "sprite:remove-bg": "node tools/sprite-processor/cli.js remove-bg"
+    "sprite:remove-bg": "node tools/sprite-processor/cli.js remove-bg",
+    "sprite:login": "node tools/sprite-generator/automation/auto-generate.js login",
+    "sprite:auto": "node tools/sprite-generator/automation/auto-generate.js generate",
+    "sprite:test": "node tools/sprite-generator/automation/auto-generate.js test",
+    "sprite:learn-ui": "node tools/sprite-generator/automation/learn-ui.js",
+    "sprite:refs": "node tools/sprite-generator/reference-builder.js"
   }
 }
