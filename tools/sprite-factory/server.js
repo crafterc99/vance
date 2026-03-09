@@ -119,9 +119,10 @@ async function handleAPI(req, res, pathname) {
       charRef = CHARACTERS[character] ? path.join(ASSETS_DIR, `${character === '99' ? '99' : character}full.png`) : null;
 
       const frames = anim?.frames || 6;
-      let aspectRatio = '16:9';
-      if (frames <= 3) aspectRatio = '3:1';
-      else if (frames >= 6) aspectRatio = '21:9';
+      // Aspect ratio should match the sprite strip: N frames wide, 1 frame tall
+      // Gemini supports: 1:1, 3:4, 4:3, 9:16, 16:9
+      // For sprite strips (always wider than tall), use widest available
+      let aspectRatio = '16:9'; // default for most strips
 
       const outputPath = path.join(RAW_DIR, `${character}-${animation}-raw.png`);
       fs.mkdirSync(RAW_DIR, { recursive: true });
@@ -355,6 +356,119 @@ async function handleAPI(req, res, pathname) {
     const body = await parseBody(req);
     recordFeedback(body);
     return json(res, { success: true });
+  }
+
+  // ─── Character Creation ───────────────────────────────────────────────
+
+  // POST /api/character/create — Upload photo + convert to pixel art reference
+  if (pathname === '/api/character/create' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const { name, photoBase64, photoPath, model } = body;
+    if (!name) return json(res, { error: 'Character name required' }, 400);
+
+    try {
+      // Get the photo — either from base64 data or file path
+      let photoBuffer;
+      if (photoBase64) {
+        // Strip data URL prefix if present
+        const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, '');
+        photoBuffer = Buffer.from(base64Data, 'base64');
+      } else if (photoPath && fs.existsSync(photoPath)) {
+        photoBuffer = fs.readFileSync(photoPath);
+      } else {
+        return json(res, { error: 'Photo required (base64 or file path)' }, 400);
+      }
+
+      // Save original photo
+      const charDir = path.join(TMP_DIR, 'characters', name);
+      fs.mkdirSync(charDir, { recursive: true });
+      const originalPath = path.join(charDir, 'original.png');
+      fs.writeFileSync(originalPath, photoBuffer);
+
+      // Convert to pixel art via Nano Banana
+      const pixelArtPrompt = [
+        'Transform the uploaded image into 16-bit arcade pixel art.',
+        '',
+        'IMPORTANT RULES:',
+        'Do NOT change the pose.',
+        'Do NOT change facial features.',
+        'Do NOT add new objects.',
+        'Do NOT change clothing design.',
+        'Do NOT modify hairstyle.',
+        'Do NOT add accessories.',
+        'Do NOT change proportions.',
+        'Do NOT add background elements.',
+        '',
+        'Only convert the image into clean 16-bit arcade pixel style with:',
+        '- Sharp pixel edges',
+        '- Limited color palette',
+        '- Thick black outlines',
+        '- High contrast arcade shading',
+        '- No anti-aliasing',
+        '- No blur',
+        '',
+        'Keep the character exactly as shown.',
+        'Output on a pure white background (#FFFFFF only).',
+        'No environment. No extra elements. Only the character.',
+      ].join('\n');
+
+      const client = new NanaBananaClient({ model: model || 'gemini-2.5-flash-image' });
+      const pixelPath = path.join(ASSETS_DIR, `${name}full.png`);
+
+      const result = await client.generate(pixelArtPrompt, {
+        referenceImages: [originalPath],
+        aspectRatio: '3:4',
+        resolution: '2K',
+        model: model || 'gemini-2.5-flash-image',
+      });
+
+      fs.writeFileSync(pixelPath, result.imageBuffer);
+
+      // Register character in prompts system (runtime only — persists via training overrides)
+      CHARACTERS[name] = {
+        description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
+        style: '16-bit pixel art, GBA style',
+      };
+
+      return json(res, {
+        success: true,
+        name,
+        originalUrl: `/api/character/image/${name}/original.png`,
+        pixelArtUrl: `/assets/${name}full.png`,
+      });
+    } catch (err) {
+      return json(res, { error: err.message }, 500);
+    }
+  }
+
+  // POST /api/character/upload-photo — Raw binary photo upload for a character
+  if (pathname === '/api/character/upload-photo' && req.method === 'POST') {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const name = url.searchParams.get('name');
+    if (!name) return json(res, { error: 'name query param required' }, 400);
+
+    try {
+      const charDir = path.join(TMP_DIR, 'characters', name);
+      fs.mkdirSync(charDir, { recursive: true });
+      const photoPath = path.join(charDir, 'original.png');
+      const writeStream = fs.createWriteStream(photoPath);
+      await new Promise((resolve, reject) => {
+        req.pipe(writeStream);
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+      });
+      return json(res, { success: true, photoPath, size: fs.statSync(photoPath).size });
+    } catch (err) {
+      return json(res, { error: err.message }, 500);
+    }
+  }
+
+  // GET /api/character/image/:name/:file — Serve character images
+  if (pathname.startsWith('/api/character/image/') && req.method === 'GET') {
+    const parts = pathname.split('/');
+    const name = parts[4];
+    const file = parts[5];
+    return serveImage(res, path.join(TMP_DIR, 'characters', name, file));
   }
 
   return json(res, { error: 'Not found' }, 404);

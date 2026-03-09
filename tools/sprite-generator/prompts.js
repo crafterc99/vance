@@ -15,11 +15,11 @@ const TRAINING_FILE = path.resolve(__dirname, '../../.training-data/prompt-train
 
 const CHARACTERS = {
   breezy: {
-    description: 'athletic basketball player with braids, wearing white jersey #7, white shorts, white sneakers, medium-dark skin tone, lean build',
+    description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
     style: '16-bit pixel art, GBA style',
   },
   '99': {
-    description: 'young Black male with short curly black hair, medium-dark brown skin, wearing oversized white t-shirt, red and black basketball shorts with grey geometric pattern, black sneakers, athletic build',
+    description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
     style: '16-bit pixel art, GBA style',
   },
 };
@@ -93,57 +93,20 @@ function buildPoseTransferPrompt(characterName, animationName, opts = {}) {
   const overrides = training.promptOverrides?.[animationName] || {};
 
   const prompt = [
-    // STRUCTURE
-    `STRICT POSE AND COMPOSITION TRANSFER`,
+    `Keep everything about Image 1's characters, positions, poses, and composition exactly the same. Just replace them with the character from Image 2.`,
     ``,
-    `Use the uploaded images in the following roles:`,
-    `Image 1 = pose and composition reference`,
-    `Image 2 = character appearance reference`,
+    `Image 1 is a ${frames}-frame sprite sheet animation. Recreate it identically — same poses, same positions, same frame layout — but swap in Image 2's character.`,
     ``,
-    `Your task is to recreate Image 1 exactly as a pixel art sprite sheet, but replace the character with the character from Image 2.`,
-    ``,
-    // OUTPUT FORMAT
-    `OUTPUT FORMAT: A single horizontal sprite sheet with EXACTLY ${frames} equally-sized square frames in a row. Each frame must be the EXACT same width and height. No gaps between frames.`,
-    ``,
-    // POSE RULES
-    `POSE AND COMPOSITION RULES:`,
-    `- Copy the exact body pose from Image 1`,
-    `- Copy the exact limb placement from Image 1`,
-    `- Copy the exact character positions and spacing`,
-    `- Do NOT alter the pose or reposition the body`,
-    `- The animation shows: ${anim.action}`,
-    `- Frame breakdown: ${overrides.frameBreakdown || anim.frameBreakdown}`,
-    ``,
-    // CHARACTER RULES
-    `CHARACTER REPLACEMENT RULES:`,
-    `- Replace the character in Image 1 with the character from Image 2`,
-    `- Character: ${char.description}`,
-    `- Preserve the face, hairstyle, clothing, colors, and proportions from Image 2`,
-    `- Do not redesign the outfit`,
-    `- Do not change the character identity`,
-    ``,
-    // STYLE RULES
-    `STYLE RULES:`,
-    `- ${overrides.style || char.style}`,
-    `- Bold black pixel outlines on the character`,
-    `- 2px white outline around the entire character body`,
-    `- Maintain consistent character size across ALL ${frames} frames`,
-    `- Same baseline alignment for all poses — feet on the same line`,
-    ``,
-    // BACKGROUND
-    `BACKGROUND:`,
-    `- Pure solid green (#00FF00) background filling the entire image`,
-    `- CRITICAL: absolutely NO green color (#00FF00) anywhere on the character sprites`,
-    `- NO anti-aliasing between character and background`,
-    `- NO gradients, NO shadows on the background`,
-    `- NO ground shadows or floor reflections`,
-    ``,
-    // IMPORTANT
-    `IMPORTANT:`,
-    `- This is a strict pose-transfer operation, NOT a reinterpretation`,
-    `- Treat Image 1 as motion-capture reference`,
-    `- The body pose and composition must match Image 1 exactly`,
-    `- Only the character appearance comes from Image 2`,
+    `RULES:`,
+    `- Output: a single horizontal strip, ${frames} frames, equally-sized, no gaps, no borders, no separation between frames`,
+    `- Match Image 1's poses exactly — same body position, same limb placement, same spacing in every frame`,
+    `- Use Image 2's character exactly — same outfit, same colors, same hairstyle, same proportions`,
+    `- Style: ${overrides.style || char.style}, bold black pixel outlines, white outline around character`,
+    `- Background: solid bright green (#00FF00) filling the ENTIRE image behind the character`,
+    `- NO black backgrounds, NO dark backgrounds — ONLY green (#00FF00)`,
+    `- NO green (#00FF00) on the character itself`,
+    `- Same character size in every frame, feet on same baseline`,
+    `- Do NOT reinterpret, redesign, or add anything — just transfer the character`,
   ].join('\n');
 
   return {
