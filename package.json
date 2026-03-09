@@ -1,0 +1,20 @@
+{
+  "name": "vance",
+  "version": "1.0.0",
+  "description": "Vance — Personal AI Assistant",
+  "private": true,
+  "scripts": {
+    "sprite:gen": "node tools/sprite-generator/cli.js generate",
+    "sprite:prompt": "node tools/sprite-generator/cli.js prompt",
+    "sprite:custom": "node tools/sprite-generator/cli.js custom",
+    "sprite:list": "node tools/sprite-generator/cli.js list",
+    "sprite:scan": "node tools/sprite-generator/cli.js scan",
+    "sprite:process": "node tools/sprite-processor/cli.js process",
+    "sprite:cut": "node tools/sprite-processor/cli.js cut",
+    "sprite:strip": "node tools/sprite-processor/cli.js strip",
+    "sprite:info": "node tools/sprite-processor/cli.js info",
+    "sprite:batch": "node tools/sprite-processor/cli.js batch",
+    "sprite:watch": "node tools/sprite-generator/watcher.js",
+    "sprite:remove-bg": "node tools/sprite-processor/cli.js remove-bg"
+  }
+}
