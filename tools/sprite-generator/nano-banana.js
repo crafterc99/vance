@@ -168,6 +168,47 @@ class NanaBananaClient {
   }
 
   /**
+   * Generate a SINGLE frame from one pose reference + character portrait.
+   * Optimized for frame-by-frame pipeline: 1:1 aspect ratio, 1K resolution.
+   *
+   * @param {string} prompt - Single-frame generation prompt
+   * @param {string} poseFramePath - Path to upscaled single pose frame (Image 1)
+   * @param {string} characterRef - Path to character portrait (Image 2)
+   * @param {object} opts - { aspectRatio, resolution, model, outputPath }
+   * @returns {{ outputPath: string, imageBuffer: Buffer, description: string }}
+   */
+  async generateSingleFrame(prompt, poseFramePath, characterRef, opts = {}) {
+    const referenceImages = [];
+
+    // Image 1 = single pose frame (upscaled)
+    if (poseFramePath && fs.existsSync(poseFramePath)) {
+      referenceImages.push(poseFramePath);
+    }
+
+    // Image 2 = character portrait
+    if (characterRef && fs.existsSync(characterRef)) {
+      referenceImages.push(characterRef);
+    }
+
+    const result = await this.generate(prompt, {
+      referenceImages,
+      aspectRatio: opts.aspectRatio || '1:1',
+      resolution: opts.resolution || '1K',
+      model: opts.model,
+    });
+
+    // Save output
+    if (opts.outputPath) {
+      const dir = path.dirname(opts.outputPath);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(opts.outputPath, result.imageBuffer);
+      result.outputPath = opts.outputPath;
+    }
+
+    return result;
+  }
+
+  /**
    * List available models.
    */
   static get MODELS() {

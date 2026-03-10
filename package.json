@@ -27,10 +27,16 @@
     "sprite:smart": "node tools/sprite-generator/smart-selector.js analyze",
     "sprite:feedback": "node tools/sprite-generator/smart-selector.js feedback",
     "sprite:ref-strip": "node tools/sprite-generator/strip-builder.js",
-    "sprite:factory": "node tools/sprite-factory/server.js"
+    "sprite:factory": "node tools/sprite-factory/server.js",
+    "sprite:view": "node tools/sprite-factory/viewer.js open",
+    "sprite:screenshot": "node tools/sprite-factory/viewer.js screenshot",
+    "sprite:review": "node tools/sprite-factory/viewer.js review",
+    "sprite:compare": "node tools/sprite-factory/viewer.js compare",
+    "sprite:train": "node tools/sprite-factory/viewer.js train"
   },
   "dependencies": {
     "@google/genai": "^1.44.0",
-    "ffmpeg-static": "^5.3.0"
+    "ffmpeg-static": "^5.3.0",
+    "playwright": "^1.58.2"
   }
 }

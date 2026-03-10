@@ -75,6 +75,69 @@ const ANIMATIONS = {
   },
 };
 
+// ─── Frame Description Parser ────────────────────────────────────────────
+
+/**
+ * Parse "(1) desc (2) desc (3) desc..." into an array of descriptions.
+ * Returns ['desc1', 'desc2', ...] indexed from 0.
+ */
+function parseFrameDescriptions(breakdown) {
+  if (!breakdown) return [];
+  const matches = breakdown.match(/\(\d+\)\s*([^(]*)/g);
+  if (!matches) return [breakdown.trim()];
+  return matches.map(m => m.replace(/^\(\d+\)\s*/, '').trim()).filter(Boolean);
+}
+
+/**
+ * Build a prompt for generating a SINGLE frame (not a strip).
+ * Used by the frame-by-frame pipeline for dramatically better quality.
+ *
+ * @param {string} characterName - Character to generate
+ * @param {string} animationName - Animation name (for frame descriptions)
+ * @param {number} frameIndex - 0-based frame index
+ * @param {number} totalFrames - Total frames in the animation
+ */
+function buildSingleFramePrompt(characterName, animationName, frameIndex, totalFrames) {
+  const char = CHARACTERS[characterName];
+  if (!char) throw new Error(`Unknown character: ${characterName}. Available: ${Object.keys(CHARACTERS).join(', ')}`);
+
+  const anim = ANIMATIONS[animationName];
+  if (!anim) throw new Error(`Unknown animation: ${animationName}. Available: ${Object.keys(ANIMATIONS).join(', ')}`);
+
+  const descriptions = parseFrameDescriptions(anim.frameBreakdown);
+  const frameDesc = descriptions[frameIndex] || `frame ${frameIndex + 1} of ${anim.action}`;
+
+  const prompt = [
+    `REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.`,
+    ``,
+    `Image 1 shows: ${frameDesc}`,
+    `This is frame ${frameIndex + 1} of ${totalFrames} in a ${anim.action} animation.`,
+    ``,
+    `POSE RULES:`,
+    `- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution`,
+    `- Treat Image 1 as motion capture — do NOT reinterpret`,
+    `- Copy the exact body angle, lean, and center of gravity`,
+    ``,
+    `CHARACTER:`,
+    `- Use Image 2's face, skin tone, hairstyle, outfit`,
+    `- Character should fill ~85% of frame height`,
+    `- Maintain Image 2's exact proportions and clothing colors`,
+    ``,
+    `STYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines`,
+    `OUTPUT: Single character, ONE frame only (NOT a strip)`,
+    `Background: solid green (#00FF00), NO green on character`,
+  ].join('\n');
+
+  return {
+    prompt,
+    frameIndex,
+    totalFrames,
+    frameDescription: frameDesc,
+    animationName,
+    characterName,
+  };
+}
+
 // ─── Strict Pose Transfer Prompt ────────────────────────────────────────
 
 /**
@@ -246,6 +309,8 @@ module.exports = {
   buildPoseTransferPrompt,
   buildFilmToSpritePrompt,
   buildCustomPrompt,
+  buildSingleFramePrompt,
+  parseFrameDescriptions,
   listAnimations,
   trainPrompt,
   loadTraining,

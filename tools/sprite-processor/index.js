@@ -68,6 +68,30 @@ async function cutFrames(imagePath, outputDir, opts = {}) {
   return { frames, info };
 }
 
+/**
+ * Nearest-neighbor upscale — preserves pixel art crispness.
+ * Green background fill to match the chroma key pipeline.
+ *
+ * @param {string} imagePath - Input image path
+ * @param {string} outputPath - Output path for upscaled image
+ * @param {object} opts - { width: 512, height: 512 }
+ */
+async function upscaleNN(imagePath, outputPath, opts = {}) {
+  const targetW = opts.width || 512;
+  const targetH = opts.height || 512;
+
+  await sharp(imagePath)
+    .resize(targetW, targetH, {
+      kernel: sharp.kernel.nearest,
+      fit: 'contain',
+      background: { r: 0, g: 255, b: 0, alpha: 255 }, // green BG matches chroma key
+    })
+    .png()
+    .toFile(outputPath);
+
+  return outputPath;
+}
+
 // ─── HSV-based green chroma key ──────────────────────────────────────────
 
 /**
@@ -427,6 +451,7 @@ module.exports = {
   cutFrames,
   removeBackground,
   resizeFrame,
+  upscaleNN,
   buildStrip,
   processSprite,
   buildGrid,

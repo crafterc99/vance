@@ -20,8 +20,8 @@ const TMP_DIR = path.resolve(__dirname, '../../.video-tmp');
 
 // Import tools
 const { NanaBananaClient } = require('../sprite-generator/nano-banana');
-const { CHARACTERS, ANIMATIONS, buildPoseTransferPrompt, buildFilmToSpritePrompt, trainPrompt, loadTraining } = require('../sprite-generator/prompts');
-const { processSprite, buildGrid, cutFrames, SOUL_JAM_ASSETS } = require('../sprite-processor/index');
+const { CHARACTERS, ANIMATIONS, buildPoseTransferPrompt, buildFilmToSpritePrompt, buildSingleFramePrompt, trainPrompt, loadTraining } = require('../sprite-generator/prompts');
+const { processSprite, buildGrid, cutFrames, upscaleNN, removeBackground, resizeFrame, buildStrip, SOUL_JAM_ASSETS } = require('../sprite-processor/index');
 const { smartSelect, detectBall, loadFeedback, recordFeedback } = require('../sprite-generator/smart-selector');
 const { extract } = require('../sprite-generator/video-extractor');
 const { buildRefStrip } = require('../sprite-generator/strip-builder');
@@ -258,6 +258,142 @@ async function handleAPI(req, res, pathname) {
     } catch (err) {
       return json(res, { error: err.message }, 500);
     }
+  }
+
+  // POST /api/generate-fbf — Frame-by-frame generation with SSE progress
+  if (pathname === '/api/generate-fbf' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const { character, animation, model } = body;
+
+    // Setup SSE
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    function sse(data) {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    }
+
+    try {
+      const modelId = model || 'gemini-2.5-flash-image';
+      const client = new NanaBananaClient({ model: modelId });
+
+      // Validate
+      const anim = ANIMATIONS[animation];
+      if (!anim) throw new Error(`Unknown animation: ${animation}`);
+      if (!anim.breezyFile) throw new Error(`No Breezy reference for ${animation}`);
+
+      const portraitPath = path.join(ASSETS_DIR, `${character}full.png`);
+      if (!fs.existsSync(portraitPath)) throw new Error(`Portrait not found: ${character}full.png`);
+
+      const poseRefPath = path.join(ASSETS_DIR, anim.breezyFile);
+      if (!fs.existsSync(poseRefPath)) throw new Error(`Breezy ref not found: ${anim.breezyFile}`);
+
+      const totalFrames = anim.frames;
+      fs.mkdirSync(RAW_DIR, { recursive: true });
+
+      const fbfDir = path.join(RAW_DIR, `${character}-${animation}-fbf`);
+      fs.mkdirSync(fbfDir, { recursive: true });
+
+      sse({ type: 'start', animation, character, totalFrames });
+
+      // Step 1: Cut Breezy reference strip into individual frames
+      const refFramesDir = path.join(fbfDir, 'ref-frames');
+      fs.mkdirSync(refFramesDir, { recursive: true });
+      const cutResult = await cutFrames(poseRefPath, refFramesDir);
+      const refFramePaths = cutResult.frames.slice(0, totalFrames);
+
+      // Step 2: Upscale each frame to 512x512 with nearest-neighbor
+      const upscaledDir = path.join(fbfDir, 'upscaled');
+      fs.mkdirSync(upscaledDir, { recursive: true });
+      const upscaledPaths = [];
+      for (let i = 0; i < refFramePaths.length; i++) {
+        const upPath = path.join(upscaledDir, `frame-${String(i).padStart(3, '0')}.png`);
+        await upscaleNN(refFramePaths[i], upPath, { width: 512, height: 512 });
+        upscaledPaths.push(upPath);
+      }
+
+      sse({ type: 'prep_done', framesReady: upscaledPaths.length });
+
+      // Step 3: Generate each frame (concurrency = 2, ~2s delay)
+      const rawOutputPaths = [];
+
+      const tasks = upscaledPaths.map((upPath, i) => async () => {
+        sse({ type: 'frame_start', frame: i, total: totalFrames });
+
+        const promptData = buildSingleFramePrompt(character, animation, i, totalFrames);
+        const outPath = path.join(fbfDir, `raw-frame-${String(i).padStart(3, '0')}.png`);
+
+        let lastErr;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            await client.generateSingleFrame(promptData.prompt, upPath, portraitPath, {
+              model: modelId,
+              outputPath: outPath,
+            });
+            rawOutputPaths[i] = outPath;
+            sse({ type: 'frame_done', frame: i });
+            return;
+          } catch (err) {
+            lastErr = err;
+            if (attempt === 0) {
+              sse({ type: 'frame_retry', frame: i, error: err.message });
+              await new Promise(r => setTimeout(r, 3000));
+            }
+          }
+        }
+        sse({ type: 'frame_error', frame: i, error: lastErr?.message });
+      });
+
+      await runWithConcurrency(tasks, 2, 2000);
+
+      // Step 4: Process all raw frames — remove green BG, resize to 180x180
+      const processedDir = path.join(fbfDir, 'processed');
+      fs.mkdirSync(processedDir, { recursive: true });
+      const processedPaths = [];
+
+      for (let i = 0; i < totalFrames; i++) {
+        const rawPath = rawOutputPaths[i];
+        if (!rawPath || !fs.existsSync(rawPath)) {
+          sse({ type: 'process_skip', frame: i });
+          continue;
+        }
+
+        const cleanPath = path.join(processedDir, `clean-${String(i).padStart(3, '0')}.png`);
+        await removeBackground(rawPath, cleanPath);
+
+        const resizedPath = path.join(processedDir, `frame-${String(i).padStart(3, '0')}.png`);
+        await resizeFrame(cleanPath, resizedPath, { width: 180, height: 180 });
+        processedPaths.push(resizedPath);
+      }
+
+      // Step 5: Assemble horizontal strip
+      const stripPath = path.join(ASSETS_DIR, `${character}-${animation}.png`);
+      await buildStrip(processedPaths, stripPath, { frameWidth: 180, frameHeight: 180 });
+
+      // Save individual frames for inspection
+      const framesOutDir = path.join(ASSETS_DIR, `${character}-${animation}-frames`);
+      fs.mkdirSync(framesOutDir, { recursive: true });
+      processedPaths.forEach((p, i) => {
+        fs.copyFileSync(p, path.join(framesOutDir, `frame-${i}.png`));
+      });
+
+      sse({
+        type: 'complete',
+        url: `/assets/${character}-${animation}.png`,
+        frames: processedPaths.length,
+        totalFrames,
+        failed: totalFrames - processedPaths.length,
+      });
+    } catch (err) {
+      sse({ type: 'error', message: err.message });
+    }
+
+    res.end();
+    return;
   }
 
   // POST /api/feedback — Record generation feedback
