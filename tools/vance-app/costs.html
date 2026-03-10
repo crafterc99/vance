@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VANCE — Costs</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#06060a; --bg2:#0c0c14; --surface:#10101c; --surface2:#181828; --surface3:#1e1e32;
+    --border:#1e1e30; --text:#e4e4f0; --text-dim:#6a6a88; --text-muted:#3a3a55;
+    --accent:#3882ff; --accent2:#00e5a0; --warn:#ff9940; --danger:#ff3355;
+    --mono:'Space Mono',monospace; --sans:'Inter',-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:24px 32px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+  .topbar h1{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--accent)}
+  .topbar-right{display:flex;gap:8px;align-items:center}
+  .nav-btn{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;transition:all .15s;text-decoration:none}
+  .nav-btn:hover{border-color:var(--accent);color:var(--text)}
+  .nav-btn.active{background:var(--accent);border-color:var(--accent);color:white}
+  .period-btn{font-family:var(--mono);font-size:9px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;transition:all .12s}
+  .period-btn:hover{border-color:var(--accent);color:var(--text)}
+  .period-btn.active{background:var(--accent);border-color:var(--accent);color:white}
+
+  /* Cards */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
+  .stat-card .label{font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px}
+  .stat-card .value{font-size:28px;font-weight:700;color:var(--text)}
+  .stat-card .value.accent{color:var(--accent)}
+  .stat-card .value.green{color:var(--accent2)}
+  .stat-card .value.warn{color:var(--warn)}
+  .stat-card .sub{font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:4px}
+
+  /* Sections */
+  .section{margin-bottom:24px}
+  .section-title{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px}
+
+  .breakdown-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .breakdown-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+
+  .bar-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+  .bar-label{font-family:var(--mono);font-size:10px;color:var(--text-dim);width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar-track{flex:1;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:3px;transition:width .5s}
+  .bar-value{font-family:var(--mono);font-size:10px;color:var(--text);width:60px;text-align:right}
+
+  /* Chart (simple CSS bar chart) */
+  .chart{display:flex;align-items:flex-end;gap:3px;height:140px;padding:8px 0;border-bottom:1px solid var(--border)}
+  .chart-bar{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-width:8px;transition:height .4s;position:relative;cursor:pointer}
+  .chart-bar:hover{opacity:.8}
+  .chart-bar .chart-tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:8px;color:var(--text);white-space:nowrap;z-index:10;margin-bottom:4px}
+  .chart-bar:hover .chart-tip{display:block}
+  .chart-labels{display:flex;gap:3px;margin-top:4px}
+  .chart-labels span{flex:1;font-family:var(--mono);font-size:7px;color:var(--text-muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
+
+  /* Recent calls table */
+  .calls-table{width:100%;border-collapse:collapse}
+  .calls-table th{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+  .calls-table td{font-family:var(--mono);font-size:10px;color:var(--text-dim);padding:7px 10px;border-bottom:1px solid rgba(30,30,48,.5)}
+  .calls-table tr:hover td{color:var(--text);background:rgba(56,130,255,.03)}
+  .calls-table .cost{color:var(--accent);font-weight:700}
+  .component-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:8px;font-weight:700;letter-spacing:.5px}
+  .component-badge.gpt{background:rgba(56,130,255,.1);color:var(--accent)}
+  .component-badge.claude{background:rgba(0,229,160,.1);color:var(--accent2)}
+  .component-badge.gemini{background:rgba(255,153,64,.1);color:var(--warn)}
+  .component-badge.speech{background:rgba(255,51,85,.1);color:var(--danger)}
+
+  @media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}.breakdown-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Vance — Costs</h1>
+  <div class="topbar-right">
+    <div style="display:flex;gap:4px" id="periodBtns">
+      <button class="period-btn" onclick="setPeriod('today')">Today</button>
+      <button class="period-btn" onclick="setPeriod('week')">Week</button>
+      <button class="period-btn active" onclick="setPeriod('month')">Month</button>
+      <button class="period-btn" onclick="setPeriod('all')">All</button>
+    </div>
+    <a class="nav-btn" href="/">Back to Chat</a>
+  </div>
+</div>
+
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card"><div class="label">Total Spent</div><div class="value accent" id="totalCost">$0.00</div><div class="sub" id="totalCalls">0 API calls</div></div>
+  <div class="stat-card"><div class="label">Input Tokens</div><div class="value" id="totalInput">0</div><div class="sub">prompt tokens</div></div>
+  <div class="stat-card"><div class="label">Output Tokens</div><div class="value" id="totalOutput">0</div><div class="sub">completion tokens</div></div>
+  <div class="stat-card"><div class="label">Avg Cost/Call</div><div class="value green" id="avgCost">$0.00</div><div class="sub">per API call</div></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Daily Spend</div>
+  <div class="chart" id="chart"></div>
+  <div class="chart-labels" id="chartLabels"></div>
+</div>
+
+<div class="section">
+  <div class="breakdown-grid">
+    <div class="breakdown-card">
+      <div class="section-title">By Component</div>
+      <div id="byComponent"></div>
+    </div>
+    <div class="breakdown-card">
+      <div class="section-title">By Model</div>
+      <div id="byModel"></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Recent API Calls</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:400px;overflow-y:auto">
+    <table class="calls-table">
+      <thead><tr><th>Time</th><th>Component</th><th>Model</th><th>Tokens</th><th>Cost</th></tr></thead>
+      <tbody id="callsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let currentPeriod='month';
+
+async function load() {
+  try {
+    const res=await fetch(`/api/costs?period=${currentPeriod}`);
+    const data=await res.json();
+    render(data);
+  } catch(err) {
+    console.error('Failed to load costs:',err);
+  }
+  // Also load recent calls via WS or REST
+  try {
+    const res2=await fetch(`/api/costs?period=all`);
+    const all=await res2.json();
+    renderRecentCalls(all);
+  } catch {}
+}
+
+function render(data) {
+  document.getElementById('totalCost').textContent='$'+data.totalCost.toFixed(2);
+  document.getElementById('totalCalls').textContent=data.totalCalls+' API calls';
+  document.getElementById('totalInput').textContent=formatNum(data.totalInput);
+  document.getElementById('totalOutput').textContent=formatNum(data.totalOutput);
+  document.getElementById('avgCost').textContent='$'+(data.totalCalls?((data.totalCost/data.totalCalls).toFixed(4)):'0.00');
+
+  renderBars('byComponent',data.byComponent,data.totalCost);
+  renderBars('byModel',data.byModel,data.totalCost);
+  renderChart(data.byDay);
+}
+
+function renderBars(elId,items,total) {
+  const el=document.getElementById(elId); el.innerHTML='';
+  if(!items.length) { el.innerHTML='<span style="font-size:10px;color:var(--text-muted)">No data</span>'; return; }
+  const max=Math.max(...items.map(i=>i.cost));
+  for(const item of items) {
+    const pct=max>0?((item.cost/max)*100):0;
+    const colors={gpt:'var(--accent)',claude:'var(--accent2)',gemini:'var(--warn)',speech:'var(--danger)'};
+    const color=colors[item.name]||'var(--accent)';
+    el.innerHTML+=`<div class="bar-row">
+      <span class="bar-label">${item.name}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="bar-value">$${item.cost.toFixed(2)}</span>
+    </div>`;
+  }
+}
+
+function renderChart(days) {
+  const chart=document.getElementById('chart');
+  const labels=document.getElementById('chartLabels');
+  chart.innerHTML=''; labels.innerHTML='';
+  if(!days.length) { chart.innerHTML='<span style="font-size:10px;color:var(--text-muted);align-self:center;margin:auto">No daily data</span>'; return; }
+  const maxCost=Math.max(...days.map(d=>d.cost),0.01);
+  // Show last 30 days max
+  const recent=days.slice(-30);
+  for(const day of recent) {
+    const h=Math.max((day.cost/maxCost)*130,2);
+    chart.innerHTML+=`<div class="chart-bar" style="height:${h}px"><div class="chart-tip">$${day.cost.toFixed(2)} — ${day.calls} calls<br>${day.date}</div></div>`;
+    labels.innerHTML+=`<span>${day.date.slice(5)}</span>`;
+  }
+}
+
+function renderRecentCalls(data) {
+  // Reconstruct recent calls from byDay (we don't have individual calls from REST easily, show summary)
+  const body=document.getElementById('callsBody');
+  if(!data.byDay?.length) { body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No calls yet</td></tr>'; return; }
+  // Show daily summaries as rows
+  const days=data.byDay.slice(-20).reverse();
+  body.innerHTML=days.map(d=>`<tr>
+    <td>${d.date}</td>
+    <td><span class="component-badge gpt">ALL</span></td>
+    <td>—</td>
+    <td>${d.calls} calls</td>
+    <td class="cost">$${d.cost.toFixed(4)}</td>
+  </tr>`).join('');
+}
+
+function formatNum(n) {
+  if(n>=1000000) return (n/1000000).toFixed(1)+'M';
+  if(n>=1000) return (n/1000).toFixed(1)+'K';
+  return n.toString();
+}
+
+function setPeriod(p) {
+  currentPeriod=p;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  load();
+}
+
+load();
+// Auto-refresh every 30s
+setInterval(load,30000);
+</script>
+</body>
+</html>
