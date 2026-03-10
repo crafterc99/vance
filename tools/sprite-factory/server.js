@@ -21,7 +21,7 @@ const TMP_DIR = path.resolve(__dirname, '../../.video-tmp');
 // Import tools
 const { NanaBananaClient } = require('../sprite-generator/nano-banana');
 const { CHARACTERS, ANIMATIONS, buildPoseTransferPrompt, buildFilmToSpritePrompt, trainPrompt, loadTraining } = require('../sprite-generator/prompts');
-const { processSprite, buildGrid, SOUL_JAM_ASSETS } = require('../sprite-processor/index');
+const { processSprite, buildGrid, cutFrames, SOUL_JAM_ASSETS } = require('../sprite-processor/index');
 const { smartSelect, detectBall, loadFeedback, recordFeedback } = require('../sprite-generator/smart-selector');
 const { extract } = require('../sprite-generator/video-extractor');
 const { buildRefStrip } = require('../sprite-generator/strip-builder');
@@ -107,13 +107,14 @@ async function handleAPI(req, res, pathname) {
     return json(res, { character: charName, sprites });
   }
 
-  // POST /api/generate — Generate a single sprite
+  // POST /api/generate — Generate a single sprite (with batch support for 5+ frames)
   if (pathname === '/api/generate' && req.method === 'POST') {
     const body = await parseBody(req);
     const { character, animation, model, customPrompt } = body;
 
     try {
-      const client = new NanaBananaClient({ model: model || 'gemini-2.5-flash-image' });
+      const modelId = model || 'gemini-2.5-flash-image';
+      const client = new NanaBananaClient({ model: modelId });
 
       // Auto-register character if they have a portrait but aren't in CHARACTERS yet
       const portraitPath = path.join(ASSETS_DIR, `${character}full.png`);
@@ -124,52 +125,135 @@ async function handleAPI(req, res, pathname) {
         };
       }
 
-      let prompt, poseRef, charRef;
-
-      if (customPrompt) {
-        prompt = customPrompt;
-      } else {
-        const data = buildPoseTransferPrompt(character, animation);
-        prompt = data.prompt;
-      }
-
-      // Pose reference = Breezy's existing strip
       const anim = ANIMATIONS[animation];
-      if (anim?.breezyFile) {
-        poseRef = path.join(ASSETS_DIR, anim.breezyFile);
-      }
-      // Character reference = their full portrait
-      charRef = fs.existsSync(portraitPath) ? portraitPath : null;
+      const totalFrames = anim?.frames || 6;
+      const charRef = fs.existsSync(portraitPath) ? portraitPath : null;
+      const poseRef = anim?.breezyFile ? path.join(ASSETS_DIR, anim.breezyFile) : null;
 
-      const frames = anim?.frames || 6;
-      // Aspect ratio should match the sprite strip: N frames wide, 1 frame tall
-      // Gemini supports: 1:1, 3:4, 4:3, 9:16, 16:9
-      // For sprite strips (always wider than tall), use widest available
-      let aspectRatio = '16:9'; // default for most strips
-
-      const outputPath = path.join(RAW_DIR, `${character}-${animation}-raw.png`);
       fs.mkdirSync(RAW_DIR, { recursive: true });
 
-      const result = await client.generateSprite(prompt, poseRef, charRef, {
-        aspectRatio,
-        resolution: '2K',
-        model: model || 'gemini-2.5-flash-image',
-        outputPath,
-      });
+      // BATCH STRATEGY: For 5+ frames, split into batches of 3-4 to preserve quality
+      const MAX_FRAMES_PER_BATCH = 4;
 
-      // Process through pipeline
-      const processed = await processSprite(outputPath, `${character}-${animation}`, {
-        frameCount: frames,
-        targetSize: 180,
-        outputDir: ASSETS_DIR,
-      });
+      if (totalFrames <= MAX_FRAMES_PER_BATCH || !poseRef) {
+        // Small animation — generate all at once
+        let prompt;
+        if (customPrompt) {
+          prompt = customPrompt;
+        } else {
+          const data = buildPoseTransferPrompt(character, animation);
+          prompt = data.prompt;
+        }
+
+        const outputPath = path.join(RAW_DIR, `${character}-${animation}-raw.png`);
+        await client.generateSprite(prompt, poseRef, charRef, {
+          aspectRatio: '16:9',
+          resolution: '2K',
+          model: modelId,
+          outputPath,
+        });
+
+        const processed = await processSprite(outputPath, `${character}-${animation}`, {
+          frameCount: totalFrames,
+          targetSize: 180,
+          outputDir: ASSETS_DIR,
+        });
+
+        return json(res, {
+          success: true,
+          raw: `/raw/${character}-${animation}-raw.png`,
+          processed: `/assets/${character}-${animation}.png`,
+          frames: processed.frameCount,
+          batched: false,
+        });
+      }
+
+      // BATCH MODE: Split Breezy reference strip into sub-strips, generate each batch
+      // First, cut the reference strip into individual frames
+      const refFramesDir = path.join(RAW_DIR, `${character}-${animation}-ref-frames`);
+      fs.mkdirSync(refFramesDir, { recursive: true });
+
+      // Use sprite processor to cut the reference into frames
+      const cutResult = await cutFrames(poseRef, refFramesDir, { frameCount: totalFrames });
+      const refFramePaths = cutResult.frames;
+
+      // Split frames into batches
+      const batches = [];
+      for (let i = 0; i < totalFrames; i += MAX_FRAMES_PER_BATCH) {
+        const end = Math.min(i + MAX_FRAMES_PER_BATCH, totalFrames);
+        batches.push({ start: i, end, count: end - i, frames: refFramePaths.slice(i, end) });
+      }
+
+      // Generate each batch — build a mini reference strip for each
+      const batchOutputs = [];
+      for (let b = 0; b < batches.length; b++) {
+        const batch = batches[b];
+
+        // Build a mini reference strip from this batch's frames
+        const miniStripPath = path.join(RAW_DIR, `${character}-${animation}-batch${b}-ref.png`);
+        await buildRefStrip(batch.frames, miniStripPath, { targetHeight: 180 });
+
+        // Build batch-specific prompt
+        const frameDesc = anim.frameBreakdown || '';
+        const batchPrompt = [
+          `REPLICATE Image 1 EXACTLY. Keep every body position, pose, limb placement, and composition identical. ONLY replace the character's identity with Image 2.`,
+          ``,
+          `Image 1 shows ${batch.count} frames of a ${anim.action} animation (frames ${batch.start + 1}-${batch.end} of ${totalFrames}).`,
+          `Copy these ${batch.count} frames frame-for-frame — same poses, same spacing — but with Image 2's character.`,
+          ``,
+          `CRITICAL — BODY POSITION:`,
+          `- Body position, pose, and composition in EVERY frame must match Image 1 EXACTLY`,
+          `- Same arm positions, leg positions, body angle, ball placement`,
+          `- Treat Image 1 as motion capture — do NOT reinterpret`,
+          ``,
+          `OUTPUT:`,
+          `- Single horizontal strip, EXACTLY ${batch.count} frames, equally-sized, no gaps, no borders`,
+          `- LARGE detailed characters filling most of each frame's height — NOT tiny`,
+          `- Style: 16-bit pixel art, GBA style, bold BLACK pixel outlines around character`,
+          `- Background: solid bright green (#00FF00) — NO black, NO dark backgrounds`,
+          `- NO green on the character itself`,
+          `- Same character size in every frame, feet on same baseline`,
+        ].join('\n');
+
+        const batchOutputPath = path.join(RAW_DIR, `${character}-${animation}-batch${b}-raw.png`);
+        await client.generateSprite(batchPrompt, miniStripPath, charRef, {
+          aspectRatio: '16:9',
+          resolution: '2K',
+          model: modelId,
+          outputPath: batchOutputPath,
+        });
+
+        // Process this batch
+        const batchProcessed = await processSprite(batchOutputPath, `${character}-${animation}-batch${b}`, {
+          frameCount: batch.count,
+          targetSize: 180,
+          outputDir: RAW_DIR,
+        });
+
+        batchOutputs.push(batchProcessed);
+      }
+
+      // Combine all batch frame directories into final strip
+      const allFramePaths = [];
+      for (let b = 0; b < batchOutputs.length; b++) {
+        const framesDir = batchOutputs[b].framesDir;
+        if (fs.existsSync(framesDir)) {
+          const frameFiles = fs.readdirSync(framesDir).filter(f => f.endsWith('.png')).sort();
+          frameFiles.forEach(f => allFramePaths.push(path.join(framesDir, f)));
+        }
+      }
+
+      // Build final combined strip
+      const finalStripPath = path.join(ASSETS_DIR, `${character}-${animation}.png`);
+      await buildRefStrip(allFramePaths, finalStripPath, { targetHeight: 180 });
 
       return json(res, {
         success: true,
-        raw: `/assets/${character}-${animation}-raw.png`,
         processed: `/assets/${character}-${animation}.png`,
-        frames: processed.frameCount,
-        prompt: prompt.substring(0, 200),
+        frames: allFramePaths.length,
+        batched: true,
+        batchCount: batches.length,
+        batchSizes: batches.map(b => b.count),
       });
     } catch (err) {
       return json(res, { error: err.message }, 500);
