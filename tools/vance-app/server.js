@@ -17,6 +17,7 @@ const crypto = require('crypto');
 
 const memory = require('./memory');
 const costs = require('./costs');
+const brain = require('./brain/loader');
 
 const PORT = process.env.VANCE_PORT || 4000;
 const OPENAI_KEY = process.env.OPENAI_API_KEY || 'sk-placeholder-add-your-key';
@@ -185,6 +186,24 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'propose_brain_update',
+      description: 'Propose an update to your own brain configuration files (personality, user profile, guidelines, or self-improvement). The update requires user approval before being applied.',
+      parameters: {
+        type: 'object',
+        properties: {
+          file: { type: 'string', enum: ['personality', 'userProfile', 'guidelines', 'selfImprovement'], description: 'Which brain file to update' },
+          section: { type: 'string', description: 'Section or topic being updated' },
+          old_text: { type: 'string', description: 'Existing text to replace (null for additions)' },
+          new_text: { type: 'string', description: 'New text to add or replace with' },
+          reason: { type: 'string', description: 'Why this update is needed' },
+        },
+        required: ['file', 'section', 'new_text', 'reason'],
+      },
+    },
+  },
 ];
 
 // ─── GPT API Call ────────────────────────────────────────────────────────
@@ -293,6 +312,14 @@ async function executeFunction(name, args, wsSend) {
       return `Learned preference: ${args.key} = ${args.value}`;
     }
 
+    case 'propose_brain_update': {
+      const update = brain.proposeBrainUpdate(
+        args.file, args.section, args.old_text || null, args.new_text, args.reason
+      );
+      wsSend({ type: 'brain-update-proposed', update });
+      return `Brain update proposed for ${args.file}/${args.section}: "${args.reason}". Awaiting user approval.`;
+    }
+
     default:
       return `Unknown function: ${name}`;
   }
@@ -362,52 +389,35 @@ async function handleChat(userMessage, projectId, wsSend) {
   // Add user message
   convMessages.push({ role: 'user', content: userMessage, timestamp: new Date().toISOString() });
 
-  // Build system prompt
+  // Build system prompt from brain files + live context
   const projects = loadProjects();
   const project = projects.find(p => p.id === projectId);
   const relevantMemories = memory.searchMemories(userMessage, 5);
   const relevantSkills = memory.findSkillsForQuery(userMessage);
   const preferences = memory.getPreferences();
   const memStats = memory.getMemoryStats();
+  const todayStats = costs.getStats('today');
 
-  let system = `You are Vance, a personal AI assistant — like Jarvis from Iron Man. You are calm, confident, competent, and proactive. You speak concisely and directly.
+  const projectContext = project ? {
+    ...project,
+    milestones: loadMilestones(projectId),
+  } : null;
 
-CORE BEHAVIORS:
-- Be decisive. Don't ask for permission on routine decisions.
-- When working on tasks, report progress naturally.
-- Remember things the user tells you using the 'remember' function.
-- Learn user preferences using 'learn_preference'.
-- Create skills for workflows you'll repeat using 'create_skill'.
-- Use 'run_claude_code' for any coding, file, or terminal tasks.
-- Always be aware of costs — report them when asked.
-
-CURRENT STATE:
-- Memory: ${memStats.total} memories stored
-- Skills: ${memory.loadSkills().length} learned skills
-- Projects: ${projects.length} active`;
-
-  if (project) {
-    const milestones = loadMilestones(projectId);
-    system += `\n\nACTIVE PROJECT: "${project.name}"
-Directory: ${project.directory}
-Description: ${project.description || 'None'}
-Milestones: ${milestones.length} completed`;
-    if (milestones.length) {
-      system += `\nRecent milestones: ${milestones.slice(-5).map(m => m.title).join(', ')}`;
-    }
-  }
-
-  if (relevantMemories.length) {
-    system += `\n\nRELEVANT MEMORIES:\n${relevantMemories.map(m => `- [${m.category}] ${m.content}`).join('\n')}`;
-  }
-
-  if (relevantSkills.length) {
-    system += `\n\nRELEVANT SKILLS:\n${relevantSkills.map(s => `- ${s.name}: ${s.description}\n  Steps: ${s.steps.join(' → ')}`).join('\n')}`;
-  }
-
-  if (Object.keys(preferences).length) {
-    system += `\n\nUSER PREFERENCES:\n${Object.entries(preferences).map(([k, v]) => `- ${k}: ${v.value}`).join('\n')}`;
-  }
+  const system = brain.buildSystemPrompt({
+    project: projectContext,
+    memories: relevantMemories,
+    skills: relevantSkills,
+    preferences,
+    stats: {
+      memoryCount: memStats.total,
+      skillCount: memory.loadSkills().length,
+      projectCount: projects.length,
+    },
+    costs: {
+      todaySpend: todayStats.totalCost.toFixed(2),
+      todayCalls: todayStats.totalCalls,
+    },
+  });
 
   // Build GPT message history (last 20 messages for context)
   const gptMessages = [{ role: 'system', content: system }];
@@ -571,6 +581,23 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    case 'get-brain': {
+      ws.send({ type: 'brain', files: brain.getBrainFiles(), pending: brain.getPendingUpdates() });
+      break;
+    }
+
+    case 'approve-brain-update': {
+      const result = brain.approveBrainUpdate(msg.updateId);
+      ws.send({ type: 'brain-update-result', action: 'approved', ...result });
+      break;
+    }
+
+    case 'reject-brain-update': {
+      const result = brain.rejectBrainUpdate(msg.updateId);
+      ws.send({ type: 'brain-update-result', action: 'rejected', ...result });
+      break;
+    }
+
     default:
       ws.send({ type: 'error', message: `Unknown action: ${msg.action}` });
   }
@@ -602,12 +629,32 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/brain') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ files: brain.getBrainFiles(), pending: brain.getPendingUpdates() }));
+    return;
+  }
+  if (url.pathname.startsWith('/api/brain/') && req.method === 'GET') {
+    const fileKey = url.pathname.split('/').pop();
+    const content = brain.readBrainFile(fileKey);
+    if (content !== '') {
+      res.writeHead(200, { 'Content-Type': 'text/markdown' });
+      res.end(content);
+    } else {
+      res.writeHead(404); res.end('Brain file not found');
+    }
+    return;
+  }
+
   // Serve UI pages
   if (url.pathname === '/' || url.pathname === '/index.html') {
     return serveFile(res, 'index.html');
   }
   if (url.pathname === '/costs' || url.pathname === '/costs.html') {
     return serveFile(res, 'costs.html');
+  }
+  if (url.pathname === '/brain' || url.pathname === '/brain.html') {
+    return serveFile(res, 'brain.html');
   }
 
   res.writeHead(404); res.end('Not found');
@@ -649,8 +696,11 @@ server.listen(PORT, () => {
   console.log(`  ║         VANCE — Online                ║`);
   console.log(`  ║   http://localhost:${PORT}              ║`);
   console.log(`  ╚══════════════════════════════════════╝\n`);
+  const brainFiles = brain.getBrainFiles();
+  const brainLoaded = Object.values(brainFiles).filter(f => f.exists).length;
   console.log(`  Model: ${GPT_MODEL}`);
   console.log(`  API Key: ${OPENAI_KEY !== 'sk-placeholder-add-your-key' ? 'Set' : 'PLACEHOLDER — set OPENAI_API_KEY'}`);
+  console.log(`  Brain: ${brainLoaded}/${Object.keys(brainFiles).length} files loaded`);
   console.log(`  Projects: ${loadProjects().length}`);
   console.log(`  Memories: ${memory.getMemoryStats().total}`);
   console.log(`  Skills: ${memory.loadSkills().length}\n`);
