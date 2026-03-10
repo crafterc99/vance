@@ -11,3 +11,4 @@ tools/sprite-generator/automation/selectors.json
 .video-tmp/
 .training-data/
 .claude/
+.vance-data/
