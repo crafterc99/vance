@@ -15,6 +15,7 @@ const path = require('path');
 const os = require('os');
 const { spawn, execSync, exec } = require('child_process');
 const crypto = require('crypto');
+const WebSocket = require('ws');
 
 const memory = require('./memory');
 const costs = require('./costs');
@@ -1165,63 +1166,9 @@ async function handleChat(userMessage, projectId, wsSend) {
   }
 }
 
-// ─── WebSocket Implementation ────────────────────────────────────────────
-
-function acceptWebSocket(req, socket) {
-  const key = req.headers['sec-websocket-key'];
-  const accept = crypto.createHash('sha1')
-    .update(key + '258EAFA5-E914-47DA-95CA-5AB5DC11E85B')
-    .digest('base64');
-
-  socket.write([
-    'HTTP/1.1 101 Switching Protocols',
-    'Upgrade: websocket', 'Connection: Upgrade',
-    `Sec-WebSocket-Accept: ${accept}`, '', '',
-  ].join('\r\n'));
-
-  return {
-    send(data) {
-      try {
-        const payload = typeof data === 'string' ? data : JSON.stringify(data);
-        const buf = Buffer.from(payload, 'utf8');
-        const frame = [0x81];
-        if (buf.length < 126) frame.push(buf.length);
-        else if (buf.length < 65536) frame.push(126, (buf.length >> 8) & 0xff, buf.length & 0xff);
-        else { frame.push(127); for (let i = 7; i >= 0; i--) frame.push((buf.length >> (i * 8)) & 0xff); }
-        socket.write(Buffer.concat([Buffer.from(frame), buf]));
-      } catch {}
-    },
-    onMessage(cb) {
-      let buffer = Buffer.alloc(0);
-      socket.on('data', (chunk) => {
-        buffer = Buffer.concat([buffer, chunk]);
-        while (buffer.length >= 2) {
-          const masked = (buffer[1] & 0x80) !== 0;
-          let payloadLen = buffer[1] & 0x7f;
-          let offset = 2;
-          if (payloadLen === 126) { if (buffer.length < 4) return; payloadLen = buffer.readUInt16BE(2); offset = 4; }
-          else if (payloadLen === 127) { if (buffer.length < 10) return; payloadLen = Number(buffer.readBigUInt64BE(2)); offset = 10; }
-          const maskOffset = offset;
-          if (masked) offset += 4;
-          if (buffer.length < offset + payloadLen) return;
-          const payload = buffer.subarray(offset, offset + payloadLen);
-          if (masked) { const mask = buffer.subarray(maskOffset, maskOffset + 4); for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i % 4]; }
-          const opcode = buffer[0] & 0x0f;
-          buffer = buffer.subarray(offset + payloadLen);
-          if (opcode === 0x08) { socket.end(); return; }
-          if (opcode === 0x01 || opcode === 0x02) {
-            try { cb(JSON.parse(payload.toString('utf8'))); } catch { cb({ raw: payload.toString('utf8') }); }
-          }
-        }
-      });
-    },
-    onClose(cb) { socket.on('close', cb); socket.on('end', cb); },
-  };
-}
+// ─── WebSocket (using ws library) ────────────────────────────────────────
 
 const clients = new Set();
-
-// ─── WebSocket Message Handler ───────────────────────────────────────────
 
 async function handleMessage(ws, msg) {
   switch (msg.action) {
@@ -1292,6 +1239,21 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    case 'get-telemetry': {
+      const sysInfo = await getSystemInfo('all');
+      const costStats = costs.getStats('today');
+      const costWeek = costs.getStats('week');
+      const running = taskManager.getRunningTask();
+      const queued = taskManager.getAllTasks({ status: 'queued' });
+      ws.send({
+        type: 'telemetry',
+        system: sysInfo,
+        costs: { today: costStats, week: costWeek },
+        tasks: { running: running ? taskManager.taskSummary(running) : null, queuedCount: queued.length },
+      });
+      break;
+    }
+
     default:
       ws.send({ type: 'error', message: `Unknown action: ${msg.action}` });
   }
@@ -1351,6 +1313,18 @@ const server = http.createServer((req, res) => {
     return serveFile(res, 'brain.html');
   }
 
+  // Serve static .js and .css files from __dirname
+  const STATIC_TYPES = { '.js': 'application/javascript', '.css': 'text/css' };
+  const ext = path.extname(url.pathname);
+  if (STATIC_TYPES[ext]) {
+    const fp = path.join(__dirname, url.pathname.replace(/^\//, ''));
+    if (fs.existsSync(fp)) {
+      res.writeHead(200, { 'Content-Type': STATIC_TYPES[ext] });
+      res.end(fs.readFileSync(fp));
+      return;
+    }
+  }
+
   res.writeHead(404); res.end('Not found');
 });
 
@@ -1364,16 +1338,25 @@ function serveFile(res, filename) {
   }
 }
 
-server.on('upgrade', (req, socket) => {
-  if (req.url === '/ws') {
-    const ws = acceptWebSocket(req, socket);
-    clients.add(ws);
-    ws.send({ type: 'connected', model: GPT_MODEL, hasKey: OPENAI_KEY !== 'sk-placeholder-add-your-key' });
-    ws.onMessage((msg) => handleMessage(ws, msg));
-    ws.onClose(() => clients.delete(ws));
-  } else {
-    socket.destroy();
-  }
+const wss = new WebSocket.Server({ server, path: '/ws' });
+
+wss.on('connection', (socket) => {
+  const ws = {
+    send(data) {
+      try {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(typeof data === 'string' ? data : JSON.stringify(data));
+        }
+      } catch {}
+    },
+  };
+  clients.add(ws);
+  ws.send({ type: 'connected', model: GPT_MODEL, hasKey: OPENAI_KEY !== 'sk-placeholder-add-your-key' });
+  socket.on('message', (raw) => {
+    try { handleMessage(ws, JSON.parse(raw.toString())); }
+    catch { handleMessage(ws, { raw: raw.toString() }); }
+  });
+  socket.on('close', () => clients.delete(ws));
 });
 
 // Prevent uncaught exceptions from crashing the server
