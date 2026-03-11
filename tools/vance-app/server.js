@@ -12,7 +12,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const os = require('os');
+const { spawn, execSync, exec } = require('child_process');
 const crypto = require('crypto');
 
 const memory = require('./memory');
@@ -63,11 +64,137 @@ function addMilestone(pid, m) {
 // ─── GPT Function Definitions ────────────────────────────────────────────
 
 const TOOLS = [
+  // ─── System Tools (direct, fast, free) ────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'run_shell',
+      description: 'Execute a shell command on the user\'s Mac. Returns stdout, stderr, and exit code. Use for: git operations, npm/node commands, system checks, file manipulation, process management, any terminal task. PREFER this over run_claude_code for quick/simple tasks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'The shell command to run' },
+          cwd: { type: 'string', description: 'Working directory (default: home)' },
+          timeout: { type: 'number', description: 'Timeout in seconds (default: 30, max: 300)' },
+        },
+        required: ['command'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_file',
+      description: 'Read the contents of a file. Use for checking code, configs, logs, any text file. Returns content with line numbers.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Absolute or relative file path' },
+          start_line: { type: 'number', description: 'Start line (1-indexed, default: 1)' },
+          end_line: { type: 'number', description: 'End line (default: all)' },
+        },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'write_file',
+      description: 'Write content to a file. Creates parent directories if needed. Use for creating/updating files, configs, scripts.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Absolute or relative file path' },
+          content: { type: 'string', description: 'File content to write' },
+          append: { type: 'boolean', description: 'Append instead of overwrite (default: false)' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_directory',
+      description: 'List files and directories at a path. Shows names, sizes, types, and modification times.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Directory path (default: home)' },
+          recursive: { type: 'boolean', description: 'List recursively (default: false, max 500 entries)' },
+          pattern: { type: 'string', description: 'Glob pattern to filter (e.g. "*.js", "*.ts")' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_files',
+      description: 'Search for files by name or search file contents by text/regex. Like grep + find combined.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Text or regex to search for in file contents' },
+          path: { type: 'string', description: 'Directory to search in (default: home)' },
+          file_pattern: { type: 'string', description: 'Glob pattern to filter files (e.g. "*.js")' },
+          name_only: { type: 'boolean', description: 'Search file names instead of contents' },
+          max_results: { type: 'number', description: 'Max results (default: 20)' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'system_info',
+      description: 'Get Mac system information: CPU usage, memory, disk space, battery, uptime, running apps, network. Use to check system health or status.',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: ['all', 'cpu', 'memory', 'disk', 'battery', 'network', 'processes'], description: 'What info to get (default: all)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'open_app',
+      description: 'Open an app, URL, or file on macOS. Use for opening browsers, editors, Finder, or any application.',
+      parameters: {
+        type: 'object',
+        properties: {
+          target: { type: 'string', description: 'App name (e.g. "Safari"), URL (e.g. "https://github.com"), or file path' },
+          args: { type: 'array', items: { type: 'string' }, description: 'Additional arguments' },
+        },
+        required: ['target'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_applescript',
+      description: 'Execute AppleScript on macOS. Use for: system notifications, window management, clipboard read/write, Finder automation, app control, volume/brightness, dialog boxes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          script: { type: 'string', description: 'AppleScript code to execute' },
+        },
+        required: ['script'],
+      },
+    },
+  },
+  // ─── Claude Code (for complex multi-step coding) ──────────────────────
   {
     type: 'function',
     function: {
       name: 'run_claude_code',
-      description: 'Execute a coding task using Claude Code. Use for building projects, writing code, debugging, file operations, git, running commands.',
+      description: 'Execute a COMPLEX multi-step coding task using Claude Code AI. This spawns a full Claude session — use ONLY when the task requires AI reasoning across multiple files (e.g. "refactor the auth system", "add dark mode to the app", "debug why tests fail"). For simple tasks like reading files, running commands, or git operations, use the direct system tools instead.',
       parameters: {
         type: 'object',
         properties: {
@@ -295,16 +422,278 @@ async function* callGPTStream(messages) {
   }
 }
 
+// ─── Shell Command Runner ────────────────────────────────────────────────
+
+function runShell(command, cwd, timeoutSec = 30) {
+  return new Promise((resolve) => {
+    const timeout = Math.min(timeoutSec, 300) * 1000;
+    const proc = spawn('bash', ['-c', command], {
+      cwd: cwd || process.env.HOME,
+      env: { ...process.env, FORCE_COLOR: '0' },
+      timeout,
+    });
+
+    let stdout = '', stderr = '';
+    proc.stdout.on('data', d => { stdout += d.toString(); });
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+
+    proc.on('close', (code) => {
+      // Truncate very large outputs
+      const maxLen = 50000;
+      if (stdout.length > maxLen) stdout = stdout.slice(0, maxLen) + `\n... (truncated, ${stdout.length} chars total)`;
+      if (stderr.length > maxLen) stderr = stderr.slice(0, maxLen) + `\n... (truncated)`;
+      resolve({ code, stdout, stderr });
+    });
+    proc.on('error', (err) => resolve({ code: -1, stdout: '', stderr: err.message }));
+  });
+}
+
+// ─── System Info Collector ───────────────────────────────────────────────
+
+async function getSystemInfo(category = 'all') {
+  const info = {};
+
+  const run = (cmd) => {
+    try { return execSync(cmd, { encoding: 'utf8', timeout: 5000 }).trim(); }
+    catch { return 'unavailable'; }
+  };
+
+  if (category === 'all' || category === 'cpu') {
+    info.cpu = {
+      model: os.cpus()[0]?.model || 'unknown',
+      cores: os.cpus().length,
+      load: os.loadavg(),
+    };
+  }
+
+  if (category === 'all' || category === 'memory') {
+    const total = os.totalmem();
+    const free = os.freemem();
+    info.memory = {
+      total: (total / 1e9).toFixed(1) + ' GB',
+      used: ((total - free) / 1e9).toFixed(1) + ' GB',
+      free: (free / 1e9).toFixed(1) + ' GB',
+      percent: ((1 - free / total) * 100).toFixed(0) + '%',
+    };
+  }
+
+  if (category === 'all' || category === 'disk') {
+    const df = run('df -h / | tail -1');
+    const parts = df.split(/\s+/);
+    info.disk = { total: parts[1], used: parts[2], available: parts[3], percent: parts[4] };
+  }
+
+  if (category === 'all' || category === 'battery') {
+    const batt = run('pmset -g batt 2>/dev/null');
+    info.battery = batt;
+  }
+
+  if (category === 'all' || category === 'network') {
+    const ip = run("ipconfig getifaddr en0 2>/dev/null || echo 'not connected'");
+    const wifi = run("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I 2>/dev/null | awk '/ SSID/ {print $2}'");
+    info.network = { localIP: ip, wifi: wifi || 'not connected' };
+  }
+
+  if (category === 'all' || category === 'processes') {
+    const topApps = run('ps aux --sort=-%cpu | head -11');
+    info.processes = topApps;
+  }
+
+  if (category === 'all') {
+    info.uptime = (os.uptime() / 3600).toFixed(1) + ' hours';
+    info.hostname = os.hostname();
+    info.user = os.userInfo().username;
+    info.platform = `macOS ${run('sw_vers -productVersion 2>/dev/null')}`;
+    info.nodeVersion = process.version;
+  }
+
+  return info;
+}
+
+// ─── File System Helpers ─────────────────────────────────────────────────
+
+function resolvePath(p) {
+  if (!p) return process.env.HOME;
+  if (p.startsWith('~')) p = path.join(process.env.HOME, p.slice(1));
+  return path.resolve(p);
+}
+
+function listDir(dirPath, recursive = false, pattern = null) {
+  const resolved = resolvePath(dirPath);
+  if (!fs.existsSync(resolved)) return { error: `Directory not found: ${resolved}` };
+
+  const entries = [];
+  const maxEntries = 500;
+
+  function walk(dir, depth = 0) {
+    if (entries.length >= maxEntries) return;
+    let items;
+    try { items = fs.readdirSync(dir, { withFileTypes: true }); }
+    catch { return; }
+
+    for (const item of items) {
+      if (entries.length >= maxEntries) break;
+      if (item.name.startsWith('.') && depth === 0 && item.name !== '.env') continue; // skip hidden at root
+
+      const fullPath = path.join(dir, item.name);
+      const relPath = path.relative(resolved, fullPath);
+
+      if (pattern && !matchGlob(item.name, pattern)) {
+        if (item.isDirectory() && recursive) walk(fullPath, depth + 1);
+        continue;
+      }
+
+      try {
+        const stat = fs.statSync(fullPath);
+        entries.push({
+          name: recursive ? relPath : item.name,
+          type: item.isDirectory() ? 'dir' : 'file',
+          size: item.isDirectory() ? '-' : formatSize(stat.size),
+          modified: stat.mtime.toISOString().split('T')[0],
+        });
+      } catch {}
+
+      if (item.isDirectory() && recursive) walk(fullPath, depth + 1);
+    }
+  }
+
+  walk(resolved);
+  return { path: resolved, count: entries.length, entries };
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+}
+
+function matchGlob(name, pattern) {
+  const regex = pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.');
+  return new RegExp('^' + regex + '$', 'i').test(name);
+}
+
+function searchFiles(query, searchPath, filePattern, nameOnly, maxResults = 20) {
+  const resolved = resolvePath(searchPath);
+  if (nameOnly) {
+    // Find files by name
+    try {
+      const cmd = filePattern
+        ? `find "${resolved}" -maxdepth 5 -name "${query}" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -${maxResults}`
+        : `find "${resolved}" -maxdepth 5 -name "*${query}*" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -${maxResults}`;
+      return execSync(cmd, { encoding: 'utf8', timeout: 10000 }).trim();
+    } catch (e) { return e.message; }
+  }
+
+  // Search file contents
+  try {
+    const globArg = filePattern ? `--include="${filePattern}"` : '';
+    const cmd = `grep -rn ${globArg} --exclude-dir=node_modules --exclude-dir=.git "${query}" "${resolved}" 2>/dev/null | head -${maxResults}`;
+    const result = execSync(cmd, { encoding: 'utf8', timeout: 15000 }).trim();
+    return result || 'No matches found.';
+  } catch { return 'No matches found.'; }
+}
+
 // ─── Function Executor ───────────────────────────────────────────────────
 
 async function executeFunction(name, args, wsSend) {
   switch (name) {
+    // ─── System Tools ───
+    case 'run_shell': {
+      wsSend({ type: 'status', text: `$ ${args.command.substring(0, 60)}${args.command.length > 60 ? '...' : ''}` });
+      const result = await runShell(args.command, args.cwd, args.timeout || 30);
+      let output = '';
+      if (result.stdout) output += result.stdout;
+      if (result.stderr) output += (output ? '\n' : '') + `[stderr] ${result.stderr}`;
+      output += `\n[exit code: ${result.code}]`;
+      return output;
+    }
+
+    case 'read_file': {
+      const filePath = resolvePath(args.path);
+      if (!fs.existsSync(filePath)) return `File not found: ${filePath}`;
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n');
+        const start = Math.max(0, (args.start_line || 1) - 1);
+        const end = args.end_line ? Math.min(args.end_line, lines.length) : lines.length;
+        const slice = lines.slice(start, end);
+        const numbered = slice.map((l, i) => `${start + i + 1}: ${l}`).join('\n');
+        if (numbered.length > 50000) return numbered.slice(0, 50000) + `\n... (truncated, ${lines.length} total lines)`;
+        return `${filePath} (${lines.length} lines):\n${numbered}`;
+      } catch (e) { return `Error reading file: ${e.message}`; }
+    }
+
+    case 'write_file': {
+      const filePath = resolvePath(args.path);
+      try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        if (args.append) {
+          fs.appendFileSync(filePath, args.content);
+        } else {
+          fs.writeFileSync(filePath, args.content);
+        }
+        return `Written to ${filePath} (${args.content.length} chars${args.append ? ', appended' : ''})`;
+      } catch (e) { return `Error writing file: ${e.message}`; }
+    }
+
+    case 'list_directory': {
+      const result = listDir(args.path, args.recursive, args.pattern);
+      if (result.error) return result.error;
+      let output = `${result.path} (${result.count} items):\n`;
+      for (const e of result.entries) {
+        output += `  ${e.type === 'dir' ? '[DIR]' : '     '} ${e.name}  ${e.size}  ${e.modified}\n`;
+      }
+      return output;
+    }
+
+    case 'search_files': {
+      wsSend({ type: 'status', text: `Searching for "${args.query}"...` });
+      return searchFiles(args.query, args.path, args.file_pattern, args.name_only, args.max_results || 20);
+    }
+
+    case 'system_info': {
+      const info = await getSystemInfo(args.category || 'all');
+      return JSON.stringify(info, null, 2);
+    }
+
+    case 'open_app': {
+      try {
+        const target = args.target;
+        // URL
+        if (target.startsWith('http://') || target.startsWith('https://')) {
+          execSync(`open "${target}"`, { timeout: 5000 });
+          return `Opened URL: ${target}`;
+        }
+        // App name
+        if (!target.includes('/') && !target.includes('.')) {
+          execSync(`open -a "${target}"`, { timeout: 5000 });
+          return `Opened app: ${target}`;
+        }
+        // File path
+        const filePath = resolvePath(target);
+        execSync(`open "${filePath}"`, { timeout: 5000 });
+        return `Opened: ${filePath}`;
+      } catch (e) { return `Error opening: ${e.message}`; }
+    }
+
+    case 'run_applescript': {
+      try {
+        const result = execSync(`osascript -e '${args.script.replace(/'/g, "'\\''")}'`, {
+          encoding: 'utf8', timeout: 10000,
+        });
+        return result.trim() || 'AppleScript executed successfully.';
+      } catch (e) { return `AppleScript error: ${e.stderr || e.message}`; }
+    }
+
+    // ─── Claude Code (complex AI tasks) ───
     case 'run_claude_code': {
       wsSend({ type: 'status', text: 'Executing code task...' });
       const result = await runClaudeCode(args.task, args.project_directory, wsSend);
       return result;
     }
 
+    // ─── Memory & Brain Tools ───
     case 'remember': {
       const mem = memory.addMemory(args.content, args.tags, args.importance || 5, args.category || 'general');
       return `Remembered: "${args.content}" [tags: ${args.tags.join(', ')}]`;
