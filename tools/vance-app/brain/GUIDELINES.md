@@ -101,3 +101,27 @@
 - Push to GitHub after committing
 - Descriptive but concise commit messages
 - Never force-push to main without explicit permission
+
+## Autonomous Coding Protocol
+
+### When to Use Each Tool
+- **start_coding_task**: Multi-file features, refactors, anything > 5 min work. Tracked, branched, budgeted.
+- **run_claude_code**: Quick untracked one-offs, single-file fixes, < 2 min.
+- **run_shell + write_file**: Simple commands, single-line edits, git operations.
+
+### Model Selection (auto-selected but can override)
+- **Haiku** ($0.50 max): typos, renames, formatting, version bumps
+- **Sonnet** ($3.00 max): features, components, tests, standard refactors
+- **Opus** ($8.00 max): architecture changes, full-stack features, migrations
+
+### Safety Rules
+- Every task runs on a vance/{name} branch — never directly on main
+- Merge to main only after task completes and is reviewed
+- Push to remote only with user approval (or haiku-level auto-approved tasks)
+- Budget is checked before every task starts
+- Tasks auto-pause after 5 minutes of no output (resumable)
+
+### Reporting
+- Report completion with: summary, cost, branch, milestone highlights
+- Proactively report milestones (tests passing, build success)
+- Flag budget warnings when daily spend > $1 or task cost > 50% of budget

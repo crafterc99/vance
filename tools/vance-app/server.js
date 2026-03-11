@@ -19,6 +19,7 @@ const crypto = require('crypto');
 const memory = require('./memory');
 const costs = require('./costs');
 const brain = require('./brain/loader');
+const taskManager = require('./task-manager');
 
 const PORT = process.env.VANCE_PORT || 4000;
 const OPENAI_KEY = process.env.OPENAI_API_KEY || 'sk-placeholder-add-your-key';
@@ -328,6 +329,99 @@ const TOOLS = [
           reason: { type: 'string', description: 'Why this update is needed' },
         },
         required: ['file', 'section', 'new_text', 'reason'],
+      },
+    },
+  },
+  // ─── Autonomous Task Management ─────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'start_coding_task',
+      description: 'Queue an autonomous coding task. Creates a git branch, selects model/budget automatically (or override), and runs Claude Code in the background. Use for multi-file features, refactors, or anything > 5 min. The task runs autonomously while the user can keep chatting.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short human-readable title (e.g. "Add dark mode")' },
+          prompt: { type: 'string', description: 'Full detailed prompt for Claude Code' },
+          project_directory: { type: 'string', description: 'Working directory for the task' },
+          project_id: { type: 'string', description: 'Vance project ID (optional)' },
+          model: { type: 'string', enum: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-6'], description: 'Override model (auto-selected if omitted)' },
+          max_budget: { type: 'number', description: 'Override max budget in USD (auto-set based on model if omitted)' },
+          priority: { type: 'number', description: 'Priority 1-10 (10=highest, default 5)' },
+        },
+        required: ['title', 'prompt'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_task_status',
+      description: 'Get status of a specific task by ID, or the currently running task if no ID given. Returns status, model, cost, duration, milestones, branch.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'string', description: 'Task ID (omit for currently running task)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_tasks',
+      description: 'List all tasks, optionally filtered by status or project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['queued', 'running', 'paused', 'completed', 'failed', 'cancelled'], description: 'Filter by status' },
+          project_id: { type: 'string', description: 'Filter by project' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'control_task',
+      description: 'Pause, resume, or cancel a task.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'string', description: 'Task ID' },
+          action: { type: 'string', enum: ['pause', 'resume', 'cancel'], description: 'Action to take' },
+        },
+        required: ['task_id', 'action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'merge_task',
+      description: 'Merge a completed task\'s git branch into the default branch (main/master). Optionally push to remote.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'string', description: 'Task ID of a completed task' },
+          push: { type: 'boolean', description: 'Push to remote after merge (default: false)' },
+        },
+        required: ['task_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_claude_budget',
+      description: 'Set daily and/or monthly spending limits for Claude Code tasks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          daily: { type: 'number', description: 'Daily budget in USD' },
+          monthly: { type: 'number', description: 'Monthly budget in USD' },
+        },
+        required: ['daily', 'monthly'],
       },
     },
   },
@@ -757,6 +851,123 @@ async function executeFunction(name, args, wsSend) {
       return `Brain update proposed for ${args.file}/${args.section}: "${args.reason}". Awaiting user approval.`;
     }
 
+    // ─── Autonomous Task Management ───
+    case 'start_coding_task': {
+      wsSend({ type: 'status', text: `Queuing task: ${args.title}` });
+      const task = taskManager.createTask({
+        title: args.title,
+        prompt: args.prompt,
+        projectDir: args.project_directory,
+        projectId: args.project_id,
+        model: args.model,
+        maxBudget: args.max_budget,
+        priority: args.priority,
+      });
+
+      // Auto-start if nothing running
+      const started = taskManager.startNext();
+
+      let response = `Task queued: "${task.title}" [${task.tier}/${task.model}, budget $${task.maxBudget}]`;
+      if (started) {
+        response = `Task started: "${task.title}" [${task.tier}/${task.model}, budget $${task.maxBudget}]`;
+        if (task.branch) response += `\nBranch: ${task.branch}`;
+      } else if (taskManager.getRunningTask()) {
+        response += '\nQueued behind currently running task.';
+      }
+      return response;
+    }
+
+    case 'get_task_status': {
+      const task = args.task_id
+        ? taskManager.getTask(args.task_id)
+        : taskManager.getRunningTask();
+
+      if (!task) return args.task_id ? `No task found with ID: ${args.task_id}` : 'No task currently running.';
+
+      const summary = taskManager.taskSummary(task);
+      let report = `Task: "${summary.title}" [${summary.status}]\n`;
+      report += `Model: ${summary.tier} (${summary.model})\n`;
+      report += `Duration: ${summary.durationFormatted}\n`;
+      report += `Cost: $${(summary.costUsd || 0).toFixed(2)} / $${summary.maxBudget} budget\n`;
+      if (summary.branch) report += `Branch: ${summary.branch}\n`;
+      if (summary.milestones.length) {
+        report += `Milestones (${summary.milestonesCount}):\n`;
+        for (const m of summary.milestones.slice(-5)) {
+          report += `  - ${m.detail}\n`;
+        }
+      }
+      if (summary.error) report += `Error: ${summary.error}\n`;
+      return report;
+    }
+
+    case 'list_tasks': {
+      const tasks = taskManager.getAllTasks({
+        status: args.status,
+        projectId: args.project_id,
+      });
+      if (!tasks.length) return 'No tasks found.';
+
+      let output = `Tasks (${tasks.length}):\n`;
+      for (const t of tasks) {
+        const s = taskManager.taskSummary(t);
+        output += `  [${s.id}] ${s.title} — ${s.status} (${s.tier}, $${(s.costUsd || 0).toFixed(2)})\n`;
+      }
+      return output;
+    }
+
+    case 'control_task': {
+      let result;
+      switch (args.action) {
+        case 'pause': result = taskManager.pauseTask(args.task_id); break;
+        case 'resume': result = taskManager.resumeTask(args.task_id); break;
+        case 'cancel': result = taskManager.cancelTask(args.task_id); break;
+        default: return `Unknown action: ${args.action}`;
+      }
+      if (result.error) return `Error: ${result.error}`;
+      return `Task ${args.task_id} ${args.action}d successfully.`;
+    }
+
+    case 'merge_task': {
+      const task = taskManager.getTask(args.task_id);
+      if (!task) return `Task not found: ${args.task_id}`;
+      if (task.status !== 'completed') return `Task must be completed to merge. Current status: ${task.status}`;
+      if (!task.branch) return 'Task has no branch to merge.';
+      if (!task.projectDir) return 'Task has no project directory.';
+
+      try {
+        const cwd = task.projectDir;
+        // Determine default branch
+        let defaultBranch = 'main';
+        try {
+          defaultBranch = execSync('git symbolic-ref refs/remotes/origin/HEAD --short', { cwd, encoding: 'utf8' }).trim().replace('origin/', '');
+        } catch {}
+
+        execSync(`git checkout ${defaultBranch}`, { cwd, stdio: 'pipe' });
+        execSync(`git merge --no-ff ${task.branch} -m "Merge ${task.branch}: ${task.title}"`, { cwd, stdio: 'pipe' });
+
+        let response = `Merged ${task.branch} into ${defaultBranch}.`;
+
+        if (args.push) {
+          execSync(`git push origin ${defaultBranch}`, { cwd, stdio: 'pipe', timeout: 30000 });
+          response += ` Pushed to remote.`;
+        }
+
+        // Clean up branch
+        try {
+          execSync(`git branch -d ${task.branch}`, { cwd, stdio: 'pipe' });
+        } catch {}
+
+        return response;
+      } catch (e) {
+        return `Merge failed: ${e.message}`;
+      }
+    }
+
+    case 'set_claude_budget': {
+      costs.setBudget('claude', args.daily, args.monthly);
+      return `Claude budget set: $${args.daily}/day, $${args.monthly}/month`;
+    }
+
     default:
       return `Unknown function: ${name}`;
   }
@@ -840,6 +1051,10 @@ async function handleChat(userMessage, projectId, wsSend) {
     milestones: loadMilestones(projectId),
   } : null;
 
+  // Gather task context for system prompt
+  const runningTask = taskManager.getRunningTask();
+  const queuedTasks = taskManager.getAllTasks({ status: 'queued' });
+
   const system = brain.buildSystemPrompt({
     project: projectContext,
     memories: relevantMemories,
@@ -854,6 +1069,8 @@ async function handleChat(userMessage, projectId, wsSend) {
       todaySpend: todayStats.totalCost.toFixed(2),
       todayCalls: todayStats.totalCalls,
     },
+    runningTask: runningTask ? taskManager.taskSummary(runningTask) : null,
+    queuedTaskCount: queuedTasks.length,
   });
 
   // Build GPT message history (last 20 messages for context)
@@ -1063,6 +1280,18 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    case 'get-tasks': {
+      const tasks = taskManager.getAllTasks();
+      ws.send({ type: 'tasks', tasks: tasks.map(t => taskManager.taskSummary(t)) });
+      break;
+    }
+
+    case 'get-task-log': {
+      const log = taskManager.readLog(msg.taskId);
+      ws.send({ type: 'task-log', taskId: msg.taskId, log });
+      break;
+    }
+
     default:
       ws.send({ type: 'error', message: `Unknown action: ${msg.action}` });
   }
@@ -1156,6 +1385,21 @@ process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection:', err?.message || err);
 });
 
+// ─── Task Manager Broadcast Setup ─────────────────────────────────────────
+
+taskManager.setBroadcast((event) => {
+  for (const client of clients) {
+    try { client.send(event); } catch {}
+  }
+});
+
+// ─── Default Claude Budget ────────────────────────────────────────────────
+
+const claudeBudget = costs.checkBudget('claude');
+if (!claudeBudget.dailyBudget) {
+  costs.setBudget('claude', 5, 50); // $5/day, $50/month default
+}
+
 server.listen(PORT, () => {
   console.log(`\n  ╔══════════════════════════════════════╗`);
   console.log(`  ║         VANCE — Online                ║`);
@@ -1163,10 +1407,13 @@ server.listen(PORT, () => {
   console.log(`  ╚══════════════════════════════════════╝\n`);
   const brainFiles = brain.getBrainFiles();
   const brainLoaded = Object.values(brainFiles).filter(f => f.exists).length;
+  const budget = costs.checkBudget('claude');
   console.log(`  Model: ${GPT_MODEL}`);
   console.log(`  API Key: ${OPENAI_KEY !== 'sk-placeholder-add-your-key' ? 'Set' : 'PLACEHOLDER — set OPENAI_API_KEY'}`);
   console.log(`  Brain: ${brainLoaded}/${Object.keys(brainFiles).length} files loaded`);
   console.log(`  Projects: ${loadProjects().length}`);
   console.log(`  Memories: ${memory.getMemoryStats().total}`);
-  console.log(`  Skills: ${memory.loadSkills().length}\n`);
+  console.log(`  Skills: ${memory.loadSkills().length}`);
+  console.log(`  Claude Budget: $${budget.dailyBudget}/day, $${budget.monthlyBudget}/month`);
+  console.log(`  Tasks: ${taskManager.getAllTasks({ status: 'queued' }).length} queued, ${taskManager.getRunningTask() ? 1 : 0} running\n`);
 });

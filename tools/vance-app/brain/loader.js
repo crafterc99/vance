@@ -116,7 +116,7 @@ ${proactiveRules}
 - Use 'propose_brain_update' to suggest improvements to your own configuration`;
 
   // Add live context
-  const { project, memories, skills, preferences, stats, costs } = context;
+  const { project, memories, skills, preferences, stats, costs, runningTask, queuedTaskCount } = context;
 
   if (stats) {
     prompt += `\n\n## CURRENT STATE
@@ -161,6 +161,25 @@ Directory: ${project.directory || 'not set'}`;
       const value = typeof val === 'object' ? val.value : val;
       prompt += `\n- ${key}: ${value}`;
     }
+  }
+
+  // Running task context
+  if (runningTask) {
+    const elapsed = runningTask.startedAt
+      ? Math.round((Date.now() - new Date(runningTask.startedAt).getTime()) / 1000)
+      : 0;
+    const elapsedStr = elapsed > 3600
+      ? `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`
+      : elapsed > 60 ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s` : `${elapsed}s`;
+
+    prompt += `\n\n## RUNNING TASK
+"${runningTask.title}" (${runningTask.tier}/${runningTask.model}, ${runningTask.status})
+Branch: ${runningTask.branch || 'none'} | Cost: $${(runningTask.costUsd || 0).toFixed(2)}/$${runningTask.maxBudget}
+Running: ${elapsedStr}
+Milestones: ${runningTask.milestones?.slice(-3).map(m => m.detail).join(', ') || 'none yet'}`;
+  }
+  if (queuedTaskCount > 0) {
+    prompt += `\n${queuedTaskCount} task${queuedTaskCount > 1 ? 's' : ''} queued behind current task.`;
   }
 
   // Self-improvement context
