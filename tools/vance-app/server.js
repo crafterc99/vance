@@ -206,17 +206,25 @@ const TOOLS = [
   },
 ];
 
-// ─── GPT API Call ────────────────────────────────────────────────────────
+// ─── GPT Streaming Call ──────────────────────────────────────────────────
 
-async function callGPT(messages, stream = false) {
+/**
+ * Stream GPT response. Yields events:
+ *   { type: 'token', content: '...' }
+ *   { type: 'tool_call_start', index, id, name }
+ *   { type: 'tool_call_args', index, args: '...' }
+ *   { type: 'done', usage: { ... } }
+ */
+async function* callGPTStream(messages) {
   const body = {
     model: GPT_MODEL,
     messages,
     tools: TOOLS,
     temperature: 0.7,
     max_tokens: 4096,
+    stream: true,
+    stream_options: { include_usage: true },
   };
-  if (stream) body.stream = true;
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -232,19 +240,59 @@ async function callGPT(messages, stream = false) {
     throw new Error(`GPT API error ${res.status}: ${err}`);
   }
 
-  if (stream) return res;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
 
-  const data = await res.json();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
 
-  // Log cost
-  if (data.usage) {
-    costs.logCall('gpt', GPT_MODEL, {
-      inputTokens: data.usage.prompt_tokens,
-      outputTokens: data.usage.completion_tokens,
-    });
+    const lines = buf.split('\n');
+    buf = lines.pop(); // keep incomplete line
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data: ')) continue;
+      const payload = trimmed.slice(6);
+      if (payload === '[DONE]') return;
+
+      try {
+        const chunk = JSON.parse(payload);
+
+        // Usage comes in the final chunk
+        if (chunk.usage) {
+          costs.logCall('gpt', GPT_MODEL, {
+            inputTokens: chunk.usage.prompt_tokens,
+            outputTokens: chunk.usage.completion_tokens,
+          });
+          yield { type: 'done', usage: chunk.usage };
+          continue;
+        }
+
+        const delta = chunk.choices?.[0]?.delta;
+        if (!delta) continue;
+
+        // Text content
+        if (delta.content) {
+          yield { type: 'token', content: delta.content };
+        }
+
+        // Tool calls (streamed as deltas)
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            if (tc.id) {
+              yield { type: 'tool_call_start', index: tc.index, id: tc.id, name: tc.function?.name || '' };
+            }
+            if (tc.function?.arguments) {
+              yield { type: 'tool_call_args', index: tc.index, args: tc.function.arguments };
+            }
+          }
+        }
+      } catch {}
+    }
   }
-
-  return data;
 }
 
 // ─── Function Executor ───────────────────────────────────────────────────
@@ -431,24 +479,53 @@ async function handleChat(userMessage, projectId, wsSend) {
   wsSend({ type: 'thinking' });
 
   try {
-    let response = await callGPT(gptMessages);
-    let choice = response.choices[0];
-
-    // Function calling loop (max 8 rounds)
+    let fullText = '';
     let rounds = 0;
-    while (choice.finish_reason === 'tool_calls' && rounds < 8) {
+
+    while (rounds < 8) {
       rounds++;
-      const toolCalls = choice.message.tool_calls;
+      let text = '';
+      const toolCalls = {}; // index -> { id, name, args }
+      let hasToolCalls = false;
 
-      // Add assistant message with tool calls
-      gptMessages.push(choice.message);
+      // Stream GPT response
+      for await (const event of callGPTStream(gptMessages)) {
+        if (event.type === 'token') {
+          text += event.content;
+          wsSend({ type: 'stream-token', content: event.content });
+        } else if (event.type === 'tool_call_start') {
+          hasToolCalls = true;
+          toolCalls[event.index] = { id: event.id, name: event.name, args: '' };
+          wsSend({ type: 'function-call', name: event.name });
+        } else if (event.type === 'tool_call_args') {
+          if (toolCalls[event.index]) toolCalls[event.index].args += event.args;
+        }
+      }
 
-      // Execute each function
-      for (const tc of toolCalls) {
-        const args = JSON.parse(tc.function.arguments);
-        wsSend({ type: 'function-call', name: tc.function.name, args });
+      // If we got text only (no tool calls), we're done
+      if (!hasToolCalls) {
+        fullText = text;
+        break;
+      }
 
-        const result = await executeFunction(tc.function.name, args, wsSend);
+      // Build the assistant message with tool calls for the conversation
+      const assistantMsg = { role: 'assistant', content: text || null, tool_calls: [] };
+      for (const [, tc] of Object.entries(toolCalls)) {
+        assistantMsg.tool_calls.push({
+          id: tc.id,
+          type: 'function',
+          function: { name: tc.name, arguments: tc.args },
+        });
+      }
+      gptMessages.push(assistantMsg);
+
+      // Execute each tool call
+      for (const [, tc] of Object.entries(toolCalls)) {
+        let args;
+        try { args = JSON.parse(tc.args); } catch { args = {}; }
+        wsSend({ type: 'status', text: `Running ${tc.name}...` });
+
+        const result = await executeFunction(tc.name, args, wsSend);
 
         gptMessages.push({
           role: 'tool',
@@ -457,22 +534,21 @@ async function handleChat(userMessage, projectId, wsSend) {
         });
       }
 
-      // Get next response
-      response = await callGPT(gptMessages);
-      choice = response.choices[0];
+      // Signal that tool execution is done, next round will stream
+      wsSend({ type: 'tool-done' });
     }
 
-    const assistantMessage = choice.message.content || '';
+    // Signal stream complete
+    wsSend({ type: 'stream-end' });
 
     // Save to conversation
-    convMessages.push({ role: 'assistant', content: assistantMessage, timestamp: new Date().toISOString() });
+    convMessages.push({ role: 'assistant', content: fullText, timestamp: new Date().toISOString() });
     saveConversation(convId, convMessages);
 
     // Auto-learn patterns
     memory.learnPattern(userMessage, project ? 'project-work' : 'general');
 
-    wsSend({ type: 'response', content: assistantMessage });
-    return assistantMessage;
+    return fullText;
 
   } catch (err) {
     const errMsg = `I ran into an issue: ${err.message}`;
