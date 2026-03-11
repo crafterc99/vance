@@ -6,6 +6,9 @@
 (function () {
   'use strict';
 
+  // Always expose particlePulse (no-op fallback if WebGL unavailable)
+  window.particlePulse = window.particlePulse || function () {};
+
   if (typeof THREE === 'undefined') {
     console.warn('[particles] Three.js not loaded, skipping particle background');
     return;
@@ -20,7 +23,17 @@
   const canvas = document.getElementById('particleCanvas');
   if (!canvas) return;
 
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+  } catch (e) {
+    console.warn('[particles] WebGL not available, skipping particles');
+    return;
+  }
+  if (!renderer.getContext()) {
+    console.warn('[particles] WebGL context failed, skipping particles');
+    return;
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 0);
