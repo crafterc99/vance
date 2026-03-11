@@ -68,6 +68,25 @@ function serveImage(res, imagePath) {
   res.end(data);
 }
 
+// ─── Concurrency Helper ─────────────────────────────────────────────────
+async function runWithConcurrency(tasks, concurrency = 2, delayMs = 2000) {
+  const results = [];
+  let index = 0;
+  async function worker() {
+    while (index < tasks.length) {
+      const i = index++;
+      if (i > 0) await new Promise(r => setTimeout(r, delayMs));
+      results[i] = await tasks[i]();
+    }
+  }
+  const workers = [];
+  for (let w = 0; w < Math.min(concurrency, tasks.length); w++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return results;
+}
+
 // ─── API Routes ─────────────────────────────────────────────────────────
 
 async function handleAPI(req, res, pathname) {
@@ -671,26 +690,28 @@ async function handleAPI(req, res, pathname) {
       if (styleRefPath) referenceImages.push(styleRefPath);
       referenceImages.push(originalPath);
 
-      // Generate N options in parallel
-      const optionPromises = [];
+      // Generate N options with staggered concurrency to avoid rate limits
+      const optionTasks = [];
       for (let i = 0; i < numOptions; i++) {
-        optionPromises.push(
-          client.generate(prompt, {
-            referenceImages,
-            aspectRatio: '3:4',
-            resolution: '2K',
-            model: model || 'gemini-2.5-flash-image',
-          }).then(result => {
-            const optPath = path.join(charDir, `option-${i}.png`);
+        const idx = i;
+        optionTasks.push(async () => {
+          try {
+            const result = await client.generate(prompt, {
+              referenceImages,
+              aspectRatio: '3:4',
+              resolution: '2K',
+              model: model || 'gemini-2.5-flash-image',
+            });
+            const optPath = path.join(charDir, `option-${idx}.png`);
             fs.writeFileSync(optPath, result.imageBuffer);
-            return { index: i, url: `/api/character/image/${name}/option-${i}.png` };
-          }).catch(err => {
-            return { index: i, error: err.message };
-          })
-        );
+            return { index: idx, url: `/api/character/image/${name}/option-${idx}.png` };
+          } catch (err) {
+            return { index: idx, error: err.message };
+          }
+        });
       }
 
-      const options = await Promise.all(optionPromises);
+      const options = await runWithConcurrency(optionTasks, 2, 3000);
       const successful = options.filter(o => !o.error);
 
       return json(res, {

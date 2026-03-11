@@ -30,7 +30,12 @@ class NanaBananaClient {
         'Get your key at: https://aistudio.google.com/apikey'
       );
     }
-    this.ai = new GoogleGenAI({ apiKey: this.apiKey });
+    this.ai = new GoogleGenAI({
+      apiKey: this.apiKey,
+      httpOptions: {
+        retryOptions: { attempts: 3 },
+      },
+    });
     this.model = opts.model || MODELS.pro;
   }
 
@@ -80,18 +85,54 @@ class NanaBananaClient {
     // Add text prompt
     parts.push({ text: prompt });
 
-    // Make API call
-    const response = await this.ai.models.generateContent({
-      model,
-      contents: [{ role: 'user', parts }],
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-        imageConfig: {
-          aspectRatio,
-          imageSize: resolution,
-        },
-      },
-    });
+    // Make API call with retry for rate limits (429 / RESOURCE_EXHAUSTED)
+    const MAX_RETRIES = 6;
+    let response;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        response = await this.ai.models.generateContent({
+          model,
+          contents: [{ role: 'user', parts }],
+          config: {
+            responseModalities: ['TEXT', 'IMAGE'],
+            imageConfig: {
+              aspectRatio,
+              imageSize: resolution,
+            },
+          },
+        });
+        break; // Success — exit retry loop
+      } catch (err) {
+        const errMsg = err.message || '';
+        const isRateLimit = err.status === 429 ||
+          err.code === 429 ||
+          errMsg.includes('429') ||
+          errMsg.includes('RESOURCE_EXHAUSTED') ||
+          errMsg.includes('quota') ||
+          errMsg.includes('exhausted') ||
+          errMsg.includes('Too many requests') ||
+          (err.name === 'ApiError' && err.status >= 429 && err.status < 500);
+
+        if (isRateLimit && attempt < MAX_RETRIES) {
+          // Start with longer delays: 5s, 10s, 20s, 40s, 60s, 60s
+          const delay = Math.min(5000 * Math.pow(2, attempt) + Math.random() * 2000, 60000);
+          console.log(`[NanaBanana] Rate limited (attempt ${attempt + 1}/${MAX_RETRIES}), waiting ${(delay / 1000).toFixed(0)}s before retry...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+
+        // Add helpful context to quota errors
+        if (isRateLimit) {
+          throw new Error(
+            `Gemini API quota exhausted after ${MAX_RETRIES} retries. ` +
+            `Try: 1) Wait a few minutes  2) Switch to a cheaper model (--model flash or --model legacy)  ` +
+            `3) Check quota at https://aistudio.google.com/apikey  ` +
+            `Original error: ${errMsg.substring(0, 200)}`
+          );
+        }
+        throw err;
+      }
+    }
 
     // Extract image from response
     const result = { imageBuffer: null, description: '', model, resolution };
