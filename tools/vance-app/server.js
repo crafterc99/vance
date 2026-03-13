@@ -37,6 +37,15 @@ const brain = require('./brain/loader');
 const taskManager = require('./task-manager');
 const modelRouter = require('./model-router');
 const vectorMemory = require('./vector-memory');
+const toolRouter = require('./tools/tool_router');
+const executionLogger = require('./runtime/logger');
+
+// Agent modules (lazy-loaded for modularity)
+const AGENTS = {
+  coding: require('./agents/coding_agent'),
+  research: require('./agents/research_agent'),
+  browser: require('./agents/browser_agent'),
+};
 
 const PORT = process.env.VANCE_PORT || 4000;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
@@ -533,6 +542,38 @@ const TOOLS = [
           content: { type: 'string', description: 'New content for the section' },
         },
         required: ['section', 'content'],
+      },
+    },
+  },
+
+  // ─── Execution Layer Tools ───
+  {
+    type: 'function',
+    function: {
+      name: 'run_tool',
+      description: 'Run an execution tool directly. Available tools: claude_code (autonomous coding), browser (web automation), research (web search & extraction), memory (unified memory ops), project (project management). Each tool has multiple actions — pass the action in the payload.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tool: { type: 'string', enum: ['claude_code', 'browser', 'research', 'memory', 'project'], description: 'Tool to run' },
+          payload: { type: 'object', description: 'Tool-specific input (must include "action" field)' },
+        },
+        required: ['tool', 'payload'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_agent',
+      description: 'Run a multi-step agent workflow. Agents orchestrate multiple tools autonomously. Available agents: coding (analyze → plan → execute → verify), research (search → extract → analyze → store), browser (navigate → interact → extract). Use agents for complex multi-step tasks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agent: { type: 'string', enum: ['coding', 'research', 'browser'], description: 'Agent to run' },
+          input: { type: 'object', description: 'Agent-specific input' },
+        },
+        required: ['agent', 'input'],
       },
     },
   },
@@ -1164,6 +1205,35 @@ async function executeFunction(name, args, wsSend) {
       return 'Failed to update MEMORY.md — file may not exist.';
     }
 
+    // ─── Execution Layer ───
+    case 'run_tool': {
+      wsSend({ type: 'status', text: `Running tool: ${args.tool}...` });
+      const result = await toolRouter.execute_tool(args.tool, args.payload, { wsSend });
+      if (result.success) {
+        return typeof result.result === 'string'
+          ? result.result
+          : JSON.stringify(result.result, null, 2);
+      }
+      return `Tool error: ${result.error}`;
+    }
+
+    case 'run_agent': {
+      const agent = AGENTS[args.agent];
+      if (!agent) return `Unknown agent: ${args.agent}. Available: ${Object.keys(AGENTS).join(', ')}`;
+      wsSend({ type: 'status', text: `Running ${args.agent} agent...` });
+      wsSend({ type: 'agent-start', agent: args.agent });
+      const result = await agent.run(args.input, { wsSend });
+      wsSend({ type: 'agent-complete', agent: args.agent, success: result.success });
+      if (result.success) {
+        let output = `Agent "${args.agent}" completed in ${((result.duration || 0) / 1000).toFixed(1)}s`;
+        if (result.totalCost) output += ` ($${result.totalCost.toFixed(2)})`;
+        if (result.result) output += `\n\n${typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2)}`;
+        if (result.findings) output += `\n\nFindings:\n${result.findings.map(f => `- ${f.title}: ${f.summary?.slice(0, 200)}`).join('\n')}`;
+        return output;
+      }
+      return `Agent "${args.agent}" failed: ${result.error || result.result}`;
+    }
+
     default:
       return `Unknown function: ${name}`;
   }
@@ -1556,6 +1626,47 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    // ─── Execution Layer Actions ───
+    case 'list-tools': {
+      ws.send({ type: 'tools', tools: toolRouter.listTools() });
+      break;
+    }
+
+    case 'run-tool': {
+      const result = await toolRouter.execute_tool(msg.tool, msg.payload, {
+        wsSend: (data) => ws.send(data),
+        projectId: msg.projectId,
+      });
+      ws.send({ type: 'tool-result', tool: msg.tool, ...result });
+      break;
+    }
+
+    case 'run-agent': {
+      const agent = AGENTS[msg.agent];
+      if (!agent) {
+        ws.send({ type: 'error', message: `Unknown agent: ${msg.agent}` });
+        break;
+      }
+      ws.send({ type: 'agent-start', agent: msg.agent });
+      const result = await agent.run(msg.input || {}, {
+        wsSend: (data) => ws.send(data),
+        projectId: msg.projectId,
+      });
+      ws.send({ type: 'agent-result', agent: msg.agent, ...result });
+      break;
+    }
+
+    case 'get-execution-logs': {
+      const logs = executionLogger.readLogs(msg.limit || 50, msg.filter);
+      ws.send({ type: 'execution-logs', logs });
+      break;
+    }
+
+    case 'get-execution-stats': {
+      ws.send({ type: 'execution-stats', stats: executionLogger.getStats() });
+      break;
+    }
+
     default:
       ws.send({ type: 'error', message: `Unknown action: ${msg.action}` });
   }
@@ -1577,6 +1688,7 @@ const server = http.createServer((req, res) => {
       status: 'online', uptime: process.uptime(), model: 'claude-haiku/sonnet',
       hasKey: !!ANTHROPIC_KEY, tiers: ['haiku', 'sonnet', 'claude-code'],
       memory: { vectors: vectorMemory.getStats().totalEntries, dailyNotes: memory.listDailyNotes(1).length > 0 },
+      execution: { tools: toolRouter.listTools().length, agents: Object.keys(AGENTS).length },
     }));
     return;
   }
@@ -1717,6 +1829,7 @@ if (!claudeBudget.dailyBudget) {
   console.log(`  Memories: ${memory.getMemoryStats().total}`);
   console.log(`  Skills: ${memory.loadSkills().length}`);
   console.log(`  Claude Budget: $${budget.dailyBudget}/day, $${budget.monthlyBudget}/month`);
-  console.log(`  Tasks: ${taskManager.getAllTasks({ status: 'queued' }).length} queued, ${taskManager.getRunningTask() ? 1 : 0} running\n`);
+  console.log(`  Tasks: ${taskManager.getAllTasks({ status: 'queued' }).length} queued, ${taskManager.getRunningTask() ? 1 : 0} running`);
+  console.log(`  Execution: ${toolRouter.listTools().length} tools, ${Object.keys(AGENTS).length} agents\n`);
   });
 })();
