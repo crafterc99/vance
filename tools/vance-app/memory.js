@@ -12,9 +12,18 @@ const DATA_DIR = path.resolve(__dirname, '../../.vance-data');
 const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
 const SKILLS_DIR = path.join(DATA_DIR, 'skills');
 const LEARNING_FILE = path.join(DATA_DIR, 'learning.json');
+const MEMORY_DIR = path.resolve(__dirname, 'memory');
+const DAILY_DIR = path.join(MEMORY_DIR, 'daily');
+const PROJECTS_DIR = path.resolve(__dirname, 'projects');
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(SKILLS_DIR, { recursive: true });
+fs.mkdirSync(DAILY_DIR, { recursive: true });
+fs.mkdirSync(PROJECTS_DIR, { recursive: true });
+fs.mkdirSync(path.join(MEMORY_DIR, 'decisions'), { recursive: true });
+fs.mkdirSync(path.join(MEMORY_DIR, 'research'), { recursive: true });
+fs.mkdirSync(path.join(MEMORY_DIR, 'workflows'), { recursive: true });
+fs.mkdirSync(path.join(MEMORY_DIR, 'tasks'), { recursive: true });
 
 // ─── Memory Store ────────────────────────────────────────────────────────
 
@@ -245,8 +254,275 @@ function getPreferences() {
   return loadLearning().preferences;
 }
 
+// ─── Daily Notes ─────────────────────────────────────────────────────────
+
+function getDailyNotePath(date) {
+  const dateStr = date || new Date().toISOString().split('T')[0];
+  return path.join(DAILY_DIR, `${dateStr}.md`);
+}
+
+function readDailyNote(date) {
+  const filePath = getDailyNotePath(date);
+  if (!fs.existsSync(filePath)) return null;
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function writeDailyNote(content, date) {
+  const filePath = getDailyNotePath(date);
+  fs.writeFileSync(filePath, content);
+  return filePath;
+}
+
+function appendDailyNote(section, content, date) {
+  const filePath = getDailyNotePath(date);
+  const dateStr = date || new Date().toISOString().split('T')[0];
+
+  if (!fs.existsSync(filePath)) {
+    // Create new daily note with template
+    const template = `# Daily Note - ${dateStr}\n\n## Summary\n\n## Tasks Worked On\n\n## Decisions\n\n## Open Loops\n\n## Follow-Up\n`;
+    fs.writeFileSync(filePath, template);
+  }
+
+  let note = fs.readFileSync(filePath, 'utf8');
+
+  // Find the section header and append content after it
+  const sectionRegex = new RegExp(`(## ${section}[^\n]*\n)`, 'i');
+  if (sectionRegex.test(note)) {
+    note = note.replace(sectionRegex, `$1- ${content}\n`);
+  } else {
+    // Section doesn't exist, append at end
+    note += `\n## ${section}\n- ${content}\n`;
+  }
+
+  fs.writeFileSync(filePath, note);
+  return filePath;
+}
+
+function listDailyNotes(limit = 30) {
+  if (!fs.existsSync(DAILY_DIR)) return [];
+  return fs.readdirSync(DAILY_DIR)
+    .filter(f => f.endsWith('.md'))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+    .map(f => ({
+      date: f.replace('.md', ''),
+      path: path.join(DAILY_DIR, f),
+      size: fs.statSync(path.join(DAILY_DIR, f)).size,
+    }));
+}
+
+// ─── Project Files ───────────────────────────────────────────────────────
+
+function ensureProjectDir(slug) {
+  const dir = path.join(PROJECTS_DIR, slug);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function readProjectFile(slug, file) {
+  const filePath = path.join(PROJECTS_DIR, slug, file);
+  if (!fs.existsSync(filePath)) return null;
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function writeProjectFile(slug, file, content) {
+  const dir = ensureProjectDir(slug);
+  const filePath = path.join(dir, file);
+  fs.writeFileSync(filePath, content);
+  return filePath;
+}
+
+function appendProjectFile(slug, file, content) {
+  const dir = ensureProjectDir(slug);
+  const filePath = path.join(dir, file);
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, content + '\n');
+  } else {
+    fs.appendFileSync(filePath, '\n' + content);
+  }
+  return filePath;
+}
+
+function listProjectFiles(slug) {
+  const dir = path.join(PROJECTS_DIR, slug);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => f.endsWith('.md'));
+}
+
+// ─── MEMORY.md Management ────────────────────────────────────────────────
+
+const MEMORY_MD_FILE = path.join(MEMORY_DIR, 'MEMORY.md');
+
+function readMemoryMd() {
+  if (!fs.existsSync(MEMORY_MD_FILE)) return '';
+  return fs.readFileSync(MEMORY_MD_FILE, 'utf8');
+}
+
+function updateMemoryMdSection(section, content) {
+  if (!fs.existsSync(MEMORY_MD_FILE)) return false;
+
+  let md = fs.readFileSync(MEMORY_MD_FILE, 'utf8');
+  const sectionRegex = new RegExp(`(## ${section}[^\n]*\n)((?:(?!## ).)*)`, 'is');
+
+  if (sectionRegex.test(md)) {
+    md = md.replace(sectionRegex, `$1${content}\n\n`);
+  } else {
+    // Add section at end
+    md += `\n## ${section}\n${content}\n`;
+  }
+
+  // Update timestamp
+  md = md.replace(/Last Updated: \d{4}-\d{2}-\d{2}/, `Last Updated: ${new Date().toISOString().split('T')[0]}`);
+
+  fs.writeFileSync(MEMORY_MD_FILE, md);
+  return true;
+}
+
+// ─── projects.md Management ──────────────────────────────────────────────
+
+const PROJECTS_MD_FILE = path.join(MEMORY_DIR, 'projects.md');
+
+function readProjectsMd() {
+  if (!fs.existsSync(PROJECTS_MD_FILE)) return '';
+  return fs.readFileSync(PROJECTS_MD_FILE, 'utf8');
+}
+
+function writeProjectsMd(content) {
+  fs.writeFileSync(PROJECTS_MD_FILE, content);
+  return true;
+}
+
+// ─── Self-Curation ───────────────────────────────────────────────────────
+
+const CURATION_LOG_FILE = path.join(DATA_DIR, 'curation-log.json');
+
+function loadCurationLog() {
+  if (!fs.existsSync(CURATION_LOG_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(CURATION_LOG_FILE, 'utf8')); } catch { return []; }
+}
+
+function saveCurationLog(log) {
+  fs.writeFileSync(CURATION_LOG_FILE, JSON.stringify(log, null, 2));
+}
+
+/**
+ * Auto-curate: low-risk memory updates applied automatically.
+ * - Updates to daily notes
+ * - Adding new memories with importance <= 5
+ * - Updating project status in projects.md
+ * - Appending to existing sections (not overwriting)
+ */
+function autoCurate(action, details) {
+  const log = loadCurationLog();
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 4),
+    action,
+    details,
+    timestamp: new Date().toISOString(),
+    risk: 'low',
+    auto: true,
+  };
+  log.push(entry);
+  // Keep last 500 entries
+  if (log.length > 500) log.splice(0, log.length - 500);
+  saveCurationLog(log);
+  return entry;
+}
+
+/**
+ * Check if an action is safe for auto-curation.
+ * Returns { safe: boolean, reason: string }
+ */
+function isSafeAutoCuration(action, target) {
+  const SAFE_ACTIONS = [
+    'append-daily-note',
+    'add-memory',
+    'update-project-status',
+    'append-project-note',
+    'record-decision',
+    'record-task-outcome',
+  ];
+
+  const UNSAFE_TARGETS = [
+    'PERSONALITY.md', 'USER_PROFILE.md', 'GUIDELINES.md',
+    'SELF_IMPROVEMENT.md', 'tool_rules.md',
+  ];
+
+  if (!SAFE_ACTIONS.includes(action)) {
+    return { safe: false, reason: `Action '${action}' requires approval` };
+  }
+
+  if (target && UNSAFE_TARGETS.some(t => target.includes(t))) {
+    return { safe: false, reason: `Modifying '${target}' requires approval` };
+  }
+
+  return { safe: true, reason: 'Low-risk auto-curation' };
+}
+
+/**
+ * Get curation history for review.
+ */
+function getCurationHistory(limit = 50) {
+  return loadCurationLog().slice(-limit).reverse();
+}
+
+// ─── Memory Decisions / Research / Workflows ─────────────────────────────
+
+function recordDecision(title, content, projectSlug) {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const fileName = `${dateStr}-${title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 50)}.md`;
+  const filePath = path.join(MEMORY_DIR, 'decisions', fileName);
+  const md = `# Decision: ${title}\nDate: ${dateStr}\nProject: ${projectSlug || 'general'}\n\n${content}\n`;
+  fs.writeFileSync(filePath, md);
+  autoCurate('record-decision', { title, projectSlug });
+  return filePath;
+}
+
+function recordResearch(title, content, tags) {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const fileName = `${dateStr}-${title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 50)}.md`;
+  const filePath = path.join(MEMORY_DIR, 'research', fileName);
+  const md = `# Research: ${title}\nDate: ${dateStr}\nTags: ${(tags || []).join(', ')}\n\n${content}\n`;
+  fs.writeFileSync(filePath, md);
+  return filePath;
+}
+
+function recordWorkflow(name, steps, triggers) {
+  const fileName = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.md`;
+  const filePath = path.join(MEMORY_DIR, 'workflows', fileName);
+  const md = `# Workflow: ${name}\nTriggers: ${(triggers || []).join(', ')}\n\n## Steps\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n`;
+  fs.writeFileSync(filePath, md);
+  return filePath;
+}
+
+function recordTaskOutcome(taskId, title, outcome, cost, duration) {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const fileName = `${dateStr}-${taskId}.md`;
+  const filePath = path.join(MEMORY_DIR, 'tasks', fileName);
+  const md = `# Task: ${title}\nID: ${taskId}\nDate: ${dateStr}\nOutcome: ${outcome}\nCost: $${(cost || 0).toFixed(2)}\nDuration: ${duration || 'unknown'}\n`;
+  fs.writeFileSync(filePath, md);
+  autoCurate('record-task-outcome', { taskId, title, outcome });
+  return filePath;
+}
+
 module.exports = {
+  // Original memory
   addMemory, searchMemories, reinforceMemory, deleteMemory, getAllMemories, getMemoryStats,
+  // Skills
   loadSkills, createSkill, getSkill, updateSkill, recordSkillUsage, findSkillsForQuery,
+  // Learning
   learnPattern, learnPreference, learnCorrection, getPreferences, loadLearning,
+  // Daily notes
+  readDailyNote, writeDailyNote, appendDailyNote, listDailyNotes,
+  // Project files
+  readProjectFile, writeProjectFile, appendProjectFile, listProjectFiles,
+  // MEMORY.md + projects.md
+  readMemoryMd, updateMemoryMdSection, readProjectsMd, writeProjectsMd,
+  // Self-curation
+  autoCurate, isSafeAutoCuration, getCurationHistory,
+  // Decisions / Research / Workflows / Tasks
+  recordDecision, recordResearch, recordWorkflow, recordTaskOutcome,
+  // Paths
+  MEMORY_DIR, DAILY_DIR, PROJECTS_DIR,
 };

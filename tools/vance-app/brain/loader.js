@@ -12,12 +12,56 @@ const fs = require('fs');
 const path = require('path');
 
 const BRAIN_DIR = path.resolve(__dirname);
+const MEMORY_DIR = path.resolve(__dirname, '..', 'memory');
 const BRAIN_FILES = {
   personality: path.join(BRAIN_DIR, 'PERSONALITY.md'),
   userProfile: path.join(BRAIN_DIR, 'USER_PROFILE.md'),
   guidelines: path.join(BRAIN_DIR, 'GUIDELINES.md'),
   selfImprovement: path.join(BRAIN_DIR, 'SELF_IMPROVEMENT.md'),
+  modelRouting: path.join(BRAIN_DIR, 'model_routing.md'),
+  operatingModes: path.join(BRAIN_DIR, 'operating_modes.md'),
+  projectPriorities: path.join(BRAIN_DIR, 'project_priorities.md'),
+  communicationStyle: path.join(BRAIN_DIR, 'communication_style.md'),
+  memoryRules: path.join(BRAIN_DIR, 'memory_rules.md'),
+  toolRules: path.join(BRAIN_DIR, 'tool_rules.md'),
 };
+
+// ─── Smart Memory Loading ────────────────────────────────────────
+
+let cachedMemoryMd = '';
+let cachedProjectsMd = '';
+let memoryLoadedAt = 0;
+const MEMORY_CACHE_TTL = 60000; // Reload every 60s
+
+function loadSmartMemory() {
+  const now = Date.now();
+  if (now - memoryLoadedAt < MEMORY_CACHE_TTL && cachedMemoryMd) return;
+
+  try {
+    const memFile = path.join(MEMORY_DIR, 'MEMORY.md');
+    const projFile = path.join(MEMORY_DIR, 'projects.md');
+    cachedMemoryMd = fs.existsSync(memFile) ? fs.readFileSync(memFile, 'utf8') : '';
+    cachedProjectsMd = fs.existsSync(projFile) ? fs.readFileSync(projFile, 'utf8') : '';
+    memoryLoadedAt = now;
+  } catch (e) {
+    console.error('Smart memory load error:', e.message);
+  }
+}
+
+function getSmartMemory() {
+  loadSmartMemory();
+  return { memoryMd: cachedMemoryMd, projectsMd: cachedProjectsMd };
+}
+
+function loadDailyNote(date) {
+  const dateStr = date || new Date().toISOString().split('T')[0];
+  const dailyFile = path.join(MEMORY_DIR, 'daily', `${dateStr}.md`);
+  return fs.existsSync(dailyFile) ? fs.readFileSync(dailyFile, 'utf8') : null;
+}
+
+function invalidateMemoryCache() {
+  memoryLoadedAt = 0;
+}
 
 // Pending brain updates (proposed but not yet approved)
 const pendingUpdates = [];
@@ -48,9 +92,65 @@ function readAllBrainFiles() {
  * @param {Object} context.costs - Today's cost summary
  */
 function buildSystemPrompt(context = {}) {
+  const tier = context.modelTier || 'haiku';
+
+  // Haiku gets a lightweight prompt — fast, token-efficient
+  if (tier === 'haiku') {
+    return buildHaikuPrompt(context);
+  }
+
+  // Sonnet gets the full brain files for deep reasoning
+  return buildSonnetPrompt(context);
+}
+
+function buildHaikuPrompt(context = {}) {
+  let prompt = `You are Vance, a personal AI assistant — like JARVIS from Iron Man. Calm, confident, competent, proactive. Address the user as "sir" naturally.
+
+You are running as the HAIKU tier (fast, default). You handle ALL conversation, tool execution, status queries, memory operations, and lightweight reasoning.
+
+## KEY RULES
+- Be concise. Lead with the answer or action, not reasoning.
+- Never use emojis. Never start with "Sure!" or "Of course!". Never pad responses.
+- Match the user's speed and energy. Short messages = short replies.
+- Use tools directly — don't explain what you're about to do, just do it.
+- For coding tasks, delegate to 'start_coding_task' or 'run_claude_code' — don't try to reason through complex code yourself.
+
+## ESCALATION
+You have an 'escalate_to_sonnet' tool. Call it ONLY when the request genuinely requires:
+- Deep multi-step planning or architecture decisions
+- Complex debugging or root-cause analysis
+- Interpreting design specs, writing detailed proposals
+- Research synthesis across many factors
+- Sustained complex reasoning you cannot handle well
+
+Do NOT escalate for: status checks, simple questions, tool execution, memory lookups, project management, conversational replies, or any straightforward command.
+
+## TOOLS
+- System: run_shell, read_file, write_file, list_directory, search_files, system_info, open_app, run_applescript
+- Memory: remember, recall, create_skill, learn_preference, propose_brain_update
+- Projects: create_project, add_milestone, get_cost_report
+- Tasks: start_coding_task, get_task_status, list_tasks, control_task, merge_task
+- Coding: run_claude_code (complex multi-step only), start_coding_task (autonomous background tasks)
+- Budget: set_claude_budget`;
+
+  // Add smart memory (MEMORY.md + projects.md — always loaded)
+  const smartMem = getSmartMemory();
+  if (smartMem.memoryMd) {
+    prompt += `\n\n## LONG-TERM MEMORY\n${smartMem.memoryMd.slice(0, 2000)}`;
+  }
+  if (smartMem.projectsMd) {
+    prompt += `\n\n## PROJECT REGISTRY\n${smartMem.projectsMd.slice(0, 1500)}`;
+  }
+
+  // Add live context (same for both tiers)
+  prompt += buildLiveContext(context);
+  return prompt;
+}
+
+function buildSonnetPrompt(context = {}) {
   const brain = readAllBrainFiles();
 
-  // Extract key sections from personality (condensed for token efficiency)
+  // Extract key sections from personality
   const personalityCore = extractSection(brain.personality, 'Identity', 'Voice & Tone') ||
     'You are Vance, a personal AI assistant modeled after JARVIS from Iron Man. Calm, confident, competent, proactive. Address the user as "sir" naturally.';
 
@@ -59,8 +159,9 @@ function buildSystemPrompt(context = {}) {
 
   const proactiveRules = extractSection(brain.personality, 'Proactive Behavior') || '';
 
-  // Build the prompt
   let prompt = `You are Vance, a personal AI assistant — like JARVIS from Iron Man.
+
+You are running as the SONNET tier (deep reasoning). You were escalated from Haiku because this request requires sustained complex reasoning.
 
 ## PERSONALITY
 ${personalityCore}
@@ -80,8 +181,6 @@ ${toneRules}
 - When they say "continue" — full speed, maximum autonomy
 - When they redirect — pivot immediately, no defense of previous approach
 - When they say "give me the link" — they want working output, not explanations
-- Short fast messages = match their brevity
-- Long detailed messages = extract key decisions, act on all of them
 
 ## PROACTIVE BEHAVIOR
 ${proactiveRules}
@@ -90,32 +189,56 @@ ${proactiveRules}
 - Flag potential issues before they become problems
 - Report costs when notable
 - Remember preferences and apply them without being asked
-- Create skills for workflows repeated 2+ times
 
-## CORE CAPABILITIES — SYSTEM TOOLS (fast, free, direct)
-- Use 'run_shell' for ANY terminal command: git, npm, node, python, system commands, scripts
-- Use 'read_file' to read any file on the system
-- Use 'write_file' to create or update files
-- Use 'list_directory' to explore directories
-- Use 'search_files' to find files by name or search contents (grep/find)
-- Use 'system_info' to check CPU, memory, disk, battery, processes, network
-- Use 'open_app' to open apps, URLs, or files on macOS
-- Use 'run_applescript' for Mac automation: notifications, clipboard, window management, Finder
+## TOOLS
+- System: run_shell, read_file, write_file, list_directory, search_files, system_info, open_app, run_applescript
+- Memory: remember, recall, create_skill, learn_preference, propose_brain_update
+- Projects: create_project, add_milestone, get_cost_report
+- Tasks: start_coding_task, get_task_status, list_tasks, control_task, merge_task
+- Coding: run_claude_code (complex multi-step only), start_coding_task (autonomous background tasks)
+- Budget: set_claude_budget
 
 ## CODING TASKS
-- Use 'run_claude_code' ONLY for complex multi-step coding that needs AI reasoning
-- For simple file edits, git commands, running tests — use the system tools directly
+- Use 'start_coding_task' for autonomous multi-file implementation work
+- Use 'run_claude_code' for complex single-turn coding that needs AI reasoning
+- For simple file edits, git commands, running tests — use the system tools directly`;
 
-## MEMORY & BRAIN
-- Use 'remember' to save important information to long-term memory
-- Use 'recall' to search memory for relevant context
-- Use 'create_skill' for repeatable workflows
-- Use 'learn_preference' to store user preferences
-- Use 'create_project' and 'add_milestone' for project management
-- Use 'get_cost_report' for cost analysis
-- Use 'propose_brain_update' to suggest improvements to your own configuration`;
+  // Add full brain context for Sonnet (all brain files)
+  if (brain.userProfile) {
+    prompt += `\n\n## USER PROFILE\n${brain.userProfile.substring(0, 1500)}`;
+  }
+  if (brain.guidelines) {
+    prompt += `\n\n## GUIDELINES\n${brain.guidelines.substring(0, 1500)}`;
+  }
+  if (brain.selfImprovement) {
+    prompt += `\n\n## SELF-IMPROVEMENT RULES\n${brain.selfImprovement.substring(0, 1000)}`;
+  }
+  if (brain.operatingModes) {
+    prompt += `\n\n## OPERATING MODES\n${brain.operatingModes.substring(0, 800)}`;
+  }
+  if (brain.toolRules) {
+    prompt += `\n\n## TOOL & AUTONOMY RULES\n${brain.toolRules.substring(0, 1000)}`;
+  }
+  if (brain.memoryRules) {
+    prompt += `\n\n## MEMORY RULES\n${brain.memoryRules.substring(0, 800)}`;
+  }
+
+  // Add smart memory (MEMORY.md + projects.md — always loaded)
+  const smartMem = getSmartMemory();
+  if (smartMem.memoryMd) {
+    prompt += `\n\n## LONG-TERM MEMORY\n${smartMem.memoryMd}`;
+  }
+  if (smartMem.projectsMd) {
+    prompt += `\n\n## PROJECT REGISTRY\n${smartMem.projectsMd}`;
+  }
 
   // Add live context
+  prompt += buildLiveContext(context);
+  return prompt;
+}
+
+function buildLiveContext(context = {}) {
+  let prompt = '';
   const { project, memories, skills, preferences, stats, costs, runningTask, queuedTaskCount } = context;
 
   if (stats) {
@@ -149,9 +272,6 @@ Directory: ${project.directory || 'not set'}`;
     prompt += `\n\n## RELEVANT SKILLS`;
     for (const s of skills.slice(0, 3)) {
       prompt += `\n- **${s.name}**: ${s.description}`;
-      if (s.steps?.length) {
-        prompt += `\n  Steps: ${s.steps.join(' -> ')}`;
-      }
     }
   }
 
@@ -163,7 +283,6 @@ Directory: ${project.directory || 'not set'}`;
     }
   }
 
-  // Running task context
   if (runningTask) {
     const elapsed = runningTask.startedAt
       ? Math.round((Date.now() - new Date(runningTask.startedAt).getTime()) / 1000)
@@ -182,7 +301,6 @@ Milestones: ${runningTask.milestones?.slice(-3).map(m => m.detail).join(', ') ||
     prompt += `\n${queuedTaskCount} task${queuedTaskCount > 1 ? 's' : ''} queued behind current task.`;
   }
 
-  // Self-improvement context
   if (pendingUpdates.length) {
     prompt += `\n\n## PENDING BRAIN UPDATES (awaiting approval)`;
     for (const u of pendingUpdates) {
@@ -319,5 +437,9 @@ module.exports = {
   rejectBrainUpdate,
   getPendingUpdates,
   getBrainFiles,
+  getSmartMemory,
+  loadDailyNote,
+  invalidateMemoryCache,
   BRAIN_FILES,
+  MEMORY_DIR,
 };

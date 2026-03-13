@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 /**
- * VANCE — Personal AI Assistant Server
+ * VANCE — Personal AI Operating System
  *
- * GPT-powered brain with function calling for:
- * - Claude Code execution (coding tasks)
+ * Tiered Claude-powered brain:
+ *   Tier 1 (Haiku)  — all conversation, tool use, commands, memory
+ *   Tier 2 (Sonnet) — deep reasoning, planning, debugging (escalated by Haiku)
+ *   Tier 3 (Claude Code) — autonomous project implementation
+ *
+ * Features:
  * - Long-term memory (learn, recall, adapt)
  * - Skill creation and management
  * - Project management with milestones
+ * - Autonomous coding tasks with git isolation
  * - Cost tracking across all API components
  */
 const http = require('http');
@@ -30,10 +35,12 @@ const memory = require('./memory');
 const costs = require('./costs');
 const brain = require('./brain/loader');
 const taskManager = require('./task-manager');
+const modelRouter = require('./model-router');
+const vectorMemory = require('./vector-memory');
 
 const PORT = process.env.VANCE_PORT || 4000;
-const OPENAI_KEY = process.env.OPENAI_API_KEY || 'sk-placeholder-add-your-key';
-const GPT_MODEL = process.env.VANCE_MODEL || 'gpt-4o';
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
+const OPENAI_KEY = process.env.OPENAI_API_KEY || '';
 const DATA_DIR = path.resolve(__dirname, '../../.vance-data');
 const PROJECTS_FILE = path.join(DATA_DIR, 'projects.json');
 const CONVERSATIONS_DIR = path.join(DATA_DIR, 'conversations');
@@ -72,7 +79,7 @@ function addMilestone(pid, m) {
   return ms;
 }
 
-// ─── GPT Function Definitions ────────────────────────────────────────────
+// ─── Tool Definitions (OpenAI format, converted to Anthropic at runtime) ─
 
 const TOOLS = [
   // ─── System Tools (direct, fast, free) ────────────────────────────────
@@ -332,7 +339,7 @@ const TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          file: { type: 'string', enum: ['personality', 'userProfile', 'guidelines', 'selfImprovement'], description: 'Which brain file to update' },
+          file: { type: 'string', enum: ['personality', 'userProfile', 'guidelines', 'selfImprovement', 'modelRouting', 'operatingModes', 'projectPriorities', 'communicationStyle', 'memoryRules', 'toolRules'], description: 'Which brain file to update' },
           section: { type: 'string', description: 'Section or topic being updated' },
           old_text: { type: 'string', description: 'Existing text to replace (null for additions)' },
           new_text: { type: 'string', description: 'New text to add or replace with' },
@@ -435,45 +442,161 @@ const TOOLS = [
       },
     },
   },
+  // ─── Memory System Tools (daily notes, vector search, project files, self-curation) ──
+  {
+    type: 'function',
+    function: {
+      name: 'write_daily_note',
+      description: 'Append an entry to today\'s daily note. Use to record meaningful work, decisions, or outcomes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'string', enum: ['Summary', 'Tasks Worked On', 'Decisions', 'Open Loops', 'Follow-Up'], description: 'Section to append to' },
+          content: { type: 'string', description: 'Content to add' },
+        },
+        required: ['section', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_daily_note',
+      description: 'Read a daily note. Defaults to today. Use to review what happened on a specific day.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Date in YYYY-MM-DD format (default: today)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'vector_search',
+      description: 'Semantic search across stored memories, notes, decisions, and research. Use when keyword search isn\'t enough — this finds conceptually similar content.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Natural language query' },
+          type: { type: 'string', enum: ['daily-note', 'decision', 'research', 'task-outcome', 'memory', 'project-note'], description: 'Filter by content type' },
+          project_id: { type: 'string', description: 'Filter by project' },
+          limit: { type: 'number', description: 'Max results (default: 5)' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'vector_store',
+      description: 'Store content in vector memory for future semantic search. Use for important decisions, research findings, task outcomes, project notes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          content: { type: 'string', description: 'Content to store' },
+          type: { type: 'string', enum: ['daily-note', 'decision', 'research', 'task-outcome', 'memory', 'project-note'], description: 'Content type' },
+          project_id: { type: 'string', description: 'Associated project' },
+          tags: { type: 'array', items: { type: 'string' }, description: 'Tags for filtering' },
+        },
+        required: ['content', 'type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'record_decision',
+      description: 'Record an important project or architecture decision for future reference. Stored in both file and vector memory.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Decision title' },
+          content: { type: 'string', description: 'Decision details, rationale, and implications' },
+          project_slug: { type: 'string', description: 'Project slug (optional)' },
+        },
+        required: ['title', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_memory_section',
+      description: 'Update a section in MEMORY.md (long-term curated memory). Use for stable truths, major decisions, recurring patterns.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'string', description: 'Section name (e.g. "Core User Preferences", "Key Decisions")' },
+          content: { type: 'string', description: 'New content for the section' },
+        },
+        required: ['section', 'content'],
+      },
+    },
+  },
 ];
 
-// ─── GPT Streaming Call ──────────────────────────────────────────────────
+// ─── Claude Tools (Anthropic format) ─────────────────────────────────────
+
+const CLAUDE_TOOLS = modelRouter.convertToolsToAnthropic(TOOLS);
+
+// Escalation tool — only given to Haiku so it can escalate to Sonnet
+const ESCALATION_TOOL = {
+  name: 'escalate_to_sonnet',
+  description: 'Escalate this request to Sonnet, a more powerful reasoning model. Call this when the request requires: deep multi-step planning, complex debugging/root-cause analysis, architectural decisions, interpreting design specs, writing detailed proposals, research synthesis, or any task requiring sustained reasoning across many factors. Do NOT escalate simple questions, status checks, tool execution, memory lookups, or straightforward commands — handle those yourself.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      reason: { type: 'string', description: 'Brief reason why deeper reasoning is needed' },
+    },
+    required: ['reason'],
+  },
+};
+
+// GPT streaming removed — Vance now uses Claude exclusively
+
+// ─── Claude Streaming Call (Anthropic Messages API) ──────────────────────
 
 /**
- * Stream GPT response. Yields events:
+ * Stream Claude API response. Yields events:
  *   { type: 'token', content: '...' }
- *   { type: 'tool_call_start', index, id, name }
- *   { type: 'tool_call_args', index, args: '...' }
- *   { type: 'done', usage: { ... } }
+ *   { type: 'tool_use_start', index, id, name }
+ *   { type: 'tool_input_delta', index, delta: '...' }
+ *   { type: 'content_block_stop', index }
+ *   { type: 'done', usage: { input_tokens, output_tokens }, stopReason }
  */
-async function* callGPTStream(messages) {
+async function* callClaudeStream(model, messages, system, tools) {
   const body = {
-    model: GPT_MODEL,
+    model,
+    max_tokens: model.includes('haiku') ? 4096 : 8192,
+    system,
     messages,
-    tools: TOOLS,
-    temperature: 0.7,
-    max_tokens: 4096,
     stream: true,
-    stream_options: { include_usage: true },
   };
+  if (tools && tools.length) body.tools = tools;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_KEY}`,
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`GPT API error ${res.status}: ${err}`);
+    throw new Error(`Claude API error ${res.status}: ${err}`);
   }
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
+  let inputTokens = 0, outputTokens = 0;
+  let stopReason = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -487,39 +610,45 @@ async function* callGPTStream(messages) {
       const trimmed = line.trim();
       if (!trimmed || !trimmed.startsWith('data: ')) continue;
       const payload = trimmed.slice(6);
-      if (payload === '[DONE]') return;
 
       try {
-        const chunk = JSON.parse(payload);
+        const event = JSON.parse(payload);
+        switch (event.type) {
+          case 'message_start':
+            if (event.message?.usage) inputTokens = event.message.usage.input_tokens;
+            break;
 
-        // Usage comes in the final chunk
-        if (chunk.usage) {
-          costs.logCall('gpt', GPT_MODEL, {
-            inputTokens: chunk.usage.prompt_tokens,
-            outputTokens: chunk.usage.completion_tokens,
-          });
-          yield { type: 'done', usage: chunk.usage };
-          continue;
-        }
-
-        const delta = chunk.choices?.[0]?.delta;
-        if (!delta) continue;
-
-        // Text content
-        if (delta.content) {
-          yield { type: 'token', content: delta.content };
-        }
-
-        // Tool calls (streamed as deltas)
-        if (delta.tool_calls) {
-          for (const tc of delta.tool_calls) {
-            if (tc.id) {
-              yield { type: 'tool_call_start', index: tc.index, id: tc.id, name: tc.function?.name || '' };
+          case 'content_block_start':
+            if (event.content_block?.type === 'tool_use') {
+              yield {
+                type: 'tool_use_start',
+                index: event.index,
+                id: event.content_block.id,
+                name: event.content_block.name,
+              };
             }
-            if (tc.function?.arguments) {
-              yield { type: 'tool_call_args', index: tc.index, args: tc.function.arguments };
+            break;
+
+          case 'content_block_delta':
+            if (event.delta?.type === 'text_delta') {
+              yield { type: 'token', content: event.delta.text };
+            } else if (event.delta?.type === 'input_json_delta') {
+              yield { type: 'tool_input_delta', index: event.index, delta: event.delta.partial_json };
             }
-          }
+            break;
+
+          case 'content_block_stop':
+            yield { type: 'content_block_stop', index: event.index };
+            break;
+
+          case 'message_delta':
+            if (event.delta?.stop_reason) stopReason = event.delta.stop_reason;
+            if (event.usage) outputTokens = event.usage.output_tokens;
+            break;
+
+          case 'message_stop':
+            yield { type: 'done', usage: { input_tokens: inputTokens, output_tokens: outputTokens }, stopReason };
+            break;
         }
       } catch {}
     }
@@ -599,7 +728,7 @@ async function getSystemInfo(category = 'all') {
   }
 
   if (category === 'all' || category === 'processes') {
-    const topApps = run('ps aux --sort=-%cpu | head -11');
+    const topApps = run('ps -eo pid,pcpu,pmem,comm -r | head -11');
     info.processes = topApps;
   }
 
@@ -978,6 +1107,63 @@ async function executeFunction(name, args, wsSend) {
       return `Claude budget set: $${args.daily}/day, $${args.monthly}/month`;
     }
 
+    // ─── Memory System Tools ───
+    case 'write_daily_note': {
+      const filePath = memory.appendDailyNote(args.section, args.content);
+      memory.autoCurate('append-daily-note', { section: args.section, content: args.content.slice(0, 100) });
+      return `Added to daily note (${args.section}): ${args.content.slice(0, 100)}`;
+    }
+
+    case 'read_daily_note': {
+      const note = memory.readDailyNote(args.date);
+      if (!note) return args.date ? `No daily note found for ${args.date}.` : 'No daily note for today yet.';
+      return note;
+    }
+
+    case 'vector_search': {
+      wsSend({ type: 'status', text: 'Searching memory...' });
+      const results = await vectorMemory.search(args.query, {
+        limit: args.limit || 5,
+        type: args.type || null,
+        projectId: args.project_id || null,
+      });
+      if (!results.length) return 'No relevant results found in vector memory.';
+      return results.map((r, i) =>
+        `${i + 1}. [${r.metadata.type}] (score: ${r.score.toFixed(2)}) ${r.content.slice(0, 300)}`
+      ).join('\n\n');
+    }
+
+    case 'vector_store': {
+      const result = await vectorMemory.store(args.content, {
+        type: args.type,
+        projectId: args.project_id || null,
+        tags: args.tags || [],
+      });
+      return result.stored ? `Stored in vector memory (${args.type}).` : `Failed to store: ${result.error}`;
+    }
+
+    case 'record_decision': {
+      const filePath = memory.recordDecision(args.title, args.content, args.project_slug);
+      // Also store in vector memory for semantic search
+      vectorMemory.store(
+        `Decision: ${args.title}\n${args.content}`,
+        { type: 'decision', projectId: args.project_slug || null, tags: ['decision'] }
+      ).catch(() => {});
+      return `Decision recorded: "${args.title}" → ${filePath}`;
+    }
+
+    case 'update_memory_section': {
+      const check = memory.isSafeAutoCuration('update-memory-section', 'MEMORY.md');
+      if (!check.safe) return `Cannot auto-update: ${check.reason}. Propose a brain update instead.`;
+      const success = memory.updateMemoryMdSection(args.section, args.content);
+      if (success) {
+        brain.invalidateMemoryCache();
+        memory.autoCurate('update-memory-section', { section: args.section });
+        return `Updated MEMORY.md section: "${args.section}"`;
+      }
+      return 'Failed to update MEMORY.md — file may not exist.';
+    }
+
     default:
       return `Unknown function: ${name}`;
   }
@@ -1040,129 +1226,201 @@ function runClaudeCode(task, projectDir, wsSend) {
 
 // ─── Chat Handler ────────────────────────────────────────────────────────
 
-async function handleChat(userMessage, projectId, wsSend) {
-  const convId = projectId || 'general';
-  const convMessages = loadConversation(convId);
-
-  // Add user message
-  convMessages.push({ role: 'user', content: userMessage, timestamp: new Date().toISOString() });
-
-  // Build system prompt from brain files + live context
+function buildChatContext(projectId) {
   const projects = loadProjects();
   const project = projects.find(p => p.id === projectId);
+  const projectContext = project ? { ...project, milestones: loadMilestones(projectId) } : null;
+  const runningTask = taskManager.getRunningTask();
+  const queuedTasks = taskManager.getAllTasks({ status: 'queued' });
+  return { projects, project, projectContext, runningTask, queuedTasks };
+}
+
+function buildSystemPromptForChat(userMessage, ctx, tier) {
   const relevantMemories = memory.searchMemories(userMessage, 5);
   const relevantSkills = memory.findSkillsForQuery(userMessage);
   const preferences = memory.getPreferences();
   const memStats = memory.getMemoryStats();
   const todayStats = costs.getStats('today');
 
-  const projectContext = project ? {
-    ...project,
-    milestones: loadMilestones(projectId),
-  } : null;
-
-  // Gather task context for system prompt
-  const runningTask = taskManager.getRunningTask();
-  const queuedTasks = taskManager.getAllTasks({ status: 'queued' });
-
-  const system = brain.buildSystemPrompt({
-    project: projectContext,
+  return brain.buildSystemPrompt({
+    project: ctx.projectContext,
     memories: relevantMemories,
     skills: relevantSkills,
     preferences,
     stats: {
       memoryCount: memStats.total,
       skillCount: memory.loadSkills().length,
-      projectCount: projects.length,
+      projectCount: ctx.projects.length,
     },
     costs: {
       todaySpend: todayStats.totalCost.toFixed(2),
       todayCalls: todayStats.totalCalls,
     },
-    runningTask: runningTask ? taskManager.taskSummary(runningTask) : null,
-    queuedTaskCount: queuedTasks.length,
+    runningTask: ctx.runningTask ? taskManager.taskSummary(ctx.runningTask) : null,
+    queuedTaskCount: ctx.queuedTasks.length,
+    modelTier: tier,
   });
+}
 
-  // Build GPT message history (last 20 messages for context)
-  const gptMessages = [{ role: 'system', content: system }];
+async function handleChat(userMessage, projectId, wsSend) {
+  const convId = projectId || 'general';
+  const convMessages = loadConversation(convId);
+  convMessages.push({ role: 'user', content: userMessage, timestamp: new Date().toISOString() });
+  return handleClaudeChat(userMessage, convId, convMessages, projectId, wsSend);
+}
+
+// ─── Claude Chat (Tiered: Haiku default → escalate to Sonnet) ────────────
+
+async function handleClaudeChat(userMessage, convId, convMessages, projectId, wsSend) {
+  const ctx = buildChatContext(projectId);
+
+  // ALL conversations start at Haiku
+  const routing = modelRouter.getDefaultTier();
+  let currentModel = routing.model;
+  let currentTier = routing.tier;
+  let currentLabel = routing.label;
+
+  const systemPrompt = buildSystemPromptForChat(userMessage, ctx, currentTier);
+
+  wsSend({ type: 'thinking', tier: currentTier, label: currentLabel });
+  wsSend({ type: 'model-tier', tier: currentTier, label: currentLabel, reason: routing.reason });
+
+  // Build tools — Haiku gets escalation tool, Sonnet does not
+  let tools = [...CLAUDE_TOOLS, ESCALATION_TOOL];
+
+  // Build messages for Claude API (last 20 messages)
+  const apiMessages = [];
   const recent = convMessages.slice(-20);
   for (const m of recent) {
-    if (m.role === 'user' || m.role === 'assistant') {
-      gptMessages.push({ role: m.role, content: m.content });
+    if (m.role === 'user') {
+      apiMessages.push({ role: 'user', content: m.content });
+    } else if (m.role === 'assistant') {
+      apiMessages.push({ role: 'assistant', content: [{ type: 'text', text: m.content }] });
     }
   }
 
-  wsSend({ type: 'thinking' });
+  // Ensure first message is from user (Anthropic API requirement)
+  while (apiMessages.length && apiMessages[0].role !== 'user') {
+    apiMessages.shift();
+  }
+  // Ensure we have at least one message
+  if (!apiMessages.length) {
+    apiMessages.push({ role: 'user', content: userMessage });
+  }
 
   try {
     let fullText = '';
     let rounds = 0;
+    let activeSystem = systemPrompt;
 
     while (rounds < 8) {
       rounds++;
       let text = '';
-      const toolCalls = {}; // index -> { id, name, args }
-      let hasToolCalls = false;
+      const toolUses = {}; // index -> { id, name, inputJson }
+      let hasToolUse = false;
+      let stopReason = null;
 
-      // Stream GPT response
-      for await (const event of callGPTStream(gptMessages)) {
+      for await (const event of callClaudeStream(currentModel, apiMessages, activeSystem, tools)) {
         if (event.type === 'token') {
           text += event.content;
           wsSend({ type: 'stream-token', content: event.content });
-        } else if (event.type === 'tool_call_start') {
-          hasToolCalls = true;
-          toolCalls[event.index] = { id: event.id, name: event.name, args: '' };
-          wsSend({ type: 'function-call', name: event.name });
-        } else if (event.type === 'tool_call_args') {
-          if (toolCalls[event.index]) toolCalls[event.index].args += event.args;
+        } else if (event.type === 'tool_use_start') {
+          hasToolUse = true;
+          toolUses[event.index] = { id: event.id, name: event.name, inputJson: '' };
+          if (event.name !== 'escalate_to_sonnet') {
+            wsSend({ type: 'function-call', name: event.name });
+          }
+        } else if (event.type === 'tool_input_delta') {
+          if (toolUses[event.index]) toolUses[event.index].inputJson += event.delta;
+        } else if (event.type === 'done') {
+          stopReason = event.stopReason;
+          // Log cost
+          const costModel = modelRouter.costModelName(currentModel);
+          costs.logCall('claude-chat', costModel, {
+            inputTokens: event.usage.input_tokens,
+            outputTokens: event.usage.output_tokens,
+          });
         }
       }
 
-      // If we got text only (no tool calls), we're done
-      if (!hasToolCalls) {
+      // No tool use — done
+      if (!hasToolUse || stopReason === 'end_turn') {
         fullText = text;
         break;
       }
 
-      // Build the assistant message with tool calls for the conversation
-      const assistantMsg = { role: 'assistant', content: text || null, tool_calls: [] };
-      for (const [, tc] of Object.entries(toolCalls)) {
-        assistantMsg.tool_calls.push({
-          id: tc.id,
-          type: 'function',
-          function: { name: tc.name, arguments: tc.args },
-        });
+      // Check for escalation BEFORE executing other tools
+      const escalateCall = Object.values(toolUses).find(tu => tu.name === 'escalate_to_sonnet');
+      if (escalateCall) {
+        let reason = 'deeper reasoning needed';
+        try { reason = JSON.parse(escalateCall.inputJson).reason || reason; } catch {}
+
+        // Switch to Sonnet
+        const sonnet = modelRouter.TIERS.sonnet;
+        currentModel = sonnet.model;
+        currentTier = 'sonnet';
+        currentLabel = sonnet.label;
+        tools = [...CLAUDE_TOOLS]; // Sonnet doesn't need escalation tool
+
+        // Rebuild system prompt for Sonnet (includes full brain files)
+        activeSystem = buildSystemPromptForChat(userMessage, ctx, 'sonnet');
+
+        wsSend({ type: 'model-tier', tier: 'sonnet', label: 'SONNET', reason: `Escalated: ${reason}` });
+
+        // Don't add the failed tool call to history — just retry with Sonnet
+        // Clear any partial streaming text
+        if (text) {
+          // Haiku produced some text before escalating — discard it
+          // The frontend will handle the model switch notification
+        }
+        continue;
       }
-      gptMessages.push(assistantMsg);
 
-      // Execute each tool call
-      for (const [, tc] of Object.entries(toolCalls)) {
-        let args;
-        try { args = JSON.parse(tc.args); } catch { args = {}; }
-        wsSend({ type: 'status', text: `Running ${tc.name}...` });
+      // Build assistant message with content blocks
+      const assistantContent = [];
+      if (text) assistantContent.push({ type: 'text', text });
+      for (const [, tu] of Object.entries(toolUses)) {
+        let input = {};
+        try { input = JSON.parse(tu.inputJson); } catch {}
+        assistantContent.push({ type: 'tool_use', id: tu.id, name: tu.name, input });
+      }
+      apiMessages.push({ role: 'assistant', content: assistantContent });
 
-        const result = await executeFunction(tc.name, args, wsSend);
+      // Execute tools and build results
+      const toolResults = [];
+      for (const [, tu] of Object.entries(toolUses)) {
+        let input = {};
+        try { input = JSON.parse(tu.inputJson); } catch {}
 
-        gptMessages.push({
-          role: 'tool',
-          tool_call_id: tc.id,
+        wsSend({ type: 'status', text: `Running ${tu.name}...` });
+        const result = await executeFunction(tu.name, input, wsSend);
+
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: tu.id,
           content: typeof result === 'string' ? result : JSON.stringify(result),
         });
       }
 
-      // Signal that tool execution is done, next round will stream
+      // Add tool results as user message (Anthropic format)
+      if (toolResults.length) {
+        apiMessages.push({ role: 'user', content: toolResults });
+      }
+
       wsSend({ type: 'tool-done' });
     }
 
-    // Signal stream complete
-    wsSend({ type: 'stream-end' });
+    wsSend({ type: 'stream-end', tier: currentTier, label: currentLabel });
 
     // Save to conversation
-    convMessages.push({ role: 'assistant', content: fullText, timestamp: new Date().toISOString() });
+    convMessages.push({
+      role: 'assistant',
+      content: fullText,
+      timestamp: new Date().toISOString(),
+      tier: currentTier,
+    });
     saveConversation(convId, convMessages);
-
-    // Auto-learn patterns
-    memory.learnPattern(userMessage, project ? 'project-work' : 'general');
+    memory.learnPattern(userMessage, ctx.project ? 'project-work' : 'general');
 
     return fullText;
 
@@ -1174,6 +1432,8 @@ async function handleChat(userMessage, projectId, wsSend) {
     return errMsg;
   }
 }
+
+// GPT path removed — Vance now runs entirely on Claude (Haiku/Sonnet/Claude Code)
 
 // ─── WebSocket (using ws library) ────────────────────────────────────────
 
@@ -1248,6 +1508,39 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    // ─── Memory System Actions ───
+    case 'get-daily-notes': {
+      const notes = memory.listDailyNotes(msg.limit || 30);
+      ws.send({ type: 'daily-notes', notes });
+      break;
+    }
+
+    case 'get-daily-note': {
+      const note = memory.readDailyNote(msg.date);
+      ws.send({ type: 'daily-note', date: msg.date, content: note });
+      break;
+    }
+
+    case 'get-vector-stats': {
+      ws.send({ type: 'vector-stats', stats: vectorMemory.getStats() });
+      break;
+    }
+
+    case 'get-curation-history': {
+      ws.send({ type: 'curation-history', entries: memory.getCurationHistory(msg.limit || 50) });
+      break;
+    }
+
+    case 'get-memory-md': {
+      ws.send({ type: 'memory-md', content: memory.readMemoryMd() });
+      break;
+    }
+
+    case 'get-projects-md': {
+      ws.send({ type: 'projects-md', content: memory.readProjectsMd() });
+      break;
+    }
+
     case 'get-telemetry': {
       const sysInfo = await getSystemInfo('all');
       const costStats = costs.getStats('today');
@@ -1280,7 +1573,11 @@ const server = http.createServer((req, res) => {
   // API endpoints
   if (url.pathname === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'online', uptime: process.uptime(), model: GPT_MODEL, hasKey: OPENAI_KEY !== 'sk-placeholder-add-your-key' }));
+    res.end(JSON.stringify({
+      status: 'online', uptime: process.uptime(), model: 'claude-haiku/sonnet',
+      hasKey: !!ANTHROPIC_KEY, tiers: ['haiku', 'sonnet', 'claude-code'],
+      memory: { vectors: vectorMemory.getStats().totalEntries, dailyNotes: memory.listDailyNotes(1).length > 0 },
+    }));
     return;
   }
   if (url.pathname === '/api/costs') {
@@ -1360,7 +1657,7 @@ wss.on('connection', (socket) => {
     },
   };
   clients.add(ws);
-  ws.send({ type: 'connected', model: GPT_MODEL, hasKey: OPENAI_KEY !== 'sk-placeholder-add-your-key' });
+  ws.send({ type: 'connected', model: 'claude-haiku/sonnet', hasKey: !!ANTHROPIC_KEY, tier: 'haiku' });
   socket.on('message', (raw) => {
     try { handleMessage(ws, JSON.parse(raw.toString())); }
     catch { handleMessage(ws, { raw: raw.toString() }); }
@@ -1392,7 +1689,15 @@ if (!claudeBudget.dailyBudget) {
   costs.setBudget('claude', 5, 50); // $5/day, $50/month default
 }
 
-server.listen(PORT, () => {
+// Init vector memory (uses OpenAI embeddings) then start server
+(async () => {
+  if (OPENAI_KEY) {
+    await vectorMemory.init(OPENAI_KEY);
+  } else {
+    console.log('  Vector Memory: DISABLED (no OPENAI_API_KEY for embeddings)');
+  }
+
+  server.listen(PORT, () => {
   console.log(`\n  ╔══════════════════════════════════════╗`);
   console.log(`  ║         VANCE — Online                ║`);
   console.log(`  ║   http://localhost:${PORT}              ║`);
@@ -1400,12 +1705,18 @@ server.listen(PORT, () => {
   const brainFiles = brain.getBrainFiles();
   const brainLoaded = Object.values(brainFiles).filter(f => f.exists).length;
   const budget = costs.checkBudget('claude');
-  console.log(`  Model: ${GPT_MODEL}`);
-  console.log(`  API Key: ${OPENAI_KEY !== 'sk-placeholder-add-your-key' ? 'Set' : 'PLACEHOLDER — set OPENAI_API_KEY'}`);
+  const smartMem = brain.getSmartMemory();
+  const dailyNotes = memory.listDailyNotes(5);
+  const vecStats = vectorMemory.getStats();
+  console.log(`  Model Tiers: Haiku (conversation) → Sonnet (reasoning) → Claude Code (projects)`);
+  console.log(`  Anthropic Key: ${ANTHROPIC_KEY ? 'Set' : 'MISSING — set ANTHROPIC_API_KEY'}`);
   console.log(`  Brain: ${brainLoaded}/${Object.keys(brainFiles).length} files loaded`);
+  console.log(`  Memory: MEMORY.md ${smartMem.memoryMd ? '✓' : '—'} | projects.md ${smartMem.projectsMd ? '✓' : '—'} | ${dailyNotes.length} daily notes`);
+  console.log(`  Vector Memory: ${vecStats.totalEntries} entries (${vecStats.backend || 'pgvector'})`);
   console.log(`  Projects: ${loadProjects().length}`);
   console.log(`  Memories: ${memory.getMemoryStats().total}`);
   console.log(`  Skills: ${memory.loadSkills().length}`);
   console.log(`  Claude Budget: $${budget.dailyBudget}/day, $${budget.monthlyBudget}/month`);
   console.log(`  Tasks: ${taskManager.getAllTasks({ status: 'queued' }).length} queued, ${taskManager.getRunningTask() ? 1 : 0} running\n`);
-});
+  });
+})();

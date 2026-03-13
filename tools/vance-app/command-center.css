@@ -593,6 +593,41 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .modal-btn.primary:hover { box-shadow: 0 0 16px var(--accent-glow); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Model Tier Indicator & Badges
+   ═══════════════════════════════════════════════════════════════════════════ */
+.tier-indicator {
+  font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px;
+  padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
+  font-weight: 700; transition: all 0.3s var(--ease);
+}
+.tier-indicator.tier-haiku {
+  background: rgba(0,229,160,0.08); color: var(--green);
+  border: 1px solid rgba(0,229,160,0.2);
+}
+.tier-indicator.tier-sonnet {
+  background: rgba(68,136,255,0.08); color: var(--accent);
+  border: 1px solid rgba(68,136,255,0.2);
+}
+/* Tier badge on message meta line */
+.tier-badge {
+  font-family: var(--mono); font-size: 7px; letter-spacing: 1px;
+  padding: 1px 6px; border-radius: 3px; text-transform: uppercase;
+  font-weight: 700; vertical-align: middle; margin-right: 4px;
+}
+.tier-badge.tier-haiku {
+  background: rgba(0,229,160,0.1); color: var(--green);
+  border: 1px solid rgba(0,229,160,0.15);
+}
+.tier-badge.tier-sonnet {
+  background: rgba(68,136,255,0.1); color: var(--accent);
+  border: 1px solid rgba(68,136,255,0.15);
+}
+.tier-badge.tier-opus {
+  background: rgba(168,85,247,0.1); color: var(--purple);
+  border: 1px solid rgba(168,85,247,0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Responsive
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {

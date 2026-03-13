@@ -38,6 +38,9 @@
     taskTimerInterval: null,
     // Welcome
     typewriterDone: false,
+    // Model tier
+    currentTier: 'haiku',
+    currentLabel: 'HAIKU',
   };
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -171,6 +174,7 @@
           const w = $('#keyWarning');
           if (w) w.style.display = 'block';
         }
+        if (d.tier) updateTierIndicator(d.tier, d.tier.toUpperCase());
         break;
 
       case 'projects':
@@ -187,10 +191,19 @@
         break;
 
       case 'thinking':
-        setStatus('busy', 'Thinking');
+        setStatus('busy', d.label ? `${d.label}` : 'Thinking');
         state.isBusy = true;
         showThinking();
-        addEvent('chat', 'Processing request...');
+        addEvent('chat', `Processing via ${d.label || 'AI'}...`);
+        break;
+
+      case 'model-tier':
+        state.currentTier = d.tier;
+        state.currentLabel = d.label;
+        updateTierIndicator(d.tier, d.label);
+        if (d.reason && d.reason.startsWith('Escalated')) {
+          addEvent('task', `Model escalated to ${d.label}: ${d.reason}`);
+        }
         break;
 
       case 'stream-token':
@@ -199,7 +212,7 @@
         break;
 
       case 'stream-end':
-        finalizeStream();
+        finalizeStream(d.tier || state.currentTier, d.label || state.currentLabel);
         setStatus('online', 'Online');
         state.isBusy = false;
         break;
@@ -423,7 +436,7 @@
         <div class="welcome-sub" id="welcomeSub"></div>
         <div class="welcome-hint">Type or hold the mic to speak</div>
         <div class="key-warning" id="keyWarning" style="display:none">
-          No OpenAI API key set.<br>Run: <code>export OPENAI_API_KEY=sk-...</code> then restart.
+          No Anthropic API key set.<br>Add <code>ANTHROPIC_API_KEY=sk-ant-...</code> to .env then restart.
         </div>
       </div>
     `;
@@ -536,7 +549,7 @@
     scrollBottom();
   }
 
-  function finalizeStream() {
+  function finalizeStream(tier, label) {
     if (state.streamingMsg) {
       const cursor = state.streamBubble.querySelector('.stream-cursor');
       if (cursor) cursor.remove();
@@ -553,7 +566,8 @@
       }
       const meta = document.createElement('div');
       meta.className = 'meta';
-      meta.textContent = timeLabel();
+      const tierBadge = tier ? `<span class="tier-badge tier-${tier}">${esc(label || tier.toUpperCase())}</span> ` : '';
+      meta.innerHTML = tierBadge + esc(timeLabel());
       state.streamingMsg.appendChild(meta);
       speak(summarize(state.streamRaw));
     }
@@ -1012,6 +1026,16 @@
   function updateReadout(key, value) {
     const el = $(`#readout-${key}`);
     if (el) el.textContent = value;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Model Tier Indicator
+  // ═══════════════════════════════════════════════════════════════════════
+  function updateTierIndicator(tier, label) {
+    const el = $('#tierIndicator');
+    if (!el) return;
+    el.className = 'tier-indicator tier-' + tier;
+    el.textContent = label || tier.toUpperCase();
   }
 
   // ═══════════════════════════════════════════════════════════════════════
