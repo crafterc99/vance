@@ -131,6 +131,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
    Income & Expenses
    ═══════════════════════════════════════════════════════════════════════════ */
 .l1-income-section { padding: 0 4px; }
+.l1-income-divider {
+  height: 1px; background: var(--border); margin: 4px 0 20px;
+}
 .l1-income-block { margin-bottom: 20px; }
 .l1-income-block:last-child { margin-bottom: 0; }
 .l1-income-label {
@@ -176,18 +179,20 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 }
 .l1-approval-actions { display: flex; gap: 6px; margin-left: 12px; flex-shrink: 0; }
 .l1-btn-approve, .l1-btn-deny {
-  font-family: var(--mono); font-size: 10px; font-weight: 600;
-  padding: 6px 14px; border-radius: 8px; border: none;
-  cursor: pointer; transition: all .15s; letter-spacing: 0.5px;
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  padding: 6px 18px; border-radius: 20px;
+  cursor: pointer; transition: all .2s; letter-spacing: 0.3px;
 }
 .l1-btn-approve {
-  background: rgba(0,180,120,0.15); color: #00c882;
+  background: rgba(0,180,120,0.1); color: #00c882;
+  border: 1px solid rgba(0,180,120,0.25);
 }
-.l1-btn-approve:hover { background: rgba(0,180,120,0.3); }
+.l1-btn-approve:hover { background: rgba(0,180,120,0.22); border-color: rgba(0,180,120,0.45); }
 .l1-btn-deny {
-  background: rgba(255,50,80,0.12); color: #ff5566;
+  background: rgba(255,50,80,0.08); color: #ff5566;
+  border: 1px solid rgba(255,50,80,0.2);
 }
-.l1-btn-deny:hover { background: rgba(255,50,80,0.25); }
+.l1-btn-deny:hover { background: rgba(255,50,80,0.18); border-color: rgba(255,50,80,0.4); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Gauges — Circular SVG
@@ -202,7 +207,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
   display: flex; align-items: center; justify-content: center;
 }
 .l1-gauge-value {
-  font-family: var(--sans); font-size: 20px; font-weight: 700; color: var(--text);
+  font-family: var(--sans); font-size: 22px; font-weight: 700; color: var(--text);
+}
+.l1-gauge-pct {
+  font-size: 13px; font-weight: 500; opacity: 0.7;
 }
 .l1-gauge-label {
   font-family: var(--sans); font-size: 10px; color: var(--text-muted);
@@ -237,11 +245,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .cal-cell.today .cal-date {
   color: var(--green); font-weight: 700;
 }
-.cal-cell.has-event .cal-date { font-weight: 600; }
+.cal-cell.has-event .cal-date { font-weight: 600; /* color set inline via JS */ }
 .cal-dot {
   width: 5px; height: 5px; border-radius: 50%;
 }
-/* Event dot colors — set inline via JS */
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Current Priorities
@@ -255,6 +262,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .l1-priority-dot {
   width: 8px; height: 8px; border-radius: 50%;
   flex-shrink: 0; margin-top: 5px;
+  /* glow is set inline via JS to match dot color */
 }
 .l1-priority-info { flex: 1; }
 .l1-priority-project {

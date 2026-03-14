@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>VANCE — Spatial</title>
+<title>BLAIR — Spatial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="spatial.css">
@@ -17,7 +17,7 @@
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="topbar">
   <div class="topbar-left">
-    <div class="logo">VANCE</div>
+    <div class="logo">BLAIR</div>
     <div class="breadcrumbs">
       <a href="/">Home</a> / <a href="/spatial">Projects</a> / <span>Sub Tasks</span>
     </div>
@@ -66,6 +66,8 @@
         <span class="l1-income-detail">Pay Jeaquie <strong>$250</strong> &mdash; Due March 15</span>
       </div>
 
+      <div class="l1-income-divider"></div>
+
       <div class="l1-income-block">
         <span class="l1-income-label">Expences</span>
         <span class="l1-income-value" id="l1Expenses">$550</span>
@@ -99,7 +101,7 @@
           <defs><linearGradient id="gaugeGradWarm" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ff6a00"/><stop offset="100%" stop-color="#ffa040"/></linearGradient></defs>
         </svg>
         <div class="l1-gauge-center">
-          <span class="l1-gauge-value" id="l1GaugeDailyVal">75%</span>
+          <span class="l1-gauge-value" id="l1GaugeDailyVal">75<span class="l1-gauge-pct">%</span></span>
         </div>
         <span class="l1-gauge-label">Daily Usage</span>
       </div>
@@ -112,7 +114,7 @@
             transform="rotate(-90 50 50)" stroke-linecap="round" id="l1GaugeCpuArc"/>
         </svg>
         <div class="l1-gauge-center">
-          <span class="l1-gauge-value" id="l1GaugeCpuVal">25%</span>
+          <span class="l1-gauge-value" id="l1GaugeCpuVal">25<span class="l1-gauge-pct">%</span></span>
         </div>
         <span class="l1-gauge-label">CPU</span>
       </div>

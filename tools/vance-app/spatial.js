@@ -469,7 +469,7 @@
       if (dotColor) classes.push('has-event');
 
       html += `<div class="${classes.join(' ')}">`;
-      html += `<span class="cal-date">${d}</span>`;
+      html += `<span class="cal-date"${dotColor && !isToday ? ` style="color:${dotColor}"` : ''}>${d}</span>`;
       if (dotColor) html += `<span class="cal-dot" style="background:${dotColor}"></span>`;
       html += '</div>';
     }
@@ -484,7 +484,7 @@
     const dailyPct = Math.min(100, Math.round((todayCost / DAILY_BUDGET) * 100)) || 75;
     const circumference = 251.33;
 
-    $('l1GaugeDailyVal').textContent = dailyPct + '%';
+    $('l1GaugeDailyVal').innerHTML = dailyPct + '<span class="l1-gauge-pct">%</span>';
     $('l1GaugeDailyArc').setAttribute('stroke-dashoffset', circumference * (1 - dailyPct / 100));
 
     // CPU
@@ -494,7 +494,7 @@
       const match = cpuStr.match(/[\d.]+/);
       if (match) cpuPct = Math.round(parseFloat(match[0]));
     }
-    $('l1GaugeCpuVal').textContent = cpuPct + '%';
+    $('l1GaugeCpuVal').innerHTML = cpuPct + '<span class="l1-gauge-pct">%</span>';
     $('l1GaugeCpuArc').setAttribute('stroke-dashoffset', circumference * (1 - cpuPct / 100));
   }
 
@@ -533,7 +533,7 @@
 
     list.innerHTML = displayItems.map(item => `
       <div class="l1-priority-item">
-        <div class="l1-priority-dot" style="background:${item.color}"></div>
+        <div class="l1-priority-dot" style="background:${item.color}; box-shadow: 0 0 6px ${item.color}88, 0 0 12px ${item.color}44;"></div>
         <div class="l1-priority-info">
           <div class="l1-priority-project">${escapeHtml(item.project)}</div>
           <div class="l1-priority-desc">${escapeHtml(item.desc)}${item.desc && item.status ? ' &mdash; ' : ''}<span class="l1-priority-status">${escapeHtml(item.status)}</span></div>
