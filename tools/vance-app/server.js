@@ -1365,7 +1365,11 @@ async function executeFunction(name, args, wsSend) {
         let output = `Agent "${args.agent}" completed in ${((result.duration || 0) / 1000).toFixed(1)}s`;
         if (result.totalCost) output += ` ($${result.totalCost.toFixed(2)})`;
         if (result.result) output += `\n\n${typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2)}`;
-        if (result.findings) output += `\n\nFindings:\n${result.findings.map(f => `- ${f.title}: ${f.summary?.slice(0, 200)}`).join('\n')}`;
+        if (Array.isArray(result.findings) && result.findings.length) {
+          output += `\n\nFindings:\n${result.findings.map(f => `- ${f.title || 'Untitled'}: ${(f.summary || f.content || '').slice(0, 200)}`).join('\n')}`;
+        } else if (typeof result.findings === 'string') {
+          output += `\n\n${result.findings}`;
+        }
         return output;
       }
       return `Agent "${args.agent}" failed: ${result.error || result.result}`;
