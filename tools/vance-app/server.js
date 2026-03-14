@@ -1634,6 +1634,7 @@ async function handleClaudeChat(userMessage, convId, convMessages, projectId, ws
   } catch (err) {
     const errMsg = `I ran into an issue: ${err.message}`;
     wsSend({ type: 'error', message: errMsg });
+    wsSend({ type: 'stream-end', tier: currentTier, label: currentLabel });
     convMessages.push({ role: 'assistant', content: errMsg, timestamp: new Date().toISOString() });
     saveConversation(convId, convMessages);
     return errMsg;
@@ -1648,9 +1649,18 @@ const clients = new Set();
 
 async function handleMessage(ws, msg) {
   switch (msg.action) {
-    case 'chat':
-      await handleChat(msg.message, msg.projectId, (data) => ws.send(data));
+    case 'chat': {
+      const chatSend = (data) => ws.send(data);
+      try {
+        await handleChat(msg.message, msg.projectId, chatSend);
+      } catch (e) {
+        // Guarantee stream-end is sent even if handleChat crashes unexpectedly
+        console.error('Chat handler crash:', e.message);
+        chatSend({ type: 'error', message: `Chat error: ${e.message}` });
+        chatSend({ type: 'stream-end', tier: 'haiku', label: 'HAIKU' });
+      }
       break;
+    }
 
     case 'list-projects': {
       const projects = loadProjects().map(p => ({ ...p, milestones: loadMilestones(p.id) }));

@@ -28,6 +28,9 @@
     // Ticker
     events: [],
     maxEvents: 50,
+    // Busy safety timeout
+    busyTimer: null,
+    lastActivity: 0,
     // Telemetry
     telemetry: null,
     telemetryInterval: null,
@@ -194,6 +197,7 @@
         setStatus('busy', d.label ? `${d.label}` : 'Thinking');
         state.isBusy = true;
         showThinking();
+        startBusyWatchdog();
         addEvent('chat', `Processing via ${d.label || 'AI'}...`);
         break;
 
@@ -208,6 +212,7 @@
 
       case 'stream-token':
         removeThinking();
+        resetBusyWatchdog();
         appendStreamToken(d.content);
         break;
 
@@ -215,6 +220,7 @@
         finalizeStream(d.tier || state.currentTier, d.label || state.currentLabel);
         setStatus('online', 'Online');
         state.isBusy = false;
+        clearBusyWatchdog();
         break;
 
       case 'response':
@@ -223,19 +229,23 @@
         if (d.content) addMsg('assistant', d.content);
         setStatus('online', 'Online');
         state.isBusy = false;
+        clearBusyWatchdog();
         break;
 
       case 'status':
+        resetBusyWatchdog();
         updateThinking(d.text);
         break;
 
       case 'claude-stream':
+        resetBusyWatchdog();
         appendStreamToken(d.content);
         break;
 
       case 'claude-tool':
       case 'function-call':
         removeThinking();
+        resetBusyWatchdog();
         appendToolBadge(d.name);
         addEvent('tool', d.name);
         break;
@@ -254,6 +264,7 @@
       case 'error':
         setStatus('online', 'Online');
         state.isBusy = false;
+        clearBusyWatchdog();
         removeThinking();
         finalizeStream();
         addMsg('assistant', 'Error: ' + d.message);
@@ -611,6 +622,37 @@
     d.innerHTML = `<span class="m-icon">&#9670;</span><span class="m-text">${esc(title)}</span>`;
     el.appendChild(d);
     scrollBottom();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Busy Watchdog — auto-unlock if no activity for 60s
+  // ═══════════════════════════════════════════════════════════════════════
+  function startBusyWatchdog() {
+    clearBusyWatchdog();
+    state.lastActivity = Date.now();
+    state.busyTimer = setInterval(() => {
+      if (!state.isBusy) { clearBusyWatchdog(); return; }
+      if (Date.now() - state.lastActivity > 60000) {
+        console.warn('[Vance] Busy watchdog triggered — force unlocking input after 60s inactivity');
+        state.isBusy = false;
+        clearBusyWatchdog();
+        setStatus('online', 'Online');
+        removeThinking();
+        finalizeStream();
+        addEvent('error', 'Response timed out — input unlocked');
+      }
+    }, 5000);
+  }
+
+  function resetBusyWatchdog() {
+    state.lastActivity = Date.now();
+  }
+
+  function clearBusyWatchdog() {
+    if (state.busyTimer) {
+      clearInterval(state.busyTimer);
+      state.busyTimer = null;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════
