@@ -30,10 +30,11 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
    ═══════════════════════════════════════════════════════════════════════════ */
 .topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 32px; background: transparent;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 32px 0; background: transparent;
 }
-.topbar-left { display: flex; align-items: baseline; gap: 20px; }
+.topbar-left { display: flex; flex-direction: column; gap: 4px; }
+.topbar-right { margin-top: 4px; }
 .logo {
   font-family: var(--sans); font-size: 28px; font-weight: 300;
   letter-spacing: 6px; color: var(--text); text-transform: uppercase;
@@ -45,7 +46,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .breadcrumbs a:hover { color: var(--text); }
 .breadcrumbs span { color: var(--text-muted); }
 
-.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
 .theme-toggle {
   display: flex; gap: 0; background: var(--surface); border-radius: 10px;
   border: 1px solid var(--border); overflow: hidden;
@@ -75,18 +76,18 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
    Layer 1 Dashboard — 3-column layout
    ═══════════════════════════════════════════════════════════════════════════ */
 .l1-dashboard {
-  position: fixed; top: 70px; left: 0; right: 0; bottom: 64px;
-  z-index: 40; padding: 20px 40px 20px;
-  display: flex; gap: 36px;
+  position: fixed; top: 88px; left: 0; right: 0; bottom: 64px;
+  z-index: 40; padding: 16px 32px 20px;
+  display: flex; justify-content: space-between;
   pointer-events: auto;
   transition: opacity 0.5s var(--ease);
   overflow-y: auto;
 }
 .l1-dashboard.hidden { opacity: 0; pointer-events: none; }
 
-.l1-col-left { flex: 0 0 38%; max-width: 480px; display: flex; flex-direction: column; gap: 28px; }
-.l1-col-center { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 20px; }
-.l1-col-right { flex: 0 0 26%; max-width: 320px; display: flex; flex-direction: column; gap: 24px; }
+.l1-col-left { flex: 0 0 40%; max-width: 420px; display: flex; flex-direction: column; gap: 24px; }
+.l1-col-center { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 16px; min-width: 200px; }
+.l1-col-right { flex: 0 0 28%; max-width: 300px; display: flex; flex-direction: column; gap: 20px; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Card Base
@@ -383,11 +384,17 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 /* ═══════════════════════════════════════════════════════════════════════════
    Responsive
    ═══════════════════════════════════════════════════════════════════════════ */
+/* Empty states */
+.l1-empty-state {
+  font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.5px; padding: 12px 0; text-align: center;
+}
+
 @media (max-width: 1100px) {
   .l1-dashboard { flex-wrap: wrap; gap: 20px; padding: 16px 20px; }
   .l1-col-left { flex: 1 1 100%; max-width: 100%; }
   .l1-col-right { flex: 1 1 100%; max-width: 100%; flex-direction: row; }
-  .l1-col-center { order: 3; flex: 1 1 100%; justify-content: center; padding-bottom: 10px; }
+  .l1-col-center { order: 3; flex: 1 1 100%; justify-content: center; padding-bottom: 10px; min-width: 0; }
 }
 @media (max-width: 768px) {
   .topbar { padding: 12px 16px; }

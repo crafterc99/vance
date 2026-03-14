@@ -28,24 +28,7 @@
   };
   const CAMERA_LERP = 0.05;
   const PLATFORM_SPACING = 5;
-  const DAILY_BUDGET = 5.0;
-
-  // Default approval items (shown when no real pending data)
-  const DEFAULT_APPROVALS = [
-    { project: 'VANTHEAH', desc: 'Manufacturing Samples' },
-    { project: 'PROMOTIFYY', desc: 'Creator Bate Access' },
-    { project: 'SOUL JAM', desc: 'Physics Engine Update' },
-    { project: 'Influencer Outreach', desc: 'Email Draft' },
-  ];
-
-  // Default priorities (shown when no real data)
-  const DEFAULT_PRIORITIES = [
-    { project: 'VANTHEAH', desc: 'Launch Preparation', status: 'In Progress', color: '#4488ff' },
-    { project: 'PROMOTIFYY', desc: 'Creator Beta', status: 'Planning', color: '#ff8c00' },
-    { project: 'SOUL JAM', desc: 'Physics System', status: 'Development', color: '#00e5a0' },
-    { project: 'Manufacturing Sample Review', desc: '', status: 'Awaiting Approval', color: '#ffc940' },
-    { project: 'Influencer Outreach', desc: 'Campaign', status: 'Pending', color: '#ff5566' },
-  ];
+  const DEFAULT_DAILY_BUDGET = 5.0;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE
@@ -57,6 +40,7 @@
 
   let projects = [], tasks = [], costData = {}, systemData = {};
   let pendingBrainUpdates = [];
+  let projectStates = {};
 
   let renderer, scene, camera, clock;
   let centralOrb = null, orbRings = [], particles = null;
@@ -98,6 +82,14 @@
     return '#7070a0';
   }
 
+  function getDailyBudget() {
+    if (costData.budgets) {
+      const b = costData.budgets.claude || costData.budgets;
+      if (b && b.daily) return b.daily;
+    }
+    return DEFAULT_DAILY_BUDGET;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // THREE.JS SETUP
   // ═══════════════════════════════════════════════════════════════════════════
@@ -130,14 +122,12 @@
     createCentralOrb();
   }
 
-  // ─── Grid ───
   function createGrid() {
     const g = new THREE.GridHelper(100, 60, COLORS.grid, COLORS.grid);
     g.position.y = -2; g.material.opacity = 0.03; g.material.transparent = true; g.material.depthWrite = false;
     scene.add(g);
   }
 
-  // ─── Particles ───
   function createParticles() {
     const count = 200, geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3), vel = new Float32Array(count * 3);
@@ -165,7 +155,6 @@
     particles.geometry.attributes.position.needsUpdate = true;
   }
 
-  // ─── Central Orb ───
   function createCentralOrb() {
     const sg = new THREE.SphereGeometry(0.5, 32, 32);
     const sm = new THREE.MeshPhongMaterial({ color: COLORS.orbCore, emissive: COLORS.orbCore, emissiveIntensity: 0.3, transparent: true, opacity: 0.7, shininess: 100 });
@@ -258,12 +247,10 @@
     cam.targetPos.set(...cfg.camera.pos);
     cam.targetLookAt.set(...cfg.camera.lookAt);
 
-    // Show/hide dashboard
     const dash = $('l1Dashboard');
     if (layer === 1) { dash.classList.remove('hidden'); }
     else { dash.classList.add('hidden'); }
 
-    // Update layer buttons
     document.querySelectorAll('.layer-btn').forEach(btn => {
       btn.classList.toggle('active', parseInt(btn.dataset.layer) === layer);
     });
@@ -293,7 +280,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // OVERLAY SYSTEM — L2/L3 labels only
+  // OVERLAY SYSTEM
   // ═══════════════════════════════════════════════════════════════════════════
 
   function updateOverlays() {
@@ -342,11 +329,12 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // DASHBOARD — Populate all Layer 1 widgets
+  // DASHBOARD — Live Data Widgets
   // ═══════════════════════════════════════════════════════════════════════════
 
   function updateDashboard() {
     updateCreditsWidget();
+    updateSparkline();
     updateIncomeExpenses();
     updateApprovalQueue();
     updateCalendar();
@@ -354,59 +342,91 @@
     updatePriorities();
   }
 
-  // ─── Credits Widget ───
+  // ─── Credits Widget (live from cost API) ───
   function updateCreditsWidget() {
+    const totalCalls = costData.totalCalls || 0;
     const totalTokens = (costData.totalInput || 0) + (costData.totalOutput || 0);
+
     let display;
     if (totalTokens >= 1000000) display = (totalTokens / 1000000).toFixed(1) + 'M+';
     else if (totalTokens >= 1000) display = (totalTokens / 1000).toFixed(1) + 'k+';
-    else display = totalTokens.toString();
-    $('l1CreditsValue').textContent = display || '2.4k+';
+    else if (totalTokens > 0) display = totalTokens.toString();
+    else if (totalCalls > 0) display = totalCalls.toString();
+    else display = '\u2014';
+
+    $('l1CreditsValue').textContent = display;
   }
 
-  // ─── Income & Expenses ───
+  // ─── Sparkline (live from byDay cost data) ───
+  function updateSparkline() {
+    const days = costData.byDay || [];
+    if (days.length < 2) return; // keep default curve if no data
+
+    const costs = days.slice(-7).map(d => d.cost);
+    const max = Math.max(...costs, 0.01);
+    const h = 28, w = 80, pad = 2;
+    const step = w / (costs.length - 1);
+    let d = '';
+    costs.forEach((c, i) => {
+      const x = i * step;
+      const y = h - (c / max) * (h - pad * 2) - pad;
+      d += (i === 0 ? 'M' : ' L') + x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    $('l1SparklinePath').setAttribute('d', d);
+  }
+
+  // ─── Income & Expenses (live from cost/budget data) ───
   function updateIncomeExpenses() {
+    const budget = getDailyBudget();
     const todayCost = costData.totalCost || 0;
-    if (todayCost > 0) {
-      $('l1Expenses').textContent = formatCost(todayCost);
+    const remaining = Math.max(0, budget - todayCost);
+
+    // Income = daily budget
+    $('l1Income').textContent = formatCost(budget);
+    // Expenses = today's spend
+    $('l1Expenses').textContent = formatCost(todayCost);
+
+    // Update detail text
+    const incomeDetail = document.querySelector('.l1-income-block:first-child .l1-income-detail');
+    const expenseDetail = document.querySelector('.l1-income-block:last-child .l1-income-detail');
+
+    if (incomeDetail) {
+      incomeDetail.innerHTML = 'Daily budget &mdash; <strong>' + formatCost(remaining) + '</strong> remaining';
+    }
+    if (expenseDetail) {
+      const calls = costData.totalCalls || 0;
+      expenseDetail.innerHTML = '<strong>' + calls + '</strong> API calls today';
     }
   }
 
-  // ─── Approval Queue ───
+  // ─── Approval Queue (live from brain pending updates) ───
   function updateApprovalQueue() {
     const list = $('l1ApprovalsList');
     const pending = Array.isArray(pendingBrainUpdates) ? pendingBrainUpdates : [];
 
-    if (pending.length > 0) {
-      $('l1ApprovalsBadge').textContent = 'Pending: ' + pending.length;
-      list.innerHTML = pending.map(u => `
+    $('l1ApprovalsBadge').textContent = 'Pending: ' + pending.length;
+
+    if (pending.length === 0) {
+      list.innerHTML = '<div class="l1-empty-state">No pending approvals</div>';
+      return;
+    }
+
+    list.innerHTML = pending.map(u => {
+      const name = escapeHtml(u.file || u.section || 'Brain Update');
+      const desc = escapeHtml(u.reason || u.description || u.summary || '');
+      return `
         <div class="l1-approval-item">
           <div class="l1-approval-info">
-            <div class="l1-approval-project">${escapeHtml(u.file || u.section || 'Brain Update')}</div>
-            <div class="l1-approval-desc">${escapeHtml(u.reason || u.description || '')}</div>
+            <div class="l1-approval-project">${name}</div>
+            <div class="l1-approval-desc">${desc}</div>
           </div>
           <div class="l1-approval-actions">
             <button class="l1-btn-approve" onclick="window._approveUpdate('${u.id}')">Approve</button>
             <button class="l1-btn-deny" onclick="window._rejectUpdate('${u.id}')">Deny</button>
           </div>
         </div>
-      `).join('');
-    } else {
-      // Show default placeholder items
-      $('l1ApprovalsBadge').textContent = 'Pending: ' + DEFAULT_APPROVALS.length;
-      list.innerHTML = DEFAULT_APPROVALS.map(item => `
-        <div class="l1-approval-item">
-          <div class="l1-approval-info">
-            <div class="l1-approval-project">${escapeHtml(item.project)}</div>
-            <div class="l1-approval-desc">${escapeHtml(item.desc)}</div>
-          </div>
-          <div class="l1-approval-actions">
-            <button class="l1-btn-approve">Approve</button>
-            <button class="l1-btn-deny">Deny</button>
-          </div>
-        </div>
-      `).join('');
-    }
+      `;
+    }).join('');
   }
 
   // Expose approval handlers globally
@@ -419,7 +439,7 @@
     setTimeout(() => wsSend({ action: 'get-spatial-data' }), 500);
   };
 
-  // ─── Calendar ───
+  // ─── Calendar (live from project milestones) ───
   function updateCalendar() {
     const container = $('l1CalendarGrid');
     const now = new Date();
@@ -427,27 +447,27 @@
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // Collect milestone dates
+    // Collect milestone dates from real project data
     const milestoneDates = {};
     projects.forEach(p => {
       (p.milestones || []).forEach(m => {
-        const d = new Date(m.timestamp || m.dueDate || m.date);
+        const ts = m.timestamp || m.dueDate || m.date;
+        if (!ts) return;
+        const d = new Date(ts);
         if (d.getMonth() === month && d.getFullYear() === year) {
           milestoneDates[d.getDate()] = getProjectDotColor(p);
         }
       });
     });
 
-    // If no real milestones, add some visual markers
-    if (Object.keys(milestoneDates).length === 0) {
-      milestoneDates[7] = '#4488ff';
-      milestoneDates[10] = '#ffc940';
-      milestoneDates[15] = '#4488ff';
-      milestoneDates[18] = '#ff5566';
-      milestoneDates[22] = '#ffc940';
-      milestoneDates[25] = '#00e5a0';
-      milestoneDates[28] = '#ff8c00';
-    }
+    // Also mark task-related dates
+    tasks.forEach(t => {
+      if (!t.createdAt) return;
+      const d = new Date(t.createdAt);
+      if (d.getMonth() === month && d.getFullYear() === year && !milestoneDates[d.getDate()]) {
+        milestoneDates[d.getDate()] = '#7070a0';
+      }
+    });
 
     // Header
     let html = '';
@@ -477,59 +497,85 @@
     container.innerHTML = html;
   }
 
-  // ─── Gauges ───
+  // ─── Gauges (live from cost + system data) ───
   function updateGauges() {
-    // Daily Usage = budget percentage
-    const todayCost = costData.totalCost || 0;
-    const dailyPct = Math.min(100, Math.round((todayCost / DAILY_BUDGET) * 100)) || 75;
     const circumference = 251.33;
+
+    // Daily Usage = cost / daily budget
+    const todayCost = costData.totalCost || 0;
+    const budget = getDailyBudget();
+    const dailyPct = Math.min(100, Math.round((todayCost / budget) * 100));
 
     $('l1GaugeDailyVal').innerHTML = dailyPct + '<span class="l1-gauge-pct">%</span>';
     $('l1GaugeDailyArc').setAttribute('stroke-dashoffset', circumference * (1 - dailyPct / 100));
 
-    // CPU
-    let cpuPct = 25;
+    // CPU = system load average / cores
+    let cpuPct = 0;
     if (systemData && systemData.cpu) {
-      const cpuStr = String(systemData.cpu);
-      const match = cpuStr.match(/[\d.]+/);
+      const load = systemData.cpu.load;
+      const cores = systemData.cpu.cores || 1;
+      if (Array.isArray(load) && load.length > 0) {
+        cpuPct = Math.min(100, Math.round((load[0] / cores) * 100));
+      } else if (typeof systemData.cpu === 'string') {
+        const match = String(systemData.cpu).match(/[\d.]+/);
+        if (match) cpuPct = Math.round(parseFloat(match[0]));
+      }
+    }
+    // Also try memory percent as fallback
+    if (cpuPct === 0 && systemData && systemData.memory && systemData.memory.percent) {
+      const match = String(systemData.memory.percent).match(/[\d.]+/);
       if (match) cpuPct = Math.round(parseFloat(match[0]));
     }
+
     $('l1GaugeCpuVal').innerHTML = cpuPct + '<span class="l1-gauge-pct">%</span>';
     $('l1GaugeCpuArc').setAttribute('stroke-dashoffset', circumference * (1 - cpuPct / 100));
   }
 
-  // ─── Priorities ───
+  // ─── Priorities (live from projects + tasks) ───
   function updatePriorities() {
     const list = $('l1PrioritiesList');
-
-    // Build from real projects if available
     const items = [];
-    if (projects.length > 0) {
-      projects.forEach(p => {
-        const slug = slugify(p.name);
-        const color = getProjectDotColor(p);
-        // Determine status from milestones or state
-        let status = 'Active';
-        const ms = p.milestones || [];
-        const done = ms.filter(m => m.completed).length;
-        if (ms.length > 0) {
-          const pct = Math.round((done / ms.length) * 100);
-          if (pct === 100) status = 'Complete';
-          else if (pct > 50) status = 'In Progress';
-          else status = 'Development';
-        }
-        const state = p.state || {};
-        if (state.devServer === 'running') status = 'Running';
 
-        // Get latest milestone name as description
-        const latestMs = ms[ms.length - 1];
-        const desc = latestMs ? (latestMs.title || latestMs.name || latestMs.text || '') : (p.description || '').slice(0, 40);
+    // Build from real projects
+    projects.forEach(p => {
+      const color = getProjectDotColor(p);
+      let status = 'Active';
+      const ms = p.milestones || [];
+      const done = ms.filter(m => m.completed || m.status === 'completed').length;
+      if (ms.length > 0) {
+        const pct = Math.round((done / ms.length) * 100);
+        if (pct === 100) status = 'Complete';
+        else if (pct > 50) status = 'In Progress';
+        else status = 'Development';
+      }
+      const state = p.state || {};
+      if (state.dev_server_running) status = 'Running';
 
-        items.push({ project: p.name.toUpperCase(), desc, status, color });
-      });
+      const latestMs = ms[ms.length - 1];
+      const desc = latestMs ? (latestMs.title || latestMs.name || latestMs.text || '') : (p.description || '').slice(0, 40);
+
+      items.push({ project: p.name.toUpperCase(), desc, status, color });
+    });
+
+    // Add running tasks as priorities
+    tasks.forEach(t => {
+      if (t.status === 'running' || t.status === 'queued') {
+        const color = t.projectId ? getProjectDotColor({ name: t.projectId }) : '#7070a0';
+        items.push({
+          project: (t.title || 'Task').toUpperCase(),
+          desc: t.lastMilestone || t.durationFormatted || '',
+          status: t.status === 'running' ? 'Running' : 'Queued',
+          color,
+        });
+      }
+    });
+
+    if (items.length === 0) {
+      list.innerHTML = '<div class="l1-empty-state">No active projects</div>';
+      return;
     }
 
-    const displayItems = items.length > 0 ? items.slice(0, 5) : DEFAULT_PRIORITIES;
+    const displayItems = items.slice(0, 6);
 
     list.innerHTML = displayItems.map(item => `
       <div class="l1-priority-item">
@@ -551,17 +597,17 @@
     $('ppName').textContent = project.name;
     $('ppDesc').textContent = project.description || 'No description';
     const state = project.state || {};
-    $('ppFramework').textContent = state.framework || project.projectType || 'Project';
+    $('ppFramework').textContent = state.dev_framework || project.projectType || 'Project';
     const se = $('ppDevStatus');
-    if (state.devServer === 'running') { se.textContent = 'Dev Server Running'; se.className = 'pp-status online'; }
+    if (state.dev_server_running) { se.textContent = 'Dev Server Running'; se.className = 'pp-status online'; }
     else { se.textContent = 'Offline'; se.className = 'pp-status'; }
     const ms = project.milestones || [];
     const mc = $('ppMilestones');
     if (!ms.length) { mc.innerHTML = '<div class="panel-empty">No milestones</div>'; }
     else {
-      mc.innerHTML = ms.map(m => `<div class="pp-milestone"><div class="pp-milestone-dot ${m.completed ? 'done' : 'pending'}"></div><span class="pp-milestone-name">${escapeHtml(m.title || m.name || m.text)}</span>${m.timestamp ? `<span class="pp-milestone-date">${new Date(m.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>` : ''}</div>`).join('');
+      mc.innerHTML = ms.map(m => `<div class="pp-milestone"><div class="pp-milestone-dot ${m.completed || m.status === 'completed' ? 'done' : 'pending'}"></div><span class="pp-milestone-name">${escapeHtml(m.title || m.name || m.text)}</span>${m.timestamp ? `<span class="pp-milestone-date">${new Date(m.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>` : ''}</div>`).join('');
     }
-    const done = ms.filter(m => m.completed).length;
+    const done = ms.filter(m => m.completed || m.status === 'completed').length;
     const pct = ms.length > 0 ? Math.round((done / ms.length) * 100) : 0;
     $('ppProgressFill').style.width = pct + '%';
     $('ppProgressText').textContent = pct + '%';
@@ -615,6 +661,7 @@
         costData = msg.costs || {};
         systemData = msg.system || {};
         pendingBrainUpdates = msg.pendingBrainUpdates || [];
+        projectStates = msg.projectStates || {};
         rebuildScene();
         updateDashboard();
         break;
@@ -628,6 +675,13 @@
         rebuildScene(); updateDashboard();
         break;
       case 'brain-update-result':
+        wsSend({ action: 'get-spatial-data' });
+        break;
+      case 'task-queued':
+      case 'task-started':
+      case 'task-completed':
+      case 'task-failed':
+        // Refresh data on task state changes
         wsSend({ action: 'get-spatial-data' });
         break;
     }
@@ -754,7 +808,7 @@
     initThree();
     bindEvents();
     connectWS();
-    updateDashboard(); // initial render with defaults
+    updateDashboard(); // initial render with empty states
     setInterval(() => { if (wsConnected) wsSend({ action: 'get-spatial-data' }); }, 15000);
     animate();
   });
