@@ -39,6 +39,7 @@ const modelRouter = require('./model-router');
 const vectorMemory = require('./vector-memory');
 const toolRouter = require('./tools/tool_router');
 const executionLogger = require('./runtime/logger');
+const projectState = require('./runtime/project-state');
 
 // Agent modules (lazy-loaded for modularity)
 const AGENTS = {
@@ -574,6 +575,54 @@ const TOOLS = [
           input: { type: 'object', description: 'Agent-specific input' },
         },
         required: ['agent', 'input'],
+      },
+    },
+  },
+
+  // ─── Project State Tools ───
+  {
+    type: 'function',
+    function: {
+      name: 'get_project_status',
+      description: 'Get the full live state of a project: framework, dev server status, preview URL, last changes, last commit. Always call this before responding about a project or after making code changes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: { type: 'string', description: 'Project ID' },
+        },
+        required: ['project_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_project_state',
+      description: 'Update a project state after code changes. Records files changed, edit summary, and optionally starts the dev server.',
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: { type: 'string', description: 'Project ID' },
+          files: { type: 'array', items: { type: 'string' }, description: 'Files that were changed' },
+          summary: { type: 'string', description: 'Short description of changes' },
+          start_server: { type: 'boolean', description: 'Start dev server if not running' },
+        },
+        required: ['project_id', 'files', 'summary'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'check_dev_server',
+      description: 'Check if a dev server is running for a project and get the preview URL. Optionally start it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          project_id: { type: 'string', description: 'Project ID' },
+          start_if_stopped: { type: 'boolean', description: 'Auto-start dev server if not running (default: false)' },
+        },
+        required: ['project_id'],
       },
     },
   },
@@ -1205,6 +1254,94 @@ async function executeFunction(name, args, wsSend) {
       return 'Failed to update MEMORY.md — file may not exist.';
     }
 
+    // ─── Project State ───
+    case 'get_project_status': {
+      const projects = loadProjects();
+      const project = projects.find(p => p.id === args.project_id);
+      if (!project) return `Project not found: ${args.project_id}`;
+
+      // Init state if first time
+      projectState.initProjectState(args.project_id, project.name, project.directory);
+      const status = projectState.getProjectStatus(args.project_id);
+
+      let report = `PROJECT STATUS\n`;
+      report += `Name: ${status.project_name}\n`;
+      report += `Directory: ${status.project_directory}\n`;
+      if (status.dev_framework) report += `Framework: ${status.dev_framework}\n`;
+      if (status.dev_server_command) report += `Dev Command: ${status.dev_server_command}\n`;
+      report += `\nDev Server: ${status.dev_server_running ? 'RUNNING' : 'STOPPED'}`;
+      if (status.dev_port) report += ` (port ${status.dev_port})`;
+      report += '\n';
+      if (status.preview_available) report += `Preview: ${status.preview_available}\n`;
+      else if (status.preview_url) report += `Preview URL (server not running): ${status.preview_url}\n`;
+      if (status.last_updated_files?.length) {
+        report += `\nLast Changed Files:\n${status.last_updated_files.map(f => `- ${f}`).join('\n')}\n`;
+      }
+      if (status.last_edit_summary) report += `Last Edit: ${status.last_edit_summary}\n`;
+      if (status.last_commit_time) report += `Last Commit: ${status.last_commit_time}\n`;
+      return report;
+    }
+
+    case 'update_project_state': {
+      const state = projectState.recordChange(args.project_id, args.files, args.summary);
+
+      let result = `Project state updated: ${args.files.length} file(s) changed — "${args.summary}"`;
+
+      if (args.start_server) {
+        const status = projectState.getProjectStatus(args.project_id);
+        if (status && !status.dev_server_running && status.dev_server_command && status.project_directory) {
+          try {
+            const { exec: execAsync } = require('child_process');
+            execAsync(status.dev_server_command, {
+              cwd: status.project_directory,
+              detached: true,
+              stdio: 'ignore',
+            }).unref?.();
+            result += `\nDev server starting: ${status.dev_server_command}`;
+            result += `\nPreview: ${status.preview_url}`;
+          } catch (e) {
+            result += `\nFailed to start dev server: ${e.message}`;
+          }
+        } else if (status?.dev_server_running) {
+          result += `\nDev server already running at ${status.preview_url}`;
+        }
+      }
+      return result;
+    }
+
+    case 'check_dev_server': {
+      const projects = loadProjects();
+      const project = projects.find(p => p.id === args.project_id);
+      if (!project) return `Project not found: ${args.project_id}`;
+
+      projectState.initProjectState(args.project_id, project.name, project.directory);
+      const status = projectState.getProjectStatus(args.project_id);
+      if (!status) return 'No project state found.';
+
+      if (status.dev_server_running) {
+        return `Dev server is RUNNING at ${status.preview_url} (port ${status.dev_port})`;
+      }
+
+      if (args.start_if_stopped && status.dev_server_command && status.project_directory) {
+        try {
+          const { exec: execAsync } = require('child_process');
+          execAsync(status.dev_server_command, {
+            cwd: status.project_directory,
+            detached: true,
+            stdio: 'ignore',
+          }).unref?.();
+          return `Dev server was STOPPED. Starting: ${status.dev_server_command}\nPreview will be at: ${status.preview_url}`;
+        } catch (e) {
+          return `Dev server STOPPED. Failed to start: ${e.message}`;
+        }
+      }
+
+      let msg = `Dev server is STOPPED`;
+      if (status.dev_server_command) msg += `\nStart with: ${status.dev_server_command}`;
+      if (status.preview_url) msg += `\nPreview URL (when running): ${status.preview_url}`;
+      return msg;
+    }
+
     // ─── Execution Layer ───
     case 'run_tool': {
       wsSend({ type: 'status', text: `Running tool: ${args.tool}...` });
@@ -1626,6 +1763,21 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    // ─── Project State Actions ───
+    case 'get-project-state': {
+      const projects = loadProjects();
+      const project = projects.find(p => p.id === msg.projectId);
+      if (!project) { ws.send({ type: 'error', message: 'Project not found' }); break; }
+      projectState.initProjectState(msg.projectId, project.name, project.directory);
+      ws.send({ type: 'project-state', projectId: msg.projectId, state: projectState.getProjectStatus(msg.projectId) });
+      break;
+    }
+
+    case 'get-all-project-states': {
+      ws.send({ type: 'all-project-states', states: projectState.getAllStates() });
+      break;
+    }
+
     // ─── Execution Layer Actions ───
     case 'list-tools': {
       ws.send({ type: 'tools', tools: toolRouter.listTools() });
@@ -1809,6 +1961,12 @@ if (!claudeBudget.dailyBudget) {
     console.log('  Vector Memory: DISABLED (no OPENAI_API_KEY for embeddings)');
   }
 
+  // Auto-initialize project states for all known projects
+  const startupProjects = loadProjects();
+  for (const p of startupProjects) {
+    if (p.directory) projectState.initProjectState(p.id, p.name, p.directory);
+  }
+
   server.listen(PORT, () => {
   console.log(`\n  ╔══════════════════════════════════════╗`);
   console.log(`  ║         VANCE — Online                ║`);
@@ -1830,6 +1988,8 @@ if (!claudeBudget.dailyBudget) {
   console.log(`  Skills: ${memory.loadSkills().length}`);
   console.log(`  Claude Budget: $${budget.dailyBudget}/day, $${budget.monthlyBudget}/month`);
   console.log(`  Tasks: ${taskManager.getAllTasks({ status: 'queued' }).length} queued, ${taskManager.getRunningTask() ? 1 : 0} running`);
-  console.log(`  Execution: ${toolRouter.listTools().length} tools, ${Object.keys(AGENTS).length} agents\n`);
+  console.log(`  Execution: ${toolRouter.listTools().length} tools, ${Object.keys(AGENTS).length} agents`);
+  const stateCount = Object.keys(projectState.getAllStates()).length;
+  console.log(`  Project States: ${stateCount} tracked\n`);
   });
 })();

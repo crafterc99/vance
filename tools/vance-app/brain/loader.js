@@ -13,6 +13,7 @@ const path = require('path');
 
 const BRAIN_DIR = path.resolve(__dirname);
 const MEMORY_DIR = path.resolve(__dirname, '..', 'memory');
+const projectState = require('../runtime/project-state');
 const BRAIN_FILES = {
   personality: path.join(BRAIN_DIR, 'PERSONALITY.md'),
   userProfile: path.join(BRAIN_DIR, 'USER_PROFILE.md'),
@@ -24,6 +25,7 @@ const BRAIN_FILES = {
   communicationStyle: path.join(BRAIN_DIR, 'communication_style.md'),
   memoryRules: path.join(BRAIN_DIR, 'memory_rules.md'),
   toolRules: path.join(BRAIN_DIR, 'tool_rules.md'),
+  projectIntelligence: path.join(BRAIN_DIR, 'project_intelligence.md'),
 };
 
 // ─── Smart Memory Loading ────────────────────────────────────────
@@ -131,7 +133,22 @@ Do NOT escalate for: status checks, simple questions, tool execution, memory loo
 - Projects: create_project, add_milestone, get_cost_report
 - Tasks: start_coding_task, get_task_status, list_tasks, control_task, merge_task
 - Coding: run_claude_code (complex multi-step only), start_coding_task (autonomous background tasks)
-- Budget: set_claude_budget`;
+- Execution: run_tool (direct tool execution), run_agent (multi-step agent workflows)
+- Budget: set_claude_budget
+
+## CODE CHANGE RULES
+- ALL code changes MUST go through Claude Code tools (run_claude_code, start_coding_task, or run_tool with claude_code).
+- NEVER output raw code as the implementation — always execute through tools.
+- After every code change: update project state, check dev server, return preview link.
+- Route automatically: small changes → Haiku via run_claude_code, large changes → start_coding_task with Sonnet.
+
+## RESPONSE FORMAT FOR CODE CHANGES
+After completing any code change, respond with:
+CHANGE COMPLETE
+Files Updated: [list files]
+Model Used: [tier used]
+Preview Link: [dev server URL if applicable]
+Commit Summary: [short description]`;
 
   // Add smart memory (MEMORY.md + projects.md — always loaded)
   const smartMem = getSmartMemory();
@@ -141,6 +158,9 @@ Do NOT escalate for: status checks, simple questions, tool execution, memory loo
   if (smartMem.projectsMd) {
     prompt += `\n\n## PROJECT REGISTRY\n${smartMem.projectsMd.slice(0, 1500)}`;
   }
+
+  // Add project state context
+  prompt += buildProjectStateContext(context);
 
   // Add live context (same for both tiers)
   prompt += buildLiveContext(context);
@@ -196,12 +216,24 @@ ${proactiveRules}
 - Projects: create_project, add_milestone, get_cost_report
 - Tasks: start_coding_task, get_task_status, list_tasks, control_task, merge_task
 - Coding: run_claude_code (complex multi-step only), start_coding_task (autonomous background tasks)
+- Execution: run_tool (direct tool execution), run_agent (multi-step agent workflows)
 - Budget: set_claude_budget
 
 ## CODING TASKS
 - Use 'start_coding_task' for autonomous multi-file implementation work
 - Use 'run_claude_code' for complex single-turn coding that needs AI reasoning
-- For simple file edits, git commands, running tests — use the system tools directly`;
+- Use 'run_tool' with claude_code for tool-routed coding
+- Use 'run_agent' with coding agent for context-aware multi-step coding
+- For simple file edits, git commands, running tests — use the system tools directly
+- ALL code changes go through tools — never output raw code as the implementation
+
+## RESPONSE FORMAT FOR CODE CHANGES
+After completing any code change, respond with:
+CHANGE COMPLETE
+Files Updated: [list files]
+Model Used: [tier used]
+Preview Link: [dev server URL if applicable]
+Commit Summary: [short description]`;
 
   // Add full brain context for Sonnet (all brain files)
   if (brain.userProfile) {
@@ -222,6 +254,9 @@ ${proactiveRules}
   if (brain.memoryRules) {
     prompt += `\n\n## MEMORY RULES\n${brain.memoryRules.substring(0, 800)}`;
   }
+  if (brain.projectIntelligence) {
+    prompt += `\n\n## PROJECT INTELLIGENCE\n${brain.projectIntelligence.substring(0, 1200)}`;
+  }
 
   // Add smart memory (MEMORY.md + projects.md — always loaded)
   const smartMem = getSmartMemory();
@@ -232,8 +267,36 @@ ${proactiveRules}
     prompt += `\n\n## PROJECT REGISTRY\n${smartMem.projectsMd}`;
   }
 
+  // Add project state context
+  prompt += buildProjectStateContext(context);
+
   // Add live context
   prompt += buildLiveContext(context);
+  return prompt;
+}
+
+function buildProjectStateContext(context = {}) {
+  let prompt = '';
+  const { project } = context;
+  if (!project) return prompt;
+
+  const state = projectState.getProjectStatus(project.id);
+  if (!state) return prompt;
+
+  prompt += `\n\n## PROJECT STATE: "${state.project_name}"`;
+  prompt += `\nDirectory: ${state.project_directory || 'not set'}`;
+  if (state.dev_framework) prompt += `\nFramework: ${state.dev_framework}`;
+  if (state.dev_server_command) prompt += `\nDev Command: ${state.dev_server_command}`;
+  if (state.dev_port) prompt += `\nPort: ${state.dev_port}`;
+  prompt += `\nDev Server: ${state.dev_server_running ? 'RUNNING' : 'STOPPED'}`;
+  if (state.preview_available) prompt += `\nPreview: ${state.preview_available}`;
+  else if (state.preview_url) prompt += `\nPreview URL (server not running): ${state.preview_url}`;
+  if (state.last_updated_files?.length) {
+    prompt += `\nLast Changed: ${state.last_updated_files.join(', ')}`;
+  }
+  if (state.last_edit_summary) prompt += `\nLast Edit: ${state.last_edit_summary}`;
+  if (state.last_commit_time) prompt += `\nLast Commit: ${state.last_commit_time}`;
+
   return prompt;
 }
 
