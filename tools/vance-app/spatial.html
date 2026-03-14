@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VANCE — Spatial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="spatial.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     3D Canvas (Three.js WebGL)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<canvas id="spatialCanvas"></canvas>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     Top Bar
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">VANCE<span class="logo-symbol">&#10022;</span></div>
+    <div class="status-pill">
+      <div class="status-dot offline" id="statusDot"></div>
+      <span class="status-label" id="statusText">Connecting</span>
+    </div>
+    <div class="cost-pill" id="costPill">TODAY $0.00</div>
+  </div>
+  <div class="topbar-right">
+    <a class="nav-btn" href="/">Command Center</a>
+    <a class="nav-btn" href="/costs">Costs</a>
+    <a class="nav-btn" href="/brain">Brain</a>
+    <a class="nav-btn active" href="/spatial">Spatial</a>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     HUD Overlay — Layer info + controls hint
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="hud-overlay">
+  <div class="hud-top-left">
+    <div class="hud-layer-label" id="hudLayerLabel">LAYER 1 — OPERATIONS</div>
+    <div class="hud-sublabel" id="hudSublabel">Command & Control</div>
+  </div>
+  <div class="hud-top-right">
+    <div class="hud-stat" id="hudProjects">0 Projects</div>
+    <div class="hud-stat" id="hudTasks">0 Tasks</div>
+  </div>
+  <div class="hud-bottom-left">
+    <div class="hud-controls">
+      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Layers</span>
+      <span><kbd>WASD</kbd> Navigate</span>
+      <span><kbd>Scroll</kbd> Zoom</span>
+      <span><kbd>Drag</kbd> Orbit</span>
+      <span><kbd>Esc</kbd> Unfocus</span>
+      <span><kbd>Space</kbd> Home</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     Layer Bar (bottom center)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="layer-bar">
+  <button class="layer-btn active" data-layer="1" id="layerBtn1">
+    <span class="layer-num">1</span>
+    <span class="layer-name">Operations</span>
+  </button>
+  <button class="layer-btn" data-layer="2" id="layerBtn2">
+    <span class="layer-num">2</span>
+    <span class="layer-name">Core Projects</span>
+  </button>
+  <button class="layer-btn" data-layer="3" id="layerBtn3">
+    <span class="layer-num">3</span>
+    <span class="layer-name">External</span>
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     Overlay Container (HTML panels positioned via 3D projection)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="overlay-container" id="overlayContainer">
+  <!-- Layer 1 panels (always on) -->
+  <div class="spatial-panel panel-tasks" id="panelTasks">
+    <div class="panel-header">
+      <span class="panel-icon">&#9632;</span>
+      <span class="panel-title">Tasks</span>
+    </div>
+    <div class="panel-body" id="panelTasksBody">
+      <div class="panel-stat-row"><span>Active</span><span class="val" id="taskActive">—</span></div>
+      <div class="panel-stat-row"><span>Queued</span><span class="val" id="taskQueued">—</span></div>
+      <div class="panel-stat-row"><span>Completed</span><span class="val" id="taskCompleted">—</span></div>
+    </div>
+  </div>
+
+  <div class="spatial-panel panel-deadlines" id="panelDeadlines">
+    <div class="panel-header">
+      <span class="panel-icon">&#9200;</span>
+      <span class="panel-title">Deadlines</span>
+    </div>
+    <div class="panel-body" id="panelDeadlinesBody">
+      <div class="panel-empty">No deadlines set</div>
+    </div>
+  </div>
+
+  <div class="spatial-panel panel-priorities" id="panelPriorities">
+    <div class="panel-header">
+      <span class="panel-icon">&#9733;</span>
+      <span class="panel-title">Priorities</span>
+    </div>
+    <div class="panel-body" id="panelPrioritiesBody">
+      <div class="panel-empty">No priority tasks</div>
+    </div>
+  </div>
+
+  <div class="spatial-panel panel-costs" id="panelCosts">
+    <div class="panel-header">
+      <span class="panel-icon">&#9670;</span>
+      <span class="panel-title">Spend</span>
+    </div>
+    <div class="panel-body" id="panelCostsBody">
+      <div class="panel-stat-row"><span>Today</span><span class="val cost-val" id="costToday">$0.00</span></div>
+      <div class="panel-stat-row"><span>Calls</span><span class="val" id="costCalls">0</span></div>
+      <div class="cost-bar"><div class="cost-bar-fill" id="costBarFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="spatial-panel panel-approvals" id="panelApprovals">
+    <div class="panel-header">
+      <span class="panel-icon">&#10003;</span>
+      <span class="panel-title">Approvals</span>
+    </div>
+    <div class="panel-body" id="panelApprovalsBody">
+      <div class="panel-stat-row"><span>Pending</span><span class="val" id="approvalsPending">0</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     Project Expanded Panel (shown on platform focus)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="project-panel" id="projectPanel" style="display:none">
+  <div class="project-panel-header">
+    <h2 id="ppName">Project</h2>
+    <button class="pp-close" id="ppClose">&times;</button>
+  </div>
+  <div class="pp-meta">
+    <span class="pp-badge" id="ppFramework">—</span>
+    <span class="pp-status" id="ppDevStatus">Offline</span>
+  </div>
+  <p class="pp-desc" id="ppDesc">—</p>
+  <div class="pp-milestones" id="ppMilestones"></div>
+  <div class="pp-progress">
+    <div class="pp-progress-bar"><div class="pp-progress-fill" id="ppProgressFill" style="width:0%"></div></div>
+    <span class="pp-progress-text" id="ppProgressText">0%</span>
+  </div>
+  <button class="pp-action" id="ppOpenChat">Open in Chat</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     Classification Modal
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="classify-modal" id="classifyModal" style="display:none">
+  <div class="classify-inner">
+    <h3>Where should <span id="classifyName">Project</span> live?</h3>
+    <div class="classify-options">
+      <button class="classify-btn layer2" id="classifyL2">
+        <span class="classify-layer">L2</span>
+        <span>Core Venture</span>
+      </button>
+      <button class="classify-btn layer3" id="classifyL3">
+        <span class="classify-layer">L3</span>
+        <span>External / Sub</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     HUD Brackets
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="hud-brackets">
+  <div class="hud-bracket hud-bracket--tl"></div>
+  <div class="hud-bracket hud-bracket--tr"></div>
+  <div class="hud-bracket hud-bracket--bl"></div>
+  <div class="hud-bracket hud-bracket--br"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     Scripts
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script src="three.min.js"></script>
+<script src="spatial.js"></script>
+
+</body>
+</html>

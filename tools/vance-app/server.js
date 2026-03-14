@@ -1833,6 +1833,58 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    // ─── Spatial Interface Actions ───
+    case 'get-spatial-data': {
+      const projects = loadProjects().map(p => ({
+        ...p,
+        milestones: loadMilestones(p.id),
+        state: projectState.getProjectStatus(p.id),
+      }));
+      const tasks = taskManager.getAllTasks().map(t => taskManager.taskSummary(t));
+      const costStats = costs.getStats('today');
+      const sysInfo = await getSystemInfo('all');
+      const pending = brain.getPendingUpdates();
+      const allStates = projectState.getAllStates();
+      ws.send({
+        type: 'spatial-data',
+        projects,
+        tasks,
+        costs: costStats,
+        system: sysInfo,
+        pendingBrainUpdates: pending.length,
+        projectStates: allStates,
+      });
+      break;
+    }
+
+    case 'classify-project': {
+      const projects = loadProjects();
+      const idx = projects.findIndex(p => p.id === msg.projectId);
+      if (idx === -1) { ws.send({ type: 'error', message: 'Project not found' }); break; }
+      projects[idx].layer = msg.layer || 2;
+      projects[idx].projectType = msg.projectType || 'venture';
+      saveProjects(projects);
+      ws.send({ type: 'project-classified', projectId: msg.projectId, layer: projects[idx].layer, projectType: projects[idx].projectType });
+      break;
+    }
+
+    case 'create-project': {
+      const projects = loadProjects();
+      const newProj = {
+        id: crypto.randomUUID(),
+        name: msg.name || 'Untitled',
+        description: msg.description || '',
+        directory: msg.directory || '',
+        layer: msg.layer || null,
+        projectType: msg.projectType || null,
+        createdAt: new Date().toISOString(),
+      };
+      projects.push(newProj);
+      saveProjects(projects);
+      ws.send({ type: 'project-created', project: newProj });
+      break;
+    }
+
     default:
       ws.send({ type: 'error', message: `Unknown action: ${msg.action}` });
   }
@@ -1895,6 +1947,9 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/brain' || url.pathname === '/brain.html') {
     return serveFile(res, 'brain.html');
+  }
+  if (url.pathname === '/spatial' || url.pathname === '/spatial.html') {
+    return serveFile(res, 'spatial.html');
   }
 
   // Serve static .js and .css files from __dirname
