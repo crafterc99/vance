@@ -6,99 +6,72 @@
   // ═══════════════════════════════════════════════════════════════════════════
 
   const COLORS = {
-    accent: 0x4488ff,
-    accentBright: 0x66aaff,
-    green: 0x00e5a0,
-    greenDim: 0x009a6a,
-    warn: 0xffa040,
-    danger: 0xff3355,
-    purple: 0xa855f7,
-    grid: 0x4488ff,
-    particle: 0x4488ff,
-    platformBase: 0x181828,
-    platformGlow: 0x4488ff,
-    orbCore: 0x4488ff,
-    orbRing: 0x66aaff,
-    nodeColor: 0x7070a0,
-    nodeLine: 0x2a2a44,
+    accent: 0x4488ff, accentBright: 0x66aaff,
+    green: 0x00e5a0, greenDim: 0x009a6a,
+    warn: 0xffa040, danger: 0xff3355, purple: 0xa855f7,
+    grid: 0x4488ff, particle: 0x4488ff,
+    platformBase: 0x181828, platformGlow: 0x4488ff,
+    orbCore: 0x4488ff, orbRing: 0x66aaff,
+    nodeColor: 0x7070a0, nodeLine: 0x2a2a44,
   };
 
   const LAYERS = {
-    1: {
-      label: 'LAYER 1 \u2014 OPERATIONS',
-      sublabel: 'Command & Control',
-      camera: { pos: [0, 2, 8], lookAt: [0, 0, 0] },
-    },
-    2: {
-      label: 'LAYER 2 \u2014 CORE PROJECTS',
-      sublabel: 'Active Ventures',
-      camera: { pos: [0, 4, -5], lookAt: [0, 0, -12] },
-    },
-    3: {
-      label: 'LAYER 3 \u2014 EXTERNAL',
-      sublabel: 'Sub-projects & Experiments',
-      camera: { pos: [0, 6, -18], lookAt: [0, 0, -30] },
-    },
+    1: { label: 'LAYER 1 \u2014 OPERATIONS', camera: { pos: [0, 2, 8], lookAt: [0, 0, 0] } },
+    2: { label: 'LAYER 2 \u2014 CORE PROJECTS', camera: { pos: [0, 4, -5], lookAt: [0, 0, -12] } },
+    3: { label: 'LAYER 3 \u2014 EXTERNAL', camera: { pos: [0, 6, -18], lookAt: [0, 0, -30] } },
   };
 
-  // Panel anchor positions in world space (Layer 1, semicircle at z=2)
-  const PANEL_ANCHORS = [
-    { id: 'panelTasks', x: -4, y: 1.5, z: 2 },
-    { id: 'panelDeadlines', x: -2, y: 2.2, z: 1.5 },
-    { id: 'panelPriorities', x: 0, y: 2.5, z: 1.2 },
-    { id: 'panelCosts', x: 2, y: 2.2, z: 1.5 },
-    { id: 'panelApprovals', x: 4, y: 1.5, z: 2 },
-  ];
-
   const KNOWN_VENTURES = ['soul-jam', 'athletes-blender', 'sos-train', 'vance', 'vantheah', 'promotifyy'];
+  const PROJECT_COLORS = {
+    'vantheah': '#4488ff', 'promotifyy': '#ff8c00', 'soul-jam': '#00e5a0',
+    'athletes-blender': '#ffc940', 'sos-train': '#ff3355', 'vance': '#a855f7',
+  };
   const CAMERA_LERP = 0.05;
   const PLATFORM_SPACING = 5;
   const DAILY_BUDGET = 5.0;
+
+  // Default approval items (shown when no real pending data)
+  const DEFAULT_APPROVALS = [
+    { project: 'VANTHEAH', desc: 'Manufacturing Samples' },
+    { project: 'PROMOTIFYY', desc: 'Creator Bate Access' },
+    { project: 'SOUL JAM', desc: 'Physics Engine Update' },
+    { project: 'Influencer Outreach', desc: 'Email Draft' },
+  ];
+
+  // Default priorities (shown when no real data)
+  const DEFAULT_PRIORITIES = [
+    { project: 'VANTHEAH', desc: 'Launch Preparation', status: 'In Progress', color: '#4488ff' },
+    { project: 'PROMOTIFYY', desc: 'Creator Beta', status: 'Planning', color: '#ff8c00' },
+    { project: 'SOUL JAM', desc: 'Physics System', status: 'Development', color: '#00e5a0' },
+    { project: 'Manufacturing Sample Review', desc: '', status: 'Awaiting Approval', color: '#ffc940' },
+    { project: 'Influencer Outreach', desc: 'Campaign', status: 'Pending', color: '#ff5566' },
+  ];
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE
   // ═══════════════════════════════════════════════════════════════════════════
 
-  let ws = null;
-  let wsConnected = false;
+  let ws = null, wsConnected = false;
   let currentLayer = 1;
-  let focusedProject = null;
-  let classifyingProject = null;
+  let focusedProject = null, classifyingProject = null;
 
-  // Data from server
-  let projects = [];
-  let tasks = [];
-  let costData = {};
-  let systemData = {};
-  let pendingBrainUpdates = 0;
+  let projects = [], tasks = [], costData = {}, systemData = {};
+  let pendingBrainUpdates = [];
 
-  // Three.js
-  let renderer, scene, camera;
-  let clock;
+  let renderer, scene, camera, clock;
+  let centralOrb = null, orbRings = [], particles = null;
+  let platformMeshes = [], nodeMeshes = [], connectionLines = [];
 
-  // Scene objects
-  let centralOrb = null;
-  let orbRings = [];
-  let gridFloor = null;
-  let particles = null;
-  let platformMeshes = []; // { mesh, project, label, glowRing }
-  let nodeMeshes = []; // { mesh, project, label }
-  let connectionLines = [];
-
-  // Camera controller state
   const cam = {
     targetPos: new THREE.Vector3(0, 2, 8),
     targetLookAt: new THREE.Vector3(0, 0, 0),
     currentPos: new THREE.Vector3(0, 2, 8),
     currentLookAt: new THREE.Vector3(0, 0, 0),
-    isDragging: false,
-    lastMouse: { x: 0, y: 0 },
-    orbitTheta: 0,
-    orbitPhi: 0.3,
-    orbitRadius: 8,
+    isDragging: false, lastMouse: { x: 0, y: 0 },
+    dragStart: { x: 0, y: 0 },
+    orbitTheta: 0, orbitPhi: 0.3,
   };
 
-  // Raycaster
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
@@ -107,23 +80,22 @@
   // ═══════════════════════════════════════════════════════════════════════════
 
   function $(id) { return document.getElementById(id); }
+  function formatCost(n) { return '$' + (n || 0).toFixed(2); }
+  function slugify(name) { return (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
   function worldToScreen(worldPos) {
     const vec = worldPos.clone().project(camera);
-    const canvas = renderer.domElement;
-    return {
-      x: (vec.x * 0.5 + 0.5) * canvas.clientWidth,
-      y: (-vec.y * 0.5 + 0.5) * canvas.clientHeight,
-      z: vec.z,
-    };
+    const c = renderer.domElement;
+    return { x: (vec.x * 0.5 + 0.5) * c.clientWidth, y: (-vec.y * 0.5 + 0.5) * c.clientHeight, z: vec.z };
   }
 
-  function lerpVal(a, b, t) { return a + (b - a) * t; }
-
-  function formatCost(n) { return '$' + (n || 0).toFixed(2); }
-
-  function slugify(name) {
-    return (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  function getProjectDotColor(project) {
+    const slug = slugify(project.name || project);
+    for (const [key, color] of Object.entries(PROJECT_COLORS)) {
+      if (slug.includes(key)) return color;
+    }
+    return '#7070a0';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -135,316 +107,140 @@
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x09090f, 1);
+    renderer.setClearColor(0x0a0a14, 1);
 
     scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x09090f, 0.018);
+    scene.fog = new THREE.FogExp2(0x0a0a14, 0.018);
 
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
     camera.position.set(0, 2, 8);
     camera.lookAt(0, 0, 0);
-
     clock = new THREE.Clock();
 
-    // Ambient light
-    const ambient = new THREE.AmbientLight(0x222244, 0.5);
-    scene.add(ambient);
-
-    // Point light at orb position
-    const pointLight = new THREE.PointLight(COLORS.accent, 1.5, 30);
-    pointLight.position.set(0, 2, 0);
-    scene.add(pointLight);
-
-    // Directional light from above
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    dirLight.position.set(5, 10, 5);
-    scene.add(dirLight);
+    scene.add(new THREE.AmbientLight(0x222244, 0.5));
+    const pl = new THREE.PointLight(COLORS.accent, 1.5, 30);
+    pl.position.set(0, 2, 0);
+    scene.add(pl);
+    const dl = new THREE.DirectionalLight(0xffffff, 0.3);
+    dl.position.set(5, 10, 5);
+    scene.add(dl);
 
     createGrid();
     createParticles();
     createCentralOrb();
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // GEOMETRY — Grid Floor
-  // ═══════════════════════════════════════════════════════════════════════════
-
+  // ─── Grid ───
   function createGrid() {
-    const size = 100;
-    const divisions = 60;
-    const gridHelper = new THREE.GridHelper(size, divisions, COLORS.grid, COLORS.grid);
-    gridHelper.position.y = -2;
-    gridHelper.material.opacity = 0.03;
-    gridHelper.material.transparent = true;
-    gridHelper.material.depthWrite = false;
-    scene.add(gridHelper);
-    gridFloor = gridHelper;
+    const g = new THREE.GridHelper(100, 60, COLORS.grid, COLORS.grid);
+    g.position.y = -2; g.material.opacity = 0.03; g.material.transparent = true; g.material.depthWrite = false;
+    scene.add(g);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // GEOMETRY — Ambient Particles
-  // ═══════════════════════════════════════════════════════════════════════════
-
+  // ─── Particles ───
   function createParticles() {
-    const count = 200;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    const velocities = new Float32Array(count * 3);
-
+    const count = 200, geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3), vel = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 60;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 30 + 5;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 80 - 10;
-      velocities[i * 3] = (Math.random() - 0.5) * 0.005;
-      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.003;
-      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.005;
+      pos[i*3]=(Math.random()-0.5)*60; pos[i*3+1]=(Math.random()-0.5)*30+5; pos[i*3+2]=(Math.random()-0.5)*80-10;
+      vel[i*3]=(Math.random()-0.5)*0.005; vel[i*3+1]=(Math.random()-0.5)*0.003; vel[i*3+2]=(Math.random()-0.5)*0.005;
     }
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.userData.velocities = velocities;
-
-    const material = new THREE.PointsMaterial({
-      color: COLORS.particle,
-      size: 0.08,
-      transparent: true,
-      opacity: 0.4,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-
-    particles = new THREE.Points(geometry, material);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.userData.velocities = vel;
+    particles = new THREE.Points(geo, new THREE.PointsMaterial({
+      color: COLORS.particle, size: 0.08, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
     scene.add(particles);
   }
 
   function updateParticles() {
     if (!particles) return;
-    const positions = particles.geometry.attributes.position.array;
-    const velocities = particles.geometry.userData.velocities;
-
-    for (let i = 0; i < positions.length; i += 3) {
-      positions[i] += velocities[i];
-      positions[i + 1] += velocities[i + 1];
-      positions[i + 2] += velocities[i + 2];
-
-      // Wrap around
-      if (positions[i] > 30) positions[i] = -30;
-      if (positions[i] < -30) positions[i] = 30;
-      if (positions[i + 1] > 20) positions[i + 1] = -5;
-      if (positions[i + 1] < -5) positions[i + 1] = 20;
-      if (positions[i + 2] > 10) positions[i + 2] = -50;
-      if (positions[i + 2] < -50) positions[i + 2] = 10;
+    const p = particles.geometry.attributes.position.array, v = particles.geometry.userData.velocities;
+    for (let i = 0; i < p.length; i += 3) {
+      p[i]+=v[i]; p[i+1]+=v[i+1]; p[i+2]+=v[i+2];
+      if(p[i]>30)p[i]=-30; if(p[i]<-30)p[i]=30;
+      if(p[i+1]>20)p[i+1]=-5; if(p[i+1]<-5)p[i+1]=20;
+      if(p[i+2]>10)p[i+2]=-50; if(p[i+2]<-50)p[i+2]=10;
     }
     particles.geometry.attributes.position.needsUpdate = true;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // GEOMETRY — Central Voice Orb (Layer 1)
-  // ═══════════════════════════════════════════════════════════════════════════
-
+  // ─── Central Orb ───
   function createCentralOrb() {
-    // Core sphere
-    const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32);
-    const sphereMat = new THREE.MeshPhongMaterial({
-      color: COLORS.orbCore,
-      emissive: COLORS.orbCore,
-      emissiveIntensity: 0.3,
-      transparent: true,
-      opacity: 0.7,
-      shininess: 100,
-    });
-    centralOrb = new THREE.Mesh(sphereGeo, sphereMat);
-    centralOrb.position.set(0, 0.5, 0);
-    scene.add(centralOrb);
-
-    // Ring 1
-    const ring1Geo = new THREE.TorusGeometry(0.9, 0.02, 16, 64);
-    const ring1Mat = new THREE.MeshBasicMaterial({
-      color: COLORS.orbRing,
-      transparent: true,
-      opacity: 0.4,
-    });
-    const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
-    ring1.position.copy(centralOrb.position);
-    ring1.rotation.x = Math.PI / 3;
-    scene.add(ring1);
-    orbRings.push(ring1);
-
-    // Ring 2
-    const ring2Geo = new THREE.TorusGeometry(1.2, 0.015, 16, 64);
-    const ring2Mat = new THREE.MeshBasicMaterial({
-      color: COLORS.orbRing,
-      transparent: true,
-      opacity: 0.25,
-    });
-    const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
-    ring2.position.copy(centralOrb.position);
-    ring2.rotation.x = -Math.PI / 4;
-    ring2.rotation.y = Math.PI / 6;
-    scene.add(ring2);
-    orbRings.push(ring2);
+    const sg = new THREE.SphereGeometry(0.5, 32, 32);
+    const sm = new THREE.MeshPhongMaterial({ color: COLORS.orbCore, emissive: COLORS.orbCore, emissiveIntensity: 0.3, transparent: true, opacity: 0.7, shininess: 100 });
+    centralOrb = new THREE.Mesh(sg, sm); centralOrb.position.set(0, 0.5, 0); scene.add(centralOrb);
+    const r1 = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.02, 16, 64), new THREE.MeshBasicMaterial({ color: COLORS.orbRing, transparent: true, opacity: 0.4 }));
+    r1.position.copy(centralOrb.position); r1.rotation.x = Math.PI / 3; scene.add(r1); orbRings.push(r1);
+    const r2 = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.015, 16, 64), new THREE.MeshBasicMaterial({ color: COLORS.orbRing, transparent: true, opacity: 0.25 }));
+    r2.position.copy(centralOrb.position); r2.rotation.x = -Math.PI / 4; r2.rotation.y = Math.PI / 6; scene.add(r2); orbRings.push(r2);
   }
 
   function updateOrb(time) {
     if (!centralOrb) return;
-    // Pulsate
-    const scale = 1 + Math.sin(time * 2) * 0.05;
-    centralOrb.scale.set(scale, scale, scale);
+    const s = 1 + Math.sin(time * 2) * 0.05;
+    centralOrb.scale.set(s, s, s);
     centralOrb.material.emissiveIntensity = 0.3 + Math.sin(time * 3) * 0.15;
-
-    // Rotate rings
     if (orbRings[0]) orbRings[0].rotation.z += 0.005;
     if (orbRings[1]) orbRings[1].rotation.z -= 0.003;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // GEOMETRY — Project Platforms (Layer 2)
+  // PLATFORMS (Layer 2) & NODES (Layer 3)
   // ═══════════════════════════════════════════════════════════════════════════
 
   function createPlatform(project, index, total) {
-    const xSpread = (total - 1) * PLATFORM_SPACING;
-    const x = -xSpread / 2 + index * PLATFORM_SPACING;
-    const y = 0;
-    const z = -12;
-
-    // Cylinder base
-    const baseGeo = new THREE.CylinderGeometry(1.8, 1.8, 0.2, 32);
-    const baseMat = new THREE.MeshPhongMaterial({
-      color: COLORS.platformBase,
-      emissive: COLORS.accent,
-      emissiveIntensity: 0.05,
-      transparent: true,
-      opacity: 0.9,
-    });
-    const base = new THREE.Mesh(baseGeo, baseMat);
-    base.position.set(x, y, z);
-    base.userData = { type: 'platform', projectId: project.id };
-    scene.add(base);
-
-    // Glow ring
-    const glowGeo = new THREE.TorusGeometry(1.9, 0.04, 16, 64);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: COLORS.platformGlow,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const glowRing = new THREE.Mesh(glowGeo, glowMat);
-    glowRing.position.set(x, y + 0.15, z);
-    glowRing.rotation.x = -Math.PI / 2;
-    scene.add(glowRing);
-
-    // Small sphere on top
-    const topGeo = new THREE.SphereGeometry(0.2, 16, 16);
-    const topColor = getProjectColor(project);
-    const topMat = new THREE.MeshPhongMaterial({
-      color: topColor,
-      emissive: topColor,
-      emissiveIntensity: 0.4,
-      transparent: true,
-      opacity: 0.8,
-    });
-    const topSphere = new THREE.Mesh(topGeo, topMat);
-    topSphere.position.set(x, y + 0.5, z);
-    scene.add(topSphere);
-
-    // HTML label
-    const labelDiv = document.createElement('div');
-    labelDiv.className = 'platform-label';
-    labelDiv.innerHTML = `
-      <div class="platform-label-name">${escapeHtml(project.name)}</div>
-      <div class="platform-label-type">${project.projectType || 'project'}</div>
-    `;
-    labelDiv.addEventListener('click', () => focusProject(project));
-    $('overlayContainer').appendChild(labelDiv);
-
-    platformMeshes.push({
-      mesh: base,
-      topSphere,
-      glowRing,
-      project,
-      label: labelDiv,
-      worldPos: new THREE.Vector3(x, y + 1.2, z),
-    });
+    const x = -(total - 1) * PLATFORM_SPACING / 2 + index * PLATFORM_SPACING, y = 0, z = -12;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.2, 32),
+      new THREE.MeshPhongMaterial({ color: COLORS.platformBase, emissive: COLORS.accent, emissiveIntensity: 0.05, transparent: true, opacity: 0.9 }));
+    base.position.set(x, y, z); base.userData = { type: 'platform', projectId: project.id }; scene.add(base);
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.04, 16, 64),
+      new THREE.MeshBasicMaterial({ color: COLORS.platformGlow, transparent: true, opacity: 0.3 }));
+    glow.position.set(x, y + 0.15, z); glow.rotation.x = -Math.PI / 2; scene.add(glow);
+    const tc = getProjectMeshColor(project);
+    const top = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16),
+      new THREE.MeshPhongMaterial({ color: tc, emissive: tc, emissiveIntensity: 0.4, transparent: true, opacity: 0.8 }));
+    top.position.set(x, y + 0.5, z); scene.add(top);
+    const lbl = document.createElement('div'); lbl.className = 'platform-label';
+    lbl.innerHTML = `<div class="platform-label-name">${escapeHtml(project.name)}</div><div class="platform-label-type">${project.projectType || 'project'}</div>`;
+    lbl.addEventListener('click', () => focusProject(project));
+    $('overlayContainer').appendChild(lbl);
+    platformMeshes.push({ mesh: base, topSphere: top, glowRing: glow, project, label: lbl, worldPos: new THREE.Vector3(x, y + 1.2, z) });
   }
 
-  function getProjectColor(project) {
-    const slug = slugify(project.name);
-    if (slug.includes('soul-jam')) return COLORS.warn;
-    if (slug.includes('athletes')) return COLORS.green;
-    if (slug.includes('sos-train')) return COLORS.danger;
-    if (slug.includes('vance')) return COLORS.accent;
-    if (slug.includes('vantheah')) return COLORS.purple;
-    if (slug.includes('promotifyy')) return 0xff8c00;
+  function getProjectMeshColor(p) {
+    const s = slugify(p.name);
+    if (s.includes('soul-jam')) return COLORS.warn;
+    if (s.includes('athletes')) return COLORS.green;
+    if (s.includes('sos-train')) return COLORS.danger;
+    if (s.includes('vance')) return COLORS.accent;
+    if (s.includes('vantheah')) return COLORS.purple;
+    if (s.includes('promotifyy')) return 0xff8c00;
     return COLORS.accentBright;
   }
 
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // GEOMETRY — External Nodes (Layer 3)
-  // ═══════════════════════════════════════════════════════════════════════════
-
   function createNode(project, index, total) {
-    // Scatter in a constellation pattern
     const angle = (index / Math.max(total, 1)) * Math.PI * 2;
-    const radius = 4 + Math.random() * 4;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * 2 + Math.random() * 2;
-    const z = -30 + (Math.random() - 0.5) * 6;
-
-    const geo = new THREE.SphereGeometry(0.25, 16, 16);
-    const mat = new THREE.MeshPhongMaterial({
-      color: COLORS.nodeColor,
-      emissive: COLORS.nodeColor,
-      emissiveIntensity: 0.2,
-      transparent: true,
-      opacity: 0.7,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, y, z);
-    mesh.userData = { type: 'node', projectId: project.id };
-    scene.add(mesh);
-
-    // HTML label
-    const labelDiv = document.createElement('div');
-    labelDiv.className = 'node-label';
-    labelDiv.innerHTML = `<div class="node-label-name">${escapeHtml(project.name)}</div>`;
-    labelDiv.addEventListener('click', () => focusProject(project));
-    $('overlayContainer').appendChild(labelDiv);
-
-    nodeMeshes.push({
-      mesh,
-      project,
-      label: labelDiv,
-      worldPos: new THREE.Vector3(x, y + 0.5, z),
-    });
+    const r = 4 + Math.random() * 4;
+    const x = Math.cos(angle) * r, y = Math.sin(angle) * 2 + Math.random() * 2, z = -30 + (Math.random() - 0.5) * 6;
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16),
+      new THREE.MeshPhongMaterial({ color: COLORS.nodeColor, emissive: COLORS.nodeColor, emissiveIntensity: 0.2, transparent: true, opacity: 0.7 }));
+    mesh.position.set(x, y, z); mesh.userData = { type: 'node', projectId: project.id }; scene.add(mesh);
+    const lbl = document.createElement('div'); lbl.className = 'node-label';
+    lbl.innerHTML = `<div class="node-label-name">${escapeHtml(project.name)}</div>`;
+    lbl.addEventListener('click', () => focusProject(project));
+    $('overlayContainer').appendChild(lbl);
+    nodeMeshes.push({ mesh, project, label: lbl, worldPos: new THREE.Vector3(x, y + 0.5, z) });
   }
 
   function createConnectionLines() {
-    // Remove old lines
-    connectionLines.forEach(l => scene.remove(l));
-    connectionLines = [];
-
-    // Connect nearby nodes
+    connectionLines.forEach(l => scene.remove(l)); connectionLines = [];
     for (let i = 0; i < nodeMeshes.length; i++) {
       for (let j = i + 1; j < nodeMeshes.length; j++) {
-        const dist = nodeMeshes[i].mesh.position.distanceTo(nodeMeshes[j].mesh.position);
-        if (dist < 6) {
-          const geo = new THREE.BufferGeometry().setFromPoints([
-            nodeMeshes[i].mesh.position,
-            nodeMeshes[j].mesh.position,
-          ]);
-          const mat = new THREE.LineBasicMaterial({
-            color: COLORS.nodeLine,
-            transparent: true,
-            opacity: 0.15,
-          });
-          const line = new THREE.Line(geo, mat);
-          scene.add(line);
-          connectionLines.push(line);
+        if (nodeMeshes[i].mesh.position.distanceTo(nodeMeshes[j].mesh.position) < 6) {
+          const g = new THREE.BufferGeometry().setFromPoints([nodeMeshes[i].mesh.position, nodeMeshes[j].mesh.position]);
+          const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: COLORS.nodeLine, transparent: true, opacity: 0.15 }));
+          scene.add(l); connectionLines.push(l);
         }
       }
     }
@@ -458,14 +254,14 @@
     currentLayer = layer;
     focusedProject = null;
     hideProjectPanel();
-
     const cfg = LAYERS[layer];
     cam.targetPos.set(...cfg.camera.pos);
     cam.targetLookAt.set(...cfg.camera.lookAt);
 
-    // Update HUD
-    $('hudLayerLabel').textContent = cfg.label;
-    $('hudSublabel').textContent = cfg.sublabel;
+    // Show/hide dashboard
+    const dash = $('l1Dashboard');
+    if (layer === 1) { dash.classList.remove('hidden'); }
+    else { dash.classList.add('hidden'); }
 
     // Update layer buttons
     document.querySelectorAll('.layer-btn').forEach(btn => {
@@ -475,31 +271,19 @@
 
   function focusProject(project) {
     focusedProject = project;
-
-    // Find platform or node
     const pm = platformMeshes.find(p => p.project.id === project.id);
     const nm = nodeMeshes.find(n => n.project.id === project.id);
     const target = pm || nm;
-
     if (target) {
       const pos = target.mesh.position;
       cam.targetPos.set(pos.x, pos.y + 2, pos.z + 4);
       cam.targetLookAt.set(pos.x, pos.y, pos.z);
     }
-
-    // Check if needs classification
-    if (project.layer == null) {
-      showClassifyModal(project);
-    }
-
+    if (project.layer == null) showClassifyModal(project);
     showProjectPanel(project);
   }
 
-  function unfocus() {
-    focusedProject = null;
-    hideProjectPanel();
-    jumpToLayer(currentLayer);
-  }
+  function unfocus() { focusedProject = null; hideProjectPanel(); jumpToLayer(currentLayer); }
 
   function updateCamera() {
     cam.currentPos.lerp(cam.targetPos, CAMERA_LERP);
@@ -509,290 +293,292 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // OVERLAY SYSTEM — Project panels in 3D space
+  // OVERLAY SYSTEM — L2/L3 labels only
   // ═══════════════════════════════════════════════════════════════════════════
 
   function updateOverlays() {
-    // Layer 1 panels — positioned from PANEL_ANCHORS
-    PANEL_ANCHORS.forEach(anchor => {
-      const panel = $(anchor.id);
-      if (!panel) return;
-
-      const worldPos = new THREE.Vector3(anchor.x, anchor.y, anchor.z);
-      const screen = worldToScreen(worldPos);
-
-      if (screen.z > 1) {
-        // Behind camera
-        panel.style.opacity = '0';
-        panel.style.pointerEvents = 'none';
-        return;
-      }
-
-      // Distance-based scaling
-      const camDist = camera.position.distanceTo(worldPos);
-      const scaleFactor = Math.max(0.3, Math.min(1, 6 / camDist));
-      const opacity = Math.max(0, Math.min(1, 1 - (camDist - 4) / 20));
-
-      panel.style.left = screen.x + 'px';
-      panel.style.top = screen.y + 'px';
-      panel.style.transform = `translate(-50%, -50%) scale(${scaleFactor})`;
-      panel.style.opacity = opacity;
-      panel.style.pointerEvents = opacity > 0.2 ? 'auto' : 'none';
-    });
-
-    // Platform labels (Layer 2)
     platformMeshes.forEach(pm => {
-      const screen = worldToScreen(pm.worldPos);
-      if (screen.z > 1) {
-        pm.label.style.opacity = '0';
-        return;
-      }
-      const camDist = camera.position.distanceTo(pm.worldPos);
-      const opacity = Math.max(0, Math.min(1, 1 - (camDist - 3) / 25));
-      pm.label.style.left = screen.x + 'px';
-      pm.label.style.top = screen.y + 'px';
-      pm.label.style.transform = 'translate(-50%, -50%)';
-      pm.label.style.opacity = opacity;
+      const s = worldToScreen(pm.worldPos);
+      if (s.z > 1) { pm.label.style.opacity = '0'; return; }
+      const d = camera.position.distanceTo(pm.worldPos);
+      const o = Math.max(0, Math.min(1, 1 - (d - 3) / 25));
+      pm.label.style.left = s.x + 'px'; pm.label.style.top = s.y + 'px';
+      pm.label.style.transform = 'translate(-50%, -50%)'; pm.label.style.opacity = o;
     });
-
-    // Node labels (Layer 3)
     nodeMeshes.forEach(nm => {
-      const screen = worldToScreen(nm.worldPos);
-      if (screen.z > 1) {
-        nm.label.style.opacity = '0';
-        return;
-      }
-      const camDist = camera.position.distanceTo(nm.worldPos);
-      const opacity = Math.max(0, Math.min(1, 1 - (camDist - 3) / 20));
-      nm.label.style.left = screen.x + 'px';
-      nm.label.style.top = screen.y + 'px';
-      nm.label.style.transform = 'translate(-50%, -50%)';
-      nm.label.style.opacity = opacity;
+      const s = worldToScreen(nm.worldPos);
+      if (s.z > 1) { nm.label.style.opacity = '0'; return; }
+      const d = camera.position.distanceTo(nm.worldPos);
+      const o = Math.max(0, Math.min(1, 1 - (d - 3) / 20));
+      nm.label.style.left = s.x + 'px'; nm.label.style.top = s.y + 'px';
+      nm.label.style.transform = 'translate(-50%, -50%)'; nm.label.style.opacity = o;
     });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SCENE BUILDER — Rebuild from data
+  // SCENE BUILDER
   // ═══════════════════════════════════════════════════════════════════════════
 
   function rebuildScene() {
-    // Clear old platforms
-    platformMeshes.forEach(pm => {
-      scene.remove(pm.mesh);
-      scene.remove(pm.glowRing);
-      scene.remove(pm.topSphere);
-      if (pm.label.parentNode) pm.label.parentNode.removeChild(pm.label);
-    });
+    platformMeshes.forEach(pm => { scene.remove(pm.mesh); scene.remove(pm.glowRing); scene.remove(pm.topSphere); if (pm.label.parentNode) pm.label.remove(); });
     platformMeshes = [];
-
-    // Clear old nodes
-    nodeMeshes.forEach(nm => {
-      scene.remove(nm.mesh);
-      if (nm.label.parentNode) nm.label.parentNode.removeChild(nm.label);
-    });
+    nodeMeshes.forEach(nm => { scene.remove(nm.mesh); if (nm.label.parentNode) nm.label.remove(); });
     nodeMeshes = [];
+    connectionLines.forEach(l => scene.remove(l)); connectionLines = [];
 
-    // Clear connection lines
-    connectionLines.forEach(l => scene.remove(l));
-    connectionLines = [];
-
-    // Classify projects
-    const l2Projects = [];
-    const l3Projects = [];
-
-    projects.forEach(p => {
-      const classified = autoClassify(p);
-      if (classified === 2) l2Projects.push(p);
-      else l3Projects.push(p);
-    });
-
-    // Build Layer 2 platforms
-    l2Projects.forEach((p, i) => createPlatform(p, i, l2Projects.length));
-
-    // Build Layer 3 nodes
-    l3Projects.forEach((p, i) => createNode(p, i, l3Projects.length));
-
-    // Create connection lines between nodes
+    const l2 = [], l3 = [];
+    projects.forEach(p => { (autoClassify(p) === 2 ? l2 : l3).push(p); });
+    l2.forEach((p, i) => createPlatform(p, i, l2.length));
+    l3.forEach((p, i) => createNode(p, i, l3.length));
     createConnectionLines();
-
-    // Update HUD stats
-    $('hudProjects').textContent = projects.length + ' Projects';
-    $('hudTasks').textContent = tasks.length + ' Tasks';
   }
 
-  function autoClassify(project) {
-    // If already classified, use that
-    if (project.layer === 2 || project.layer === 3) return project.layer;
-
-    // Known ventures → Layer 2
-    const slug = slugify(project.name);
-    if (KNOWN_VENTURES.some(v => slug.includes(v))) return 2;
-
-    // Has milestones and directory → Layer 2
-    if (project.milestones && project.milestones.length > 0 && project.directory) return 2;
-
-    // Default → Layer 3
+  function autoClassify(p) {
+    if (p.layer === 2 || p.layer === 3) return p.layer;
+    const s = slugify(p.name);
+    if (KNOWN_VENTURES.some(v => s.includes(v))) return 2;
+    if (p.milestones && p.milestones.length > 0 && p.directory) return 2;
     return 3;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PANEL RENDERING — Update data in HTML panels
+  // DASHBOARD — Populate all Layer 1 widgets
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function updatePanels() {
-    // Tasks panel
-    const running = tasks.filter(t => t.status === 'running' || t.status === 'active');
-    const queued = tasks.filter(t => t.status === 'queued' || t.status === 'pending');
-    const completed = tasks.filter(t => t.status === 'completed' || t.status === 'done');
-
-    $('taskActive').textContent = running.length;
-    $('taskQueued').textContent = queued.length;
-    $('taskCompleted').textContent = completed.length;
-
-    // Deadlines panel
-    updateDeadlinesPanel();
-
-    // Priorities panel
-    updatePrioritiesPanel();
-
-    // Costs panel
-    const todayCost = costData.totalCost || 0;
-    $('costToday').textContent = formatCost(todayCost);
-    $('costCalls').textContent = (costData.totalCalls || 0).toString();
-    $('costPill').textContent = 'TODAY ' + formatCost(todayCost);
-    const budgetPct = Math.min(100, (todayCost / DAILY_BUDGET) * 100);
-    $('costBarFill').style.width = budgetPct + '%';
-
-    // Approvals panel
-    $('approvalsPending').textContent = pendingBrainUpdates;
+  function updateDashboard() {
+    updateCreditsWidget();
+    updateIncomeExpenses();
+    updateApprovalQueue();
+    updateCalendar();
+    updateGauges();
+    updatePriorities();
   }
 
-  function updateDeadlinesPanel() {
-    const body = $('panelDeadlinesBody');
-    // Collect upcoming milestones across projects
-    const upcoming = [];
+  // ─── Credits Widget ───
+  function updateCreditsWidget() {
+    const totalTokens = (costData.totalInput || 0) + (costData.totalOutput || 0);
+    let display;
+    if (totalTokens >= 1000000) display = (totalTokens / 1000000).toFixed(1) + 'M+';
+    else if (totalTokens >= 1000) display = (totalTokens / 1000).toFixed(1) + 'k+';
+    else display = totalTokens.toString();
+    $('l1CreditsValue').textContent = display || '2.4k+';
+  }
+
+  // ─── Income & Expenses ───
+  function updateIncomeExpenses() {
+    const todayCost = costData.totalCost || 0;
+    if (todayCost > 0) {
+      $('l1Expenses').textContent = formatCost(todayCost);
+    }
+  }
+
+  // ─── Approval Queue ───
+  function updateApprovalQueue() {
+    const list = $('l1ApprovalsList');
+    const pending = Array.isArray(pendingBrainUpdates) ? pendingBrainUpdates : [];
+
+    if (pending.length > 0) {
+      $('l1ApprovalsBadge').textContent = 'Pending: ' + pending.length;
+      list.innerHTML = pending.map(u => `
+        <div class="l1-approval-item">
+          <div class="l1-approval-info">
+            <div class="l1-approval-project">${escapeHtml(u.file || u.section || 'Brain Update')}</div>
+            <div class="l1-approval-desc">${escapeHtml(u.reason || u.description || '')}</div>
+          </div>
+          <div class="l1-approval-actions">
+            <button class="l1-btn-approve" onclick="window._approveUpdate('${u.id}')">Approve</button>
+            <button class="l1-btn-deny" onclick="window._rejectUpdate('${u.id}')">Deny</button>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      // Show default placeholder items
+      $('l1ApprovalsBadge').textContent = 'Pending: ' + DEFAULT_APPROVALS.length;
+      list.innerHTML = DEFAULT_APPROVALS.map(item => `
+        <div class="l1-approval-item">
+          <div class="l1-approval-info">
+            <div class="l1-approval-project">${escapeHtml(item.project)}</div>
+            <div class="l1-approval-desc">${escapeHtml(item.desc)}</div>
+          </div>
+          <div class="l1-approval-actions">
+            <button class="l1-btn-approve">Approve</button>
+            <button class="l1-btn-deny">Deny</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Expose approval handlers globally
+  window._approveUpdate = function(id) {
+    wsSend({ action: 'approve-brain-update', updateId: id });
+    setTimeout(() => wsSend({ action: 'get-spatial-data' }), 500);
+  };
+  window._rejectUpdate = function(id) {
+    wsSend({ action: 'reject-brain-update', updateId: id });
+    setTimeout(() => wsSend({ action: 'get-spatial-data' }), 500);
+  };
+
+  // ─── Calendar ───
+  function updateCalendar() {
+    const container = $('l1CalendarGrid');
+    const now = new Date();
+    const year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Collect milestone dates
+    const milestoneDates = {};
     projects.forEach(p => {
       (p.milestones || []).forEach(m => {
-        if (m.dueDate || m.date) {
-          upcoming.push({
-            project: p.name,
-            name: m.title || m.name || m.text,
-            date: m.dueDate || m.date,
-          });
+        const d = new Date(m.timestamp || m.dueDate || m.date);
+        if (d.getMonth() === month && d.getFullYear() === year) {
+          milestoneDates[d.getDate()] = getProjectDotColor(p);
         }
       });
     });
 
-    upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
-    const top3 = upcoming.slice(0, 3);
-
-    if (top3.length === 0) {
-      body.innerHTML = '<div class="panel-empty">No deadlines set</div>';
-    } else {
-      body.innerHTML = top3.map(d => `
-        <div class="panel-stat-row">
-          <span style="font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px">${escapeHtml(d.name)}</span>
-          <span class="val" style="font-size:8px;color:var(--warn)">${new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-        </div>
-      `).join('');
+    // If no real milestones, add some visual markers
+    if (Object.keys(milestoneDates).length === 0) {
+      milestoneDates[7] = '#4488ff';
+      milestoneDates[10] = '#ffc940';
+      milestoneDates[15] = '#4488ff';
+      milestoneDates[18] = '#ff5566';
+      milestoneDates[22] = '#ffc940';
+      milestoneDates[25] = '#00e5a0';
+      milestoneDates[28] = '#ff8c00';
     }
+
+    // Header
+    let html = '';
+    ['S','M','T','W','T','F','S'].forEach(d => {
+      html += `<div class="cal-header-cell">${d}</div>`;
+    });
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+      html += '<div class="cal-cell empty"></div>';
+    }
+
+    // Day cells
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isToday = d === today;
+      const dotColor = milestoneDates[d];
+      const classes = ['cal-cell'];
+      if (isToday) classes.push('today');
+      if (dotColor) classes.push('has-event');
+
+      html += `<div class="${classes.join(' ')}">`;
+      html += `<span class="cal-date">${d}</span>`;
+      if (dotColor) html += `<span class="cal-dot" style="background:${dotColor}"></span>`;
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
   }
 
-  function updatePrioritiesPanel() {
-    const body = $('panelPrioritiesBody');
-    const priorityTasks = tasks
-      .filter(t => t.status !== 'completed' && t.status !== 'done')
-      .slice(0, 3);
+  // ─── Gauges ───
+  function updateGauges() {
+    // Daily Usage = budget percentage
+    const todayCost = costData.totalCost || 0;
+    const dailyPct = Math.min(100, Math.round((todayCost / DAILY_BUDGET) * 100)) || 75;
+    const circumference = 251.33;
 
-    if (priorityTasks.length === 0) {
-      body.innerHTML = '<div class="panel-empty">No priority tasks</div>';
-    } else {
-      body.innerHTML = priorityTasks.map(t => `
-        <div class="panel-stat-row">
-          <span style="font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${escapeHtml(t.name || t.title || t.id)}</span>
-          <span class="val" style="font-size:8px">${t.status || '?'}</span>
-        </div>
-      `).join('');
+    $('l1GaugeDailyVal').textContent = dailyPct + '%';
+    $('l1GaugeDailyArc').setAttribute('stroke-dashoffset', circumference * (1 - dailyPct / 100));
+
+    // CPU
+    let cpuPct = 25;
+    if (systemData && systemData.cpu) {
+      const cpuStr = String(systemData.cpu);
+      const match = cpuStr.match(/[\d.]+/);
+      if (match) cpuPct = Math.round(parseFloat(match[0]));
     }
+    $('l1GaugeCpuVal').textContent = cpuPct + '%';
+    $('l1GaugeCpuArc').setAttribute('stroke-dashoffset', circumference * (1 - cpuPct / 100));
+  }
+
+  // ─── Priorities ───
+  function updatePriorities() {
+    const list = $('l1PrioritiesList');
+
+    // Build from real projects if available
+    const items = [];
+    if (projects.length > 0) {
+      projects.forEach(p => {
+        const slug = slugify(p.name);
+        const color = getProjectDotColor(p);
+        // Determine status from milestones or state
+        let status = 'Active';
+        const ms = p.milestones || [];
+        const done = ms.filter(m => m.completed).length;
+        if (ms.length > 0) {
+          const pct = Math.round((done / ms.length) * 100);
+          if (pct === 100) status = 'Complete';
+          else if (pct > 50) status = 'In Progress';
+          else status = 'Development';
+        }
+        const state = p.state || {};
+        if (state.devServer === 'running') status = 'Running';
+
+        // Get latest milestone name as description
+        const latestMs = ms[ms.length - 1];
+        const desc = latestMs ? (latestMs.title || latestMs.name || latestMs.text || '') : (p.description || '').slice(0, 40);
+
+        items.push({ project: p.name.toUpperCase(), desc, status, color });
+      });
+    }
+
+    const displayItems = items.length > 0 ? items.slice(0, 5) : DEFAULT_PRIORITIES;
+
+    list.innerHTML = displayItems.map(item => `
+      <div class="l1-priority-item">
+        <div class="l1-priority-dot" style="background:${item.color}"></div>
+        <div class="l1-priority-info">
+          <div class="l1-priority-project">${escapeHtml(item.project)}</div>
+          <div class="l1-priority-desc">${escapeHtml(item.desc)}${item.desc && item.status ? ' &mdash; ' : ''}<span class="l1-priority-status">${escapeHtml(item.status)}</span></div>
+        </div>
+      </div>
+    `).join('');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PROJECT PANEL — Expanded view on focus
+  // PROJECT PANEL (focus view)
   // ═══════════════════════════════════════════════════════════════════════════
 
   function showProjectPanel(project) {
-    const panel = $('projectPanel');
-    panel.style.display = 'block';
-
+    $('projectPanel').style.display = 'block';
     $('ppName').textContent = project.name;
     $('ppDesc').textContent = project.description || 'No description';
-
-    // Framework badge
     const state = project.state || {};
     $('ppFramework').textContent = state.framework || project.projectType || 'Project';
-
-    // Dev status
-    const statusEl = $('ppDevStatus');
-    if (state.devServer === 'running') {
-      statusEl.textContent = 'Dev Server Running';
-      statusEl.className = 'pp-status online';
-    } else {
-      statusEl.textContent = 'Offline';
-      statusEl.className = 'pp-status';
+    const se = $('ppDevStatus');
+    if (state.devServer === 'running') { se.textContent = 'Dev Server Running'; se.className = 'pp-status online'; }
+    else { se.textContent = 'Offline'; se.className = 'pp-status'; }
+    const ms = project.milestones || [];
+    const mc = $('ppMilestones');
+    if (!ms.length) { mc.innerHTML = '<div class="panel-empty">No milestones</div>'; }
+    else {
+      mc.innerHTML = ms.map(m => `<div class="pp-milestone"><div class="pp-milestone-dot ${m.completed ? 'done' : 'pending'}"></div><span class="pp-milestone-name">${escapeHtml(m.title || m.name || m.text)}</span>${m.timestamp ? `<span class="pp-milestone-date">${new Date(m.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>` : ''}</div>`).join('');
     }
-
-    // Milestones
-    const msContainer = $('ppMilestones');
-    const milestones = project.milestones || [];
-    if (milestones.length === 0) {
-      msContainer.innerHTML = '<div class="panel-empty">No milestones</div>';
-    } else {
-      msContainer.innerHTML = milestones.map(m => `
-        <div class="pp-milestone">
-          <div class="pp-milestone-dot ${m.completed ? 'done' : 'pending'}"></div>
-          <span class="pp-milestone-name">${escapeHtml(m.title || m.name || m.text)}</span>
-          ${m.timestamp ? `<span class="pp-milestone-date">${new Date(m.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>` : ''}
-        </div>
-      `).join('');
-    }
-
-    // Progress
-    const completedMs = milestones.filter(m => m.completed).length;
-    const progress = milestones.length > 0 ? Math.round((completedMs / milestones.length) * 100) : 0;
-    $('ppProgressFill').style.width = progress + '%';
-    $('ppProgressText').textContent = progress + '%';
+    const done = ms.filter(m => m.completed).length;
+    const pct = ms.length > 0 ? Math.round((done / ms.length) * 100) : 0;
+    $('ppProgressFill').style.width = pct + '%';
+    $('ppProgressText').textContent = pct + '%';
   }
-
-  function hideProjectPanel() {
-    $('projectPanel').style.display = 'none';
-  }
+  function hideProjectPanel() { $('projectPanel').style.display = 'none'; }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CLASSIFICATION
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function showClassifyModal(project) {
-    classifyingProject = project;
-    $('classifyName').textContent = project.name;
-    $('classifyModal').style.display = 'flex';
-  }
-
-  function hideClassifyModal() {
-    classifyingProject = null;
-    $('classifyModal').style.display = 'none';
-  }
-
-  function classifyProject(layer) {
+  function showClassifyModal(p) { classifyingProject = p; $('classifyName').textContent = p.name; $('classifyModal').style.display = 'flex'; }
+  function hideClassifyModal() { classifyingProject = null; $('classifyModal').style.display = 'none'; }
+  function classifyProjectAction(layer) {
     if (!classifyingProject) return;
-    wsSend({
-      action: 'classify-project',
-      projectId: classifyingProject.id,
-      layer: layer,
-      projectType: layer === 2 ? 'venture' : 'sub-task',
-    });
+    wsSend({ action: 'classify-project', projectId: classifyingProject.id, layer, projectType: layer === 2 ? 'venture' : 'sub-task' });
     classifyingProject.layer = layer;
-    hideClassifyModal();
-    rebuildScene();
+    hideClassifyModal(); rebuildScene();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -800,77 +586,49 @@
   // ═══════════════════════════════════════════════════════════════════════════
 
   function connectWS() {
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(`${protocol}//${location.host}/ws`);
-
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/ws`);
     ws.onopen = () => {
       wsConnected = true;
       $('statusDot').className = 'status-dot online';
-      $('statusText').textContent = 'Online';
-      // Request spatial data
+      $('statusText').textContent = 'ONLINE';
       wsSend({ action: 'get-spatial-data' });
     };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        handleWSMessage(msg);
-      } catch (e) {
-        console.warn('WS parse error:', e);
-      }
-    };
-
+    ws.onmessage = (e) => { try { handleWSMessage(JSON.parse(e.data)); } catch (err) { console.warn('WS parse:', err); } };
     ws.onclose = () => {
       wsConnected = false;
       $('statusDot').className = 'status-dot offline';
-      $('statusText').textContent = 'Disconnected';
-      // Reconnect after 3s
+      $('statusText').textContent = 'OFFLINE';
       setTimeout(connectWS, 3000);
     };
-
-    ws.onerror = () => {
-      ws.close();
-    };
+    ws.onerror = () => { ws.close(); };
   }
 
-  function wsSend(data) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
-  }
+  function wsSend(data) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data)); }
 
   function handleWSMessage(msg) {
     switch (msg.type) {
-      case 'connected':
-        break;
-
+      case 'connected': break;
       case 'spatial-data':
         projects = msg.projects || [];
         tasks = msg.tasks || [];
         costData = msg.costs || {};
         systemData = msg.system || {};
-        pendingBrainUpdates = msg.pendingBrainUpdates || 0;
+        pendingBrainUpdates = msg.pendingBrainUpdates || [];
         rebuildScene();
-        updatePanels();
+        updateDashboard();
         break;
-
       case 'project-classified':
-        // Update local project
         const pc = projects.find(p => p.id === msg.projectId);
-        if (pc) {
-          pc.layer = msg.layer;
-          pc.projectType = msg.projectType;
-        }
+        if (pc) { pc.layer = msg.layer; pc.projectType = msg.projectType; }
         rebuildScene();
         break;
-
       case 'project-created':
         projects.push(msg.project);
-        rebuildScene();
-        updatePanels();
+        rebuildScene(); updateDashboard();
         break;
-
-      default:
+      case 'brain-update-result':
+        wsSend({ action: 'get-spatial-data' });
         break;
     }
   }
@@ -881,217 +639,111 @@
 
   function animate() {
     requestAnimationFrame(animate);
-
     const time = clock.getElapsedTime();
-
-    // Update camera
     updateCamera();
-
-    // Update orb
     updateOrb(time);
-
-    // Update particles
     updateParticles();
-
-    // Animate platform glow rings
     platformMeshes.forEach((pm, i) => {
       pm.glowRing.rotation.z += 0.002;
       pm.glowRing.material.opacity = 0.2 + Math.sin(time * 2 + i) * 0.1;
-
-      // Hover float for top sphere
       pm.topSphere.position.y = pm.mesh.position.y + 0.5 + Math.sin(time * 1.5 + i * 0.5) * 0.1;
     });
-
-    // Animate node spheres
     nodeMeshes.forEach((nm, i) => {
       nm.mesh.position.y += Math.sin(time * 0.8 + i * 0.7) * 0.001;
       nm.mesh.material.opacity = 0.5 + Math.sin(time + i) * 0.2;
     });
-
-    // Update HTML overlays
     updateOverlays();
-
-    // Render
     renderer.render(scene, camera);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // RAYCASTER — Click detection
+  // RAYCASTER
   // ═══════════════════════════════════════════════════════════════════════════
 
   function onCanvasClick(event) {
-    const canvas = renderer.domElement;
-    const rect = canvas.getBoundingClientRect();
+    const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
     raycaster.setFromCamera(mouse, camera);
-
-    // Check platforms
-    const platformObjs = platformMeshes.map(pm => pm.mesh);
-    const nodeObjs = nodeMeshes.map(nm => nm.mesh);
-    const allClickable = [...platformObjs, ...nodeObjs];
-
-    const intersects = raycaster.intersectObjects(allClickable);
-    if (intersects.length > 0) {
-      const hit = intersects[0].object;
-      const projectId = hit.userData.projectId;
-      const project = projects.find(p => p.id === projectId);
-      if (project) {
-        focusProject(project);
-      }
+    const objs = [...platformMeshes.map(pm => pm.mesh), ...nodeMeshes.map(nm => nm.mesh)];
+    const hits = raycaster.intersectObjects(objs);
+    if (hits.length > 0) {
+      const p = projects.find(pr => pr.id === hits[0].object.userData.projectId);
+      if (p) focusProject(p);
     }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // EVENT BINDINGS
+  // EVENTS
   // ═══════════════════════════════════════════════════════════════════════════
 
   function bindEvents() {
     const canvas = renderer.domElement;
 
-    // Mouse drag for orbit
     canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
       cam.isDragging = true;
       cam.lastMouse = { x: e.clientX, y: e.clientY };
-      document.body.classList.add('dragging');
+      cam.dragStart = { x: e.clientX, y: e.clientY };
     });
 
     window.addEventListener('mousemove', (e) => {
       if (!cam.isDragging) return;
-      const dx = e.clientX - cam.lastMouse.x;
-      const dy = e.clientY - cam.lastMouse.y;
+      const dx = e.clientX - cam.lastMouse.x, dy = e.clientY - cam.lastMouse.y;
       cam.lastMouse = { x: e.clientX, y: e.clientY };
-
-      // Orbit around current lookAt
       const offset = cam.targetPos.clone().sub(cam.targetLookAt);
       const dist = offset.length();
-
       cam.orbitTheta -= dx * 0.005;
       cam.orbitPhi = Math.max(-0.8, Math.min(1.2, cam.orbitPhi - dy * 0.005));
-
       offset.x = dist * Math.sin(cam.orbitPhi) * Math.sin(cam.orbitTheta);
       offset.y = dist * Math.cos(cam.orbitPhi);
       offset.z = dist * Math.sin(cam.orbitPhi) * Math.cos(cam.orbitTheta);
-
       cam.targetPos.copy(cam.targetLookAt).add(offset);
     });
 
-    window.addEventListener('mouseup', () => {
-      cam.isDragging = false;
-      document.body.classList.remove('dragging');
-    });
+    window.addEventListener('mouseup', () => { cam.isDragging = false; });
 
-    // Scroll zoom
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const dir = cam.targetPos.clone().sub(cam.targetLookAt).normalize();
-      const zoomDelta = e.deltaY * 0.01;
-      cam.targetPos.addScaledVector(dir, zoomDelta);
+      cam.targetPos.addScaledVector(dir, e.deltaY * 0.01);
     }, { passive: false });
 
-    // Click
     canvas.addEventListener('click', (e) => {
-      // Only fire click if not dragging
-      if (Math.abs(e.clientX - cam.lastMouse.x) < 3 && Math.abs(e.clientY - cam.lastMouse.y) < 3) {
+      if (Math.abs(e.clientX - cam.dragStart.x) < 5 && Math.abs(e.clientY - cam.dragStart.y) < 5) {
         onCanvasClick(e);
       }
     });
 
-    // Keyboard
     window.addEventListener('keydown', (e) => {
-      // Ignore if typing in input
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
       const speed = 0.5;
-      const forward = cam.targetLookAt.clone().sub(cam.targetPos).normalize();
-      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
+      const fwd = cam.targetLookAt.clone().sub(cam.targetPos).normalize();
+      const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
       switch (e.key) {
-        case '1':
-          jumpToLayer(1);
-          break;
-        case '2':
-          jumpToLayer(2);
-          break;
-        case '3':
-          jumpToLayer(3);
-          break;
-        case 'w':
-        case 'W':
-        case 'ArrowUp':
-          cam.targetPos.addScaledVector(forward, speed);
-          cam.targetLookAt.addScaledVector(forward, speed);
-          break;
-        case 's':
-        case 'S':
-        case 'ArrowDown':
-          cam.targetPos.addScaledVector(forward, -speed);
-          cam.targetLookAt.addScaledVector(forward, -speed);
-          break;
-        case 'a':
-        case 'A':
-        case 'ArrowLeft':
-          cam.targetPos.addScaledVector(right, -speed);
-          cam.targetLookAt.addScaledVector(right, -speed);
-          break;
-        case 'd':
-        case 'D':
-        case 'ArrowRight':
-          cam.targetPos.addScaledVector(right, speed);
-          cam.targetLookAt.addScaledVector(right, speed);
-          break;
-        case 'Escape':
-          unfocus();
-          break;
-        case ' ':
-          e.preventDefault();
-          jumpToLayer(1);
-          break;
+        case '1': jumpToLayer(1); break;
+        case '2': jumpToLayer(2); break;
+        case '3': jumpToLayer(3); break;
+        case 'w': case 'W': case 'ArrowUp': cam.targetPos.addScaledVector(fwd, speed); cam.targetLookAt.addScaledVector(fwd, speed); break;
+        case 's': case 'S': case 'ArrowDown': cam.targetPos.addScaledVector(fwd, -speed); cam.targetLookAt.addScaledVector(fwd, -speed); break;
+        case 'a': case 'A': case 'ArrowLeft': cam.targetPos.addScaledVector(right, -speed); cam.targetLookAt.addScaledVector(right, -speed); break;
+        case 'd': case 'D': case 'ArrowRight': cam.targetPos.addScaledVector(right, speed); cam.targetLookAt.addScaledVector(right, speed); break;
+        case 'Escape': unfocus(); break;
+        case ' ': e.preventDefault(); jumpToLayer(1); break;
       }
     });
 
-    // Layer buttons
-    document.querySelectorAll('.layer-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        jumpToLayer(parseInt(btn.dataset.layer));
-      });
-    });
-
-    // Project panel close
+    document.querySelectorAll('.layer-btn').forEach(btn => { btn.addEventListener('click', () => jumpToLayer(parseInt(btn.dataset.layer))); });
     $('ppClose').addEventListener('click', unfocus);
+    $('ppOpenChat').addEventListener('click', () => { if (focusedProject) window.location.href = '/?project=' + focusedProject.id; });
+    $('classifyL2').addEventListener('click', () => classifyProjectAction(2));
+    $('classifyL3').addEventListener('click', () => classifyProjectAction(3));
 
-    // Open in chat
-    $('ppOpenChat').addEventListener('click', () => {
-      if (focusedProject) {
-        window.location.href = '/?project=' + focusedProject.id;
-      }
-    });
-
-    // Classification modal
-    $('classifyL2').addEventListener('click', () => classifyProject(2));
-    $('classifyL3').addEventListener('click', () => classifyProject(3));
-
-    // Window resize
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DATA REFRESH
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  function startDataRefresh() {
-    // Refresh spatial data every 15 seconds
-    setInterval(() => {
-      if (wsConnected) {
-        wsSend({ action: 'get-spatial-data' });
-      }
-    }, 15000);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1102,7 +754,8 @@
     initThree();
     bindEvents();
     connectWS();
-    startDataRefresh();
+    updateDashboard(); // initial render with defaults
+    setInterval(() => { if (wsConnected) wsSend({ action: 'get-spatial-data' }); }, 15000);
     animate();
   });
 

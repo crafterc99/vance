@@ -1851,7 +1851,7 @@ async function handleMessage(ws, msg) {
         tasks,
         costs: costStats,
         system: sysInfo,
-        pendingBrainUpdates: pending.length,
+        pendingBrainUpdates: pending,
         projectStates: allStates,
       });
       break;
