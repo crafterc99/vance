@@ -40,6 +40,8 @@ const vectorMemory = require('./vector-memory');
 const toolRouter = require('./tools/tool_router');
 const executionLogger = require('./runtime/logger');
 const projectState = require('./runtime/project-state');
+const VoiceSystem = require('./voice');
+const ConversationHandler = require('./voice/conversationHandler');
 
 // Agent modules (lazy-loaded for modularity)
 const AGENTS = {
@@ -1885,6 +1887,47 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    // ─── Voice System Actions ───
+    case 'voice-start': {
+      if (!voiceSystem) {
+        ws.send({ type: 'voice-error', component: 'system', message: 'Voice system not initialized' });
+        break;
+      }
+      // Apply config overrides if provided
+      if (msg.config) voiceSystem.updateConfig(msg.config);
+      const started = await voiceSystem.start();
+      if (!started) {
+        ws.send({ type: 'voice-error', component: 'system', message: 'Voice system failed to start — check backends' });
+      }
+      break;
+    }
+
+    case 'voice-stop': {
+      if (voiceSystem) voiceSystem.stop();
+      break;
+    }
+
+    case 'voice-mute': {
+      if (voiceSystem) voiceSystem.mute();
+      break;
+    }
+
+    case 'voice-unmute': {
+      if (voiceSystem) voiceSystem.unmute();
+      break;
+    }
+
+    case 'voice-configure': {
+      if (voiceSystem && msg.config) voiceSystem.updateConfig(msg.config);
+      ws.send({ type: 'voice-configured', config: msg.config });
+      break;
+    }
+
+    case 'voice-status': {
+      ws.send({ type: 'voice-status', status: voiceSystem ? voiceSystem.getStatus() : { state: 'unavailable' } });
+      break;
+    }
+
     default:
       ws.send({ type: 'error', message: `Unknown action: ${msg.action}` });
   }
@@ -2015,6 +2058,197 @@ taskManager.setBroadcast((event) => {
   }
 });
 
+// ─── Voice System Setup ───────────────────────────────────────────────────
+
+let voiceSystem = null;
+
+function initVoiceSystem() {
+  voiceSystem = new VoiceSystem({
+    openaiKey: OPENAI_KEY,
+    whisperModel: process.env.WHISPER_MODEL || 'base',
+    ttsVoice: process.env.TTS_VOICE || null,
+    ttsSpeed: parseFloat(process.env.TTS_SPEED) || 1.0,
+    silenceTimeout: parseInt(process.env.VOICE_SILENCE_TIMEOUT) || 800,
+    energyThreshold: parseFloat(process.env.VOICE_ENERGY_THRESHOLD) || 0.008,
+    interruptionSensitivity: parseFloat(process.env.VOICE_INTERRUPTION_SENSITIVITY) || 0.5,
+  });
+
+  // Wire voice conversation handler to the existing chat pipeline
+  const voiceConversationHandler = new ConversationHandler({
+    handleChat: async (message, projectId, wsSend) => {
+      // Inject voice-specific prompt into the brain system
+      const origBuild = buildSystemPromptForChat;
+      const voiceBuild = (userMessage, ctx, tier) => {
+        const basePrompt = origBuild(userMessage, ctx, tier);
+        return basePrompt + ConversationHandler.VOICE_PROMPT_ADDITION;
+      };
+
+      // Use a temporary override for voice chat
+      const convId = projectId || 'voice';
+      const convMessages = loadConversation(convId);
+      convMessages.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
+
+      const ctx = buildChatContext(projectId);
+      const routing = modelRouter.getDefaultTier();
+      let currentModel = routing.model;
+      let currentTier = routing.tier;
+      let currentLabel = routing.label;
+
+      const systemPrompt = voiceBuild(message, ctx, currentTier);
+      let tools = [...CLAUDE_TOOLS, ESCALATION_TOOL];
+      const apiMessages = [];
+      const recent = convMessages.slice(-20);
+      for (const m of recent) {
+        if (m.role === 'user') apiMessages.push({ role: 'user', content: m.content });
+        else if (m.role === 'assistant') apiMessages.push({ role: 'assistant', content: [{ type: 'text', text: m.content }] });
+      }
+      while (apiMessages.length && apiMessages[0].role !== 'user') apiMessages.shift();
+      if (!apiMessages.length) apiMessages.push({ role: 'user', content: message });
+
+      let fullText = '';
+      let rounds = 0;
+      let activeSystem = systemPrompt;
+
+      while (rounds < 8) {
+        rounds++;
+        let text = '';
+        const toolUses = {};
+        let hasToolUse = false;
+        let stopReason = null;
+
+        for await (const event of callClaudeStream(currentModel, apiMessages, activeSystem, tools)) {
+          if (event.type === 'token') {
+            text += event.content;
+            wsSend({ type: 'stream-token', content: event.content });
+          } else if (event.type === 'tool_use_start') {
+            hasToolUse = true;
+            toolUses[event.index] = { id: event.id, name: event.name, inputJson: '' };
+          } else if (event.type === 'tool_input_delta') {
+            if (toolUses[event.index]) toolUses[event.index].inputJson += event.delta;
+          } else if (event.type === 'done') {
+            stopReason = event.stopReason;
+            const costModel = modelRouter.costModelName(currentModel);
+            costs.logCall('claude-voice', costModel, {
+              inputTokens: event.usage.input_tokens,
+              outputTokens: event.usage.output_tokens,
+            });
+          }
+        }
+
+        if (!hasToolUse || stopReason === 'end_turn') {
+          fullText = text;
+          break;
+        }
+
+        // Escalation check
+        const escalateCall = Object.values(toolUses).find(tu => tu.name === 'escalate_to_sonnet');
+        if (escalateCall) {
+          const sonnet = modelRouter.TIERS.sonnet;
+          currentModel = sonnet.model;
+          currentTier = 'sonnet';
+          currentLabel = sonnet.label;
+          tools = [...CLAUDE_TOOLS];
+          activeSystem = voiceBuild(message, ctx, 'sonnet');
+          continue;
+        }
+
+        // Execute tools
+        const assistantContent = [];
+        if (text) assistantContent.push({ type: 'text', text });
+        for (const [, tu] of Object.entries(toolUses)) {
+          let input = {};
+          try { input = JSON.parse(tu.inputJson); } catch {}
+          assistantContent.push({ type: 'tool_use', id: tu.id, name: tu.name, input });
+        }
+        apiMessages.push({ role: 'assistant', content: assistantContent });
+
+        const toolResults = [];
+        for (const [, tu] of Object.entries(toolUses)) {
+          let input = {};
+          try { input = JSON.parse(tu.inputJson); } catch {}
+          const result = await executeFunction(tu.name, input, wsSend);
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: tu.id,
+            content: typeof result === 'string' ? result : JSON.stringify(result),
+          });
+        }
+        if (toolResults.length) apiMessages.push({ role: 'user', content: toolResults });
+      }
+
+      convMessages.push({ role: 'assistant', content: fullText, timestamp: new Date().toISOString(), tier: currentTier });
+      saveConversation(convId, convMessages);
+      return fullText;
+    },
+    buildChatContext,
+    buildSystemPromptForChat,
+    loadConversation,
+    saveConversation,
+  });
+
+  voiceSystem.setConversationHandler(voiceConversationHandler);
+
+  // Broadcast voice events to all connected WS clients
+  voiceSystem.on('state-change', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-state', state: data.to, from: data.from }); } catch {}
+    }
+  });
+
+  voiceSystem.on('started', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-started', ...data }); } catch {}
+    }
+  });
+
+  voiceSystem.on('stopped', () => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-stopped' }); } catch {}
+    }
+  });
+
+  voiceSystem.on('transcription', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-transcription', text: data.text, duration: data.duration }); } catch {}
+    }
+  });
+
+  voiceSystem.on('response', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-response', text: data.text, latency: data.totalLatency }); } catch {}
+    }
+  });
+
+  voiceSystem.on('error', (data) => {
+    console.error(`Voice error [${data.component}]:`, data.error?.message || data.error);
+    for (const client of clients) {
+      try { client.send({ type: 'voice-error', component: data.component, message: data.error?.message || String(data.error) }); } catch {}
+    }
+  });
+
+  voiceSystem.on('interrupted', () => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-interrupted' }); } catch {}
+    }
+  });
+
+  voiceSystem.on('speech-start', () => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-speech-start' }); } catch {}
+    }
+  });
+
+  voiceSystem.on('backends-detected', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-backends', ...data }); } catch {}
+    }
+    console.log(`  Voice STT: ${data.stt.backend || 'none'} (${data.stt.modelSize})`);
+    console.log(`  Voice TTS: ${data.tts.backend || 'none'}`);
+  });
+
+  return voiceSystem;
+}
+
 // ─── Default Claude Budget ────────────────────────────────────────────────
 
 const claudeBudget = costs.checkBudget('claude');
@@ -2034,6 +2268,14 @@ if (!claudeBudget.dailyBudget) {
   const startupProjects = loadProjects();
   for (const p of startupProjects) {
     if (p.directory) projectState.initProjectState(p.id, p.name, p.directory);
+  }
+
+  // Initialize voice system
+  try {
+    initVoiceSystem();
+    console.log('  Voice System: Initialized');
+  } catch (err) {
+    console.log(`  Voice System: FAILED — ${err.message}`);
   }
 
   server.listen(PORT, () => {
@@ -2059,6 +2301,8 @@ if (!claudeBudget.dailyBudget) {
   console.log(`  Tasks: ${taskManager.getAllTasks({ status: 'queued' }).length} queued, ${taskManager.getRunningTask() ? 1 : 0} running`);
   console.log(`  Execution: ${toolRouter.listTools().length} tools, ${Object.keys(AGENTS).length} agents`);
   const stateCount = Object.keys(projectState.getAllStates()).length;
-  console.log(`  Project States: ${stateCount} tracked\n`);
+  console.log(`  Project States: ${stateCount} tracked`);
+  const voiceInfo = voiceSystem ? voiceSystem.getStatus() : null;
+  console.log(`  Voice: ${voiceInfo ? 'Ready' : 'Not available'} (STT: ${voiceInfo?.stt?.backend || '—'} | TTS: ${voiceInfo?.tts?.backend || '—'})\n`);
   });
 })();
