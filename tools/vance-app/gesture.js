@@ -3,38 +3,29 @@
 
   // ═══════════════════════════════════════════════════════════════════════════
   // GESTURE CONTROLLER — MediaPipe Tasks Vision (GestureRecognizer)
-  //
-  // Uses the official @mediapipe/tasks-vision GestureRecognizer which has
-  // 7 built-in gestures + hand landmarks. Much more reliable than the
-  // legacy @mediapipe/hands with manual classification.
-  //
-  // Built-in gestures:
-  //   Closed_Fist, Open_Palm, Pointing_Up, Thumb_Up, Thumb_Down,
-  //   Victory, ILoveYou, None
   // ═══════════════════════════════════════════════════════════════════════════
 
   const CONFIG = {
     numHands: 1,
-    minHandDetectionConfidence: 0.6,
-    minHandPresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    minHandDetectionConfidence: 0.5,
+    minHandPresenceConfidence: 0.4,
+    minTrackingConfidence: 0.4,
 
-    // Performance: skip frames to prevent lag
     processEveryN: 2,
 
-    // Interaction
     cursorSmoothing: 0.25,
     zoomSensitivity: 6,
     orbitSensitivity: 3,
-    swipeMinDist: 0.06,
-    swipeMinVelocity: 5,
     holdMs: 500,
     cooldownMs: 500,
-    layerCooldownMs: 900,
+    layerCooldownMs: 1000,
+
+    // Swipe: use wrist tracking in a time window after palm detected
+    swipeWindowMs: 600,      // track wrist for 600ms after palm first seen
+    swipeMinWristDist: 0.08, // normalized wrist displacement to trigger
   };
 
-  // MediaPipe hand landmark indices
-  const THUMB_TIP = 4, INDEX_TIP = 8, INDEX_MCP = 5;
+  const WRIST = 0, THUMB_TIP = 4, INDEX_TIP = 8;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE
@@ -61,7 +52,10 @@
   let pinchBaseDist = 0;
   let isGrabbing = false;
 
-  const swipeLog = [];
+  // Swipe state: wrist-based with time window
+  let swipeActive = false;      // true while tracking a potential swipe
+  let swipeStartTime = 0;       // when we first saw Open_Palm
+  let swipeStartWristX = 0;     // wrist X when swipe tracking began
   let lastLayerSwitch = 0;
   let lastActionTime = 0;
 
@@ -109,18 +103,18 @@
         </div>
         <div class="gesture-legend-row" data-gesture="fist">
           <span class="gesture-legend-icon">\u270A</span>
-          <span class="gesture-legend-name">Fist</span>
+          <span class="gesture-legend-name">Fist + Drag</span>
           <span class="gesture-legend-action">Orbit</span>
         </div>
         <div class="gesture-legend-row" data-gesture="palm">
           <span class="gesture-legend-icon">\uD83D\uDD90</span>
-          <span class="gesture-legend-name">Palm + Swipe</span>
-          <span class="gesture-legend-action">Switch Layer</span>
+          <span class="gesture-legend-name">Palm + Slide</span>
+          <span class="gesture-legend-action">Layer</span>
         </div>
         <div class="gesture-legend-row" data-gesture="thumbsup">
           <span class="gesture-legend-icon">\uD83D\uDC4D</span>
           <span class="gesture-legend-name">Thumbs Up</span>
-          <span class="gesture-legend-action">Confirm</span>
+          <span class="gesture-legend-action">Approve</span>
         </div>
         <div class="gesture-legend-row" data-gesture="peace">
           <span class="gesture-legend-icon">\u270C</span>
@@ -137,22 +131,17 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LOAD — MediaPipe Tasks Vision via ES module import
+  // LOAD — MediaPipe Tasks Vision
   // ═══════════════════════════════════════════════════════════════════════════
 
   async function loadRecognizer() {
     setStatus('LOADING VISION SDK...', false);
 
-    // Dynamic import of the tasks-vision bundle
     const vision = await import(
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs'
     );
 
-    const { GestureRecognizer, FilesetResolver, DrawingUtils } = vision;
-
-    // Store DrawingUtils for landmark rendering
-    window._mpDrawingUtils = DrawingUtils;
-    window._mpGestureRecognizer = GestureRecognizer;
+    const { GestureRecognizer, FilesetResolver } = vision;
 
     setStatus('LOADING MODEL...', false);
 
@@ -160,20 +149,29 @@
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
     );
 
-    recognizer = await GestureRecognizer.createFromOptions(fileset, {
+    // Try GPU first, fall back to CPU
+    const opts = {
       baseOptions: {
         modelAssetPath:
           'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task',
-        delegate: 'GPU',
       },
       runningMode: 'VIDEO',
       numHands: CONFIG.numHands,
       minHandDetectionConfidence: CONFIG.minHandDetectionConfidence,
       minHandPresenceConfidence: CONFIG.minHandPresenceConfidence,
       minTrackingConfidence: CONFIG.minTrackingConfidence,
-    });
+    };
 
-    setStatus('MODEL READY', true);
+    try {
+      opts.baseOptions.delegate = 'GPU';
+      recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
+      setStatus('MODEL READY (GPU)', true);
+    } catch (gpuErr) {
+      console.warn('GPU delegate failed, falling back to CPU:', gpuErr);
+      opts.baseOptions.delegate = 'CPU';
+      recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
+      setStatus('MODEL READY (CPU)', true);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -200,7 +198,7 @@
     await new Promise((res, rej) => {
       const t = setTimeout(() => rej(new Error('Video timeout')), 8000);
       videoEl.onloadeddata = () => { clearTimeout(t); res(); };
-      videoEl.onerror = (e) => { clearTimeout(t); rej(e); };
+      videoEl.onerror = () => { clearTimeout(t); rej(new Error('Video error')); };
       videoEl.play().catch(rej);
     });
 
@@ -220,8 +218,10 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PROCESSING LOOP — Throttled
+  // PROCESSING LOOP
   // ═══════════════════════════════════════════════════════════════════════════
+
+  let consecutiveErrors = 0;
 
   function runLoop() {
     if (!active) return;
@@ -234,13 +234,21 @@
       const now = videoEl.currentTime;
       if (now !== lastVideoTime) {
         lastVideoTime = now;
-        const ts = performance.now();
 
         try {
-          const result = recognizer.recognizeForVideo(videoEl, ts);
+          const result = recognizer.recognizeForVideo(videoEl, performance.now());
+          consecutiveErrors = 0;
           handleResult(result);
         } catch (err) {
-          console.warn('recognizeForVideo error:', err);
+          consecutiveErrors++;
+          console.warn('recognizeForVideo error #' + consecutiveErrors + ':', err.message);
+          // If we get 10+ errors in a row, stop gracefully
+          if (consecutiveErrors > 10) {
+            console.error('Too many consecutive errors, stopping gesture control');
+            setStatus('ERROR — STOPPED', false);
+            setTimeout(() => deactivate(), 2000);
+            return;
+          }
         }
       }
     }
@@ -258,10 +266,11 @@
     if (!result.landmarks || result.landmarks.length === 0) {
       setGesture('None');
       setCursorVisible(false);
+      swipeActive = false;
       return;
     }
 
-    const lm = result.landmarks[0]; // first hand
+    const lm = result.landmarks[0];
     const gestures = result.gestures;
     let gestureName = 'None';
 
@@ -278,22 +287,21 @@
     moveCursor();
     setCursorVisible(true);
 
-    // Only log positions when palm is active (swipe needs clean data)
-    if (gestureName === 'Open_Palm') {
-      swipeLog.push({ x: cursor.x, y: cursor.y, t: Date.now() });
-      if (swipeLog.length > 10) swipeLog.shift();
-    } else {
-      swipeLog.length = 0; // clear stale data when not palm
-    }
+    // Wrist position (mirrored) for swipe tracking
+    const wristX = 1 - lm[WRIST].x;
 
-    // Check for pinch via landmark distance (not a built-in gesture)
+    // Swipe detection: wrist-based with time window
+    // When Open_Palm first detected, record wrist position.
+    // Keep tracking wrist for swipeWindowMs even if gesture changes
+    // (fast motion causes misclassification). Fire if wrist moves enough.
+    const now = Date.now();
+    handleSwipe(gestureName, wristX, now);
+
+    // Pinch detection via landmark distance
     const thumbTip = lm[THUMB_TIP];
     const indexTip = lm[INDEX_TIP];
-    const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y, (thumbTip.z||0) - (indexTip.z||0));
-    const isPinchNow = pinchDist < 0.06 && gestureName !== 'Closed_Fist';
-
-    // Override gesture if pinching
-    if (isPinchNow) gestureName = 'Pinch';
+    const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y, (thumbTip.z || 0) - (indexTip.z || 0));
+    if (pinchDist < 0.06 && gestureName !== 'Closed_Fist') gestureName = 'Pinch';
 
     setGesture(gestureName);
     executeAction(gestureName, lm, pinchDist);
@@ -303,19 +311,60 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // SWIPE — Wrist tracking with time window
+  //
+  // Problem: when you swipe an open palm, the fast motion causes MediaPipe
+  // to misclassify the gesture (motion blur → "None" or "Closed_Fist").
+  //
+  // Solution: once Open_Palm is detected, start a 600ms window. During
+  // that window, track wrist X displacement regardless of what gesture
+  // is being classified. If wrist moves enough, fire the layer switch.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function handleSwipe(gestureName, wristX, now) {
+    // Start tracking when we see Open_Palm
+    if (gestureName === 'Open_Palm' && !swipeActive) {
+      if (now - lastLayerSwitch < CONFIG.layerCooldownMs) return;
+      swipeActive = true;
+      swipeStartTime = now;
+      swipeStartWristX = wristX;
+      return;
+    }
+
+    // If we're in a swipe window, check displacement
+    if (swipeActive) {
+      const elapsed = now - swipeStartTime;
+
+      // Window expired without enough movement
+      if (elapsed > CONFIG.swipeWindowMs) {
+        swipeActive = false;
+        return;
+      }
+
+      const dx = wristX - swipeStartWristX;
+
+      if (Math.abs(dx) > CONFIG.swipeMinWristDist) {
+        // Swipe detected!
+        swipeActive = false;
+        lastLayerSwitch = now;
+
+        const api = window._spatialGestureAPI;
+        if (api) {
+          if (dx > 0) api.gestureLayerNext(); else api.gestureLayerPrev();
+        }
+        flash();
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // GESTURE → ACTION
   // ═══════════════════════════════════════════════════════════════════════════
 
   const GESTURE_MAP = {
-    'Pointing_Up': 'point',
-    'Pinch':       'pinch',
-    'Closed_Fist': 'fist',
-    'Open_Palm':   'palm',
-    'Thumb_Up':    'thumbsup',
-    'Thumb_Down':  'thumbsdown',
-    'Victory':     'peace',
-    'ILoveYou':    'ily',
-    'None':        'none',
+    'Pointing_Up': 'point', 'Pinch': 'pinch', 'Closed_Fist': 'fist',
+    'Open_Palm': 'palm', 'Thumb_Up': 'thumbsup', 'Thumb_Down': 'thumbsdown',
+    'Victory': 'peace', 'ILoveYou': 'ily', 'None': 'none',
   };
 
   function executeAction(gesture, lm, pinchDist) {
@@ -324,56 +373,39 @@
     const now = Date.now();
 
     switch (gesture) {
-      case 'Pointing_Up': {
-        // Raycast at cursor position
+      case 'Pointing_Up':
         api.gestureRaycast(cursor.sx * innerWidth, cursor.sy * innerHeight);
         break;
-      }
 
-      case 'Pinch': {
+      case 'Pinch':
         if (!isPinching) { isPinching = true; pinchBaseDist = pinchDist; }
         else {
           api.gestureZoom((pinchDist - pinchBaseDist) * CONFIG.zoomSensitivity);
           pinchBaseDist = pinchDist;
         }
         break;
-      }
 
-      case 'Closed_Fist': {
+      case 'Closed_Fist':
         if (!isGrabbing) { isGrabbing = true; }
         else {
-          const dx = (cursor.sx - prev.x) * CONFIG.orbitSensitivity;
-          const dy = (cursor.sy - prev.y) * CONFIG.orbitSensitivity;
-          api.gestureOrbit(dx, dy);
+          api.gestureOrbit(
+            (cursor.sx - prev.x) * CONFIG.orbitSensitivity,
+            (cursor.sy - prev.y) * CONFIG.orbitSensitivity
+          );
         }
         break;
-      }
 
-      case 'Open_Palm': {
-        // Swipe: need at least 3 samples, respect cooldown
-        if (swipeLog.length < 3 || now - lastLayerSwitch < CONFIG.layerCooldownMs) break;
-        const first = swipeLog[0], last = swipeLog[swipeLog.length - 1];
-        const dx = last.x - first.x;
-        const dt = last.t - first.t;
-        if (dt < 50) break; // need at least 50ms of data
-        const velocity = Math.abs(dx) / dt * 1000;
-        if (Math.abs(dx) > CONFIG.swipeMinDist && velocity > CONFIG.swipeMinVelocity) {
-          lastLayerSwitch = now;
-          if (dx > 0) { api.gestureLayerNext(); } else { api.gestureLayerPrev(); }
-          flash();
-          swipeLog.length = 0;
-        }
+      case 'Open_Palm':
+        // Swipe handled separately in handleSwipe()
         break;
-      }
 
-      case 'Thumb_Up': {
+      case 'Thumb_Up':
         if (gestureHeld && now - lastActionTime > CONFIG.cooldownMs) {
           lastActionTime = now;
           api.confirmAction();
           flash();
         }
         break;
-      }
 
       default:
         isPinching = false;
@@ -383,7 +415,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // UI HELPERS
+  // UI
   // ═══════════════════════════════════════════════════════════════════════════
 
   const ICONS = {
@@ -393,7 +425,7 @@
   };
   const LABELS = {
     None: 'NO HAND', Pointing_Up: 'POINT \u2014 SELECT', Pinch: 'PINCH \u2014 ZOOM',
-    Closed_Fist: 'FIST \u2014 ORBIT', Open_Palm: 'PALM \u2014 SWIPE',
+    Closed_Fist: 'FIST \u2014 ORBIT', Open_Palm: 'PALM \u2014 SLIDE TO SWITCH',
     Thumb_Up: 'CONFIRM', Thumb_Down: 'THUMB DOWN', Victory: 'PEACE', ILoveYou: 'ILY',
   };
 
@@ -458,7 +490,6 @@
     setTimeout(() => el.classList.remove('gesture-flash'), 300);
   }
 
-  // Trail dots
   const trails = [];
   function addTrail(x, y) {
     const c = document.getElementById('gestureTrail');
@@ -474,10 +505,10 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // DRAWING — Hand landmarks on PiP canvas
+  // DRAWING
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const HAND_CONNECTIONS = [
+  const CONNS = [
     [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
     [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
     [13,17],[17,18],[18,19],[19,20],[0,17],
@@ -489,19 +520,17 @@
     if (!result.landmarks) return;
 
     for (const lm of result.landmarks) {
-      // Connections
       ctx.strokeStyle = 'rgba(68,136,255,0.5)';
       ctx.lineWidth = 2;
-      for (const [a, b] of HAND_CONNECTIONS) {
+      for (const [a, b] of CONNS) {
         ctx.beginPath();
         ctx.moveTo(lm[a].x * canvasEl.width, lm[a].y * canvasEl.height);
         ctx.lineTo(lm[b].x * canvasEl.width, lm[b].y * canvasEl.height);
         ctx.stroke();
       }
-      // Points
       for (let i = 0; i < lm.length; i++) {
         const x = lm[i].x * canvasEl.width, y = lm[i].y * canvasEl.height;
-        const tip = [4,8,12,16,20].includes(i);
+        const tip = [4, 8, 12, 16, 20].includes(i);
         ctx.beginPath();
         ctx.arc(x, y, tip ? 5 : 3, 0, Math.PI * 2);
         ctx.fillStyle = tip ? '#4488ff' : 'rgba(68,136,255,0.4)';
@@ -517,6 +546,7 @@
   async function activate() {
     if (active) return;
     active = true;
+    consecutiveErrors = 0;
     buildOverlay();
 
     try {
@@ -537,7 +567,8 @@
   function deactivate() {
     active = false;
     stopCam();
-    if (recognizer) { recognizer.close(); recognizer = null; }
+    try { if (recognizer) { recognizer.close(); } } catch (e) { /* ignore */ }
+    recognizer = null;
 
     const ov = document.getElementById('gestureOverlay');
     if (ov) { ov.classList.remove('active'); setTimeout(() => ov.remove(), 300); }
@@ -547,14 +578,10 @@
     currentGesture = 'None';
     isPinching = false;
     isGrabbing = false;
-    swipeLog.length = 0;
+    swipeActive = false;
   }
 
   function toggle() { active ? deactivate() : activate(); }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // EXPOSE
-  // ═══════════════════════════════════════════════════════════════════════════
 
   window._gestureController = {
     activate, deactivate, toggle,
