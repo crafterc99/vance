@@ -12,7 +12,7 @@
     minHandPresenceConfidence: 0.4,
     minTrackingConfidence: 0.4,
 
-    inferenceIntervalMs: 80,   // ~12fps inference, decoupled from render loop
+    inferenceIntervalMs: 120,  // ~8fps inference, decoupled from render loop
 
     cursorSmoothing: 0.25,
     zoomSensitivity: 6,
@@ -181,24 +181,11 @@
       minTrackingConfidence: CONFIG.minTrackingConfidence,
     };
 
-    try {
-      opts.baseOptions.delegate = 'GPU';
-      recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
-      console.log('[Gesture] Model ready (GPU)');
-      setStatus('TRACKING (GPU)', true);
-    } catch (_) {
-      console.warn('[Gesture] GPU failed, trying CPU');
-      try {
-        opts.baseOptions.delegate = 'CPU';
-        recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
-        console.log('[Gesture] Model ready (CPU)');
-        setStatus('TRACKING (CPU)', true);
-      } catch (e) {
-        console.error('[Gesture] CPU failed:', e);
-        setStatus('MODEL FAILED', false);
-        throw e;
-      }
-    }
+    // CPU only — GPU delegate crashes the page on many systems
+    opts.baseOptions.delegate = 'CPU';
+    recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
+    console.log('[Gesture] Model ready (CPU)');
+    setStatus('TRACKING', true);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -255,28 +242,29 @@
   function tick() {
     if (!active) return;
 
-    if (videoEl && videoEl.readyState >= 2 && recognizer) {
-      const vt = videoEl.currentTime;
-      if (vt !== lastVideoTime) {
-        lastVideoTime = vt;
+    try {
+      if (videoEl && videoEl.readyState >= 2 && recognizer) {
+        const vt = videoEl.currentTime;
+        if (vt !== lastVideoTime) {
+          lastVideoTime = vt;
 
-        let ts = performance.now();
-        if (ts <= lastTimestamp) ts = lastTimestamp + 1;
-        lastTimestamp = ts;
+          let ts = performance.now();
+          if (ts <= lastTimestamp) ts = lastTimestamp + 1;
+          lastTimestamp = ts;
 
-        try {
           const result = recognizer.recognizeForVideo(videoEl, ts);
           consecutiveErrors = 0;
           handleResult(result);
-        } catch (err) {
-          consecutiveErrors++;
-          if (consecutiveErrors <= 3) console.warn('[Gesture] error:', err.message);
-          if (consecutiveErrors > 10) {
-            setStatus('ERROR — STOPPED', false);
-            setTimeout(() => deactivate(), 2000);
-            return;
-          }
         }
+      }
+    } catch (err) {
+      consecutiveErrors++;
+      if (consecutiveErrors <= 3) console.warn('[Gesture] tick error:', err.message);
+      if (consecutiveErrors > 8) {
+        console.error('[Gesture] Too many errors, stopping');
+        setStatus('ERROR — STOPPED', false);
+        setTimeout(() => deactivate(), 1500);
+        return;
       }
     }
 
