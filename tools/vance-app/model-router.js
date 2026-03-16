@@ -20,7 +20,7 @@ const TIERS = {
     maxTokens: 4096,
   },
   sonnet: {
-    model: 'claude-sonnet-4-6-20250514',
+    model: 'claude-sonnet-4-6',
     label: 'SONNET',
     maxTokens: 8192,
   },
