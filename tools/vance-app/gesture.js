@@ -2,49 +2,38 @@
   'use strict';
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // GESTURE CONTROLLER — MediaPipe Tasks Vision (GestureRecognizer)
-  // Performance-optimized: low-res cam, throttled inference, cached DOM
+  // GESTURE CONTROLLER — Web Worker architecture
+  // ML inference runs in a separate thread so Three.js never freezes
   // ═══════════════════════════════════════════════════════════════════════════
 
   const CONFIG = {
-    numHands: 1,
-    minHandDetectionConfidence: 0.5,
-    minHandPresenceConfidence: 0.4,
-    minTrackingConfidence: 0.4,
-
-    inferenceIntervalMs: 120,  // ~8fps inference, decoupled from render loop
-
+    captureIntervalMs: 150,  // send a frame to worker every 150ms (~7fps)
     cursorSmoothing: 0.25,
     zoomSensitivity: 6,
     orbitSensitivity: 3,
     holdMs: 500,
     cooldownMs: 500,
     layerCooldownMs: 1000,
-
     swipeWindowMs: 600,
     swipeMinWristDist: 0.08,
   };
 
   const WRIST = 0, THUMB_TIP = 4, INDEX_TIP = 8;
 
-  const MP_VERSION = '0.10.32';
-  const MP_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
-  const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task';
-
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE
   // ═══════════════════════════════════════════════════════════════════════════
 
   let active = false;
-  let recognizer = null;
+  let worker = null;
+  let workerReady = false;
   let cameraStream = null;
   let videoEl = null;
   let canvasEl = null;
   let ctx = null;
   let timerId = null;
-  let lastVideoTime = -1;
   let lastTimestamp = 0;
-  let consecutiveErrors = 0;
+  let pendingFrame = false;
 
   let currentGesture = 'None';
   let gestureStart = 0;
@@ -63,7 +52,6 @@
   let lastLayerSwitch = 0;
   let lastActionTime = 0;
 
-  // Cached DOM refs (set once in buildOverlay)
   let dom = {};
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -135,7 +123,6 @@
     canvasEl = document.getElementById('gestureCanvas');
     ctx = canvasEl.getContext('2d');
 
-    // Cache all DOM refs once
     dom = {
       overlay: el,
       cursor: document.getElementById('gestureCursor'),
@@ -148,48 +135,55 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LOAD — MediaPipe Tasks Vision
+  // WORKER
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async function loadRecognizer() {
-    setStatus('LOADING SDK...', false);
-    console.log('[Gesture] Loading MediaPipe v' + MP_VERSION);
+  function initWorker() {
+    return new Promise((resolve, reject) => {
+      worker = new Worker('gesture-worker.js', { type: 'module' });
 
-    let vision;
-    try {
-      vision = await import(MP_CDN + '/vision_bundle.mjs');
-    } catch (e) {
-      console.error('[Gesture] SDK import failed:', e);
-      setStatus('SDK FAILED', false);
-      throw e;
-    }
+      worker.onmessage = (e) => {
+        const msg = e.data;
 
-    const { GestureRecognizer, FilesetResolver } = vision;
-    if (!GestureRecognizer || !FilesetResolver) throw new Error('Missing exports');
+        if (msg.type === 'status') {
+          setStatus(msg.text, false);
+        }
 
-    setStatus('LOADING WASM...', false);
-    const fileset = await FilesetResolver.forVisionTasks(MP_CDN + '/wasm');
+        if (msg.type === 'ready') {
+          workerReady = true;
+          setStatus('TRACKING', true);
+          console.log('[Gesture] Worker ready');
+          resolve();
+        }
 
-    setStatus('LOADING MODEL...', false);
+        if (msg.type === 'error') {
+          console.error('[Gesture] Worker error:', msg.message);
+          if (!workerReady) {
+            setStatus('LOAD FAILED', false);
+            reject(new Error(msg.message));
+          }
+          pendingFrame = false;
+        }
 
-    const opts = {
-      baseOptions: { modelAssetPath: MODEL_URL },
-      runningMode: 'VIDEO',
-      numHands: CONFIG.numHands,
-      minHandDetectionConfidence: CONFIG.minHandDetectionConfidence,
-      minHandPresenceConfidence: CONFIG.minHandPresenceConfidence,
-      minTrackingConfidence: CONFIG.minTrackingConfidence,
-    };
+        if (msg.type === 'result') {
+          pendingFrame = false;
+          handleResult(msg.landmarks, msg.gesture);
+        }
+      };
 
-    // CPU only — GPU delegate crashes the page on many systems
-    opts.baseOptions.delegate = 'CPU';
-    recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
-    console.log('[Gesture] Model ready (CPU)');
-    setStatus('TRACKING', true);
+      worker.onerror = (e) => {
+        console.error('[Gesture] Worker crashed:', e.message);
+        setStatus('WORKER CRASHED', false);
+        if (!workerReady) reject(new Error(e.message));
+        pendingFrame = false;
+      };
+
+      worker.postMessage({ type: 'init' });
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CAMERA — Low resolution for performance
+  // CAMERA
   // ═══════════════════════════════════════════════════════════════════════════
 
   async function startCam() {
@@ -211,90 +205,60 @@
 
     canvasEl.width = videoEl.videoWidth || 320;
     canvasEl.height = videoEl.videoHeight || 240;
-
-    setStatus('TRACKING', true);
-    lastVideoTime = -1;
-    lastTimestamp = 0;
-    consecutiveErrors = 0;
-    startInferenceLoop();
   }
 
   function stopCam() {
-    stopInferenceLoop();
+    if (timerId) { clearTimeout(timerId); timerId = null; }
     if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
     if (videoEl) videoEl.srcObject = null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // INFERENCE LOOP — Decoupled from render via setTimeout
-  // Runs at ~12fps independently so Three.js render loop stays smooth
+  // FRAME CAPTURE — Grabs frames and sends to worker (non-blocking)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function startInferenceLoop() {
-    stopInferenceLoop();
-    tick();
+  function startCapture() {
+    lastTimestamp = 0;
+    pendingFrame = false;
+    captureFrame();
   }
 
-  function stopInferenceLoop() {
-    if (timerId) { clearTimeout(timerId); timerId = null; }
-  }
-
-  function tick() {
+  function captureFrame() {
     if (!active) return;
 
-    try {
-      if (videoEl && videoEl.readyState >= 2 && recognizer) {
-        const vt = videoEl.currentTime;
-        if (vt !== lastVideoTime) {
-          lastVideoTime = vt;
+    // Only send a new frame if the worker finished the last one
+    if (!pendingFrame && workerReady && videoEl && videoEl.readyState >= 2) {
+      let ts = performance.now();
+      if (ts <= lastTimestamp) ts = lastTimestamp + 1;
+      lastTimestamp = ts;
 
-          let ts = performance.now();
-          if (ts <= lastTimestamp) ts = lastTimestamp + 1;
-          lastTimestamp = ts;
-
-          const result = recognizer.recognizeForVideo(videoEl, ts);
-          consecutiveErrors = 0;
-          handleResult(result);
-        }
-      }
-    } catch (err) {
-      consecutiveErrors++;
-      if (consecutiveErrors <= 3) console.warn('[Gesture] tick error:', err.message);
-      if (consecutiveErrors > 8) {
-        console.error('[Gesture] Too many errors, stopping');
-        setStatus('ERROR — STOPPED', false);
-        setTimeout(() => deactivate(), 1500);
-        return;
-      }
+      createImageBitmap(videoEl).then(bitmap => {
+        if (!active || !worker) { bitmap.close(); return; }
+        pendingFrame = true;
+        worker.postMessage({ type: 'frame', bitmap, timestamp: ts }, [bitmap]);
+      }).catch(() => {});
     }
 
-    timerId = setTimeout(tick, CONFIG.inferenceIntervalMs);
+    timerId = setTimeout(captureFrame, CONFIG.captureIntervalMs);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // RESULT HANDLER
+  // RESULT HANDLER — Runs on main thread, lightweight
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function handleResult(result) {
-    drawHand(result);
-
-    if (!result.landmarks || result.landmarks.length === 0) {
+  function handleResult(landmarks, gestureName) {
+    if (!landmarks) {
       setGesture('None');
       setCursorVisible(false);
       swipeActive = false;
+      drawHand(null);
       return;
     }
 
-    const lm = result.landmarks[0];
-    const gestures = result.gestures;
-    let gestureName = 'None';
-
-    if (gestures && gestures.length > 0 && gestures[0].length > 0) {
-      gestureName = gestures[0][0].categoryName || 'None';
-    }
+    drawHand(landmarks);
 
     // Cursor from index fingertip (mirrored)
-    const tip = lm[INDEX_TIP];
+    const tip = landmarks[INDEX_TIP];
     cursor.x = 1 - tip.x;
     cursor.y = tip.y;
     cursor.sx += (cursor.x - cursor.sx) * CONFIG.cursorSmoothing;
@@ -303,25 +267,25 @@
     setCursorVisible(true);
 
     // Wrist position (mirrored) for swipe tracking
-    const wristX = 1 - lm[WRIST].x;
+    const wristX = 1 - landmarks[WRIST].x;
     const now = Date.now();
     handleSwipe(gestureName, wristX, now);
 
     // Pinch detection via landmark distance
-    const thumbTip = lm[THUMB_TIP];
-    const indexTip = lm[INDEX_TIP];
-    const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y, (thumbTip.z || 0) - (indexTip.z || 0));
+    const thumbTip = landmarks[THUMB_TIP];
+    const indexTip = landmarks[INDEX_TIP];
+    const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y, thumbTip.z - indexTip.z);
     if (pinchDist < 0.06 && gestureName !== 'Closed_Fist') gestureName = 'Pinch';
 
     setGesture(gestureName);
-    executeAction(gestureName, lm, pinchDist);
+    executeAction(gestureName, landmarks, pinchDist);
 
     prev.x = cursor.sx;
     prev.y = cursor.sy;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SWIPE — Wrist tracking with time window
+  // SWIPE
   // ═══════════════════════════════════════════════════════════════════════════
 
   function handleSwipe(gestureName, wristX, now) {
@@ -335,7 +299,6 @@
 
     if (swipeActive) {
       if (now - swipeStartTime > CONFIG.swipeWindowMs) { swipeActive = false; return; }
-
       const dx = wristX - swipeStartWristX;
       if (Math.abs(dx) > CONFIG.swipeMinWristDist) {
         swipeActive = false;
@@ -366,28 +329,14 @@
       case 'Pointing_Up':
         api.gestureRaycast(cursor.sx * innerWidth, cursor.sy * innerHeight);
         break;
-
       case 'Pinch':
         if (!isPinching) { isPinching = true; pinchBaseDist = pinchDist; }
-        else {
-          api.gestureZoom((pinchDist - pinchBaseDist) * CONFIG.zoomSensitivity);
-          pinchBaseDist = pinchDist;
-        }
+        else { api.gestureZoom((pinchDist - pinchBaseDist) * CONFIG.zoomSensitivity); pinchBaseDist = pinchDist; }
         break;
-
       case 'Closed_Fist':
         if (!isGrabbing) { isGrabbing = true; }
-        else {
-          api.gestureOrbit(
-            (cursor.sx - prev.x) * CONFIG.orbitSensitivity,
-            (cursor.sy - prev.y) * CONFIG.orbitSensitivity
-          );
-        }
+        else { api.gestureOrbit((cursor.sx - prev.x) * CONFIG.orbitSensitivity, (cursor.sy - prev.y) * CONFIG.orbitSensitivity); }
         break;
-
-      case 'Open_Palm':
-        break;
-
       case 'Thumb_Up':
         if (gestureHeld && now - lastActionTime > CONFIG.cooldownMs) {
           lastActionTime = now;
@@ -395,7 +344,6 @@
           flash();
         }
         break;
-
       default:
         isPinching = false;
         isGrabbing = false;
@@ -404,7 +352,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // UI — All use cached DOM refs, no getElementById per frame
+  // UI
   // ═══════════════════════════════════════════════════════════════════════════
 
   const ICONS = {
@@ -431,29 +379,21 @@
     if (!gestureHeld && Date.now() - gestureStart > CONFIG.holdMs) gestureHeld = true;
 
     const mapped = GESTURE_MAP[g] || 'none';
-
-    // Only touch DOM if gesture actually changed
     if (mapped !== lastMapped) {
       lastMapped = mapped;
       if (dom.icon) dom.icon.textContent = ICONS[g] || '';
       if (dom.label) dom.label.textContent = LABELS[g] || g;
-      if (dom.indicator) {
-        dom.indicator.className = 'gesture-indicator gesture-' + mapped;
-      }
+      if (dom.indicator) dom.indicator.className = 'gesture-indicator gesture-' + mapped;
       if (dom.cursor) dom.cursor.className = 'gesture-cursor gesture-cursor-' + mapped;
       if (dom.legendRows) {
-        dom.legendRows.forEach(row => {
-          row.classList.toggle('active-row', row.dataset.gesture === mapped);
-        });
+        dom.legendRows.forEach(row => row.classList.toggle('active-row', row.dataset.gesture === mapped));
       }
     }
-
     if (dom.indicator && gestureHeld) dom.indicator.classList.add('gesture-held');
   }
 
   function moveCursor() {
-    if (!dom.cursor) return;
-    dom.cursor.style.transform = `translate(${cursor.sx * innerWidth}px,${cursor.sy * innerHeight}px)`;
+    if (dom.cursor) dom.cursor.style.transform = `translate(${cursor.sx * innerWidth}px,${cursor.sy * innerHeight}px)`;
   }
 
   function setCursorVisible(v) {
@@ -475,7 +415,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // DRAWING — Lightweight PiP skeleton
+  // DRAWING
   // ═══════════════════════════════════════════════════════════════════════════
 
   const CONNS = [
@@ -484,27 +424,25 @@
     [13,17],[17,18],[18,19],[19,20],[0,17],
   ];
 
-  function drawHand(result) {
+  function drawHand(landmarks) {
     if (!ctx || !canvasEl) return;
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-    if (!result.landmarks || result.landmarks.length === 0) return;
+    if (!landmarks) return;
 
-    const lm = result.landmarks[0];
     const w = canvasEl.width, h = canvasEl.height;
-
     ctx.strokeStyle = 'rgba(68,136,255,0.4)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (const [a, b] of CONNS) {
-      ctx.moveTo(lm[a].x * w, lm[a].y * h);
-      ctx.lineTo(lm[b].x * w, lm[b].y * h);
+      ctx.moveTo(landmarks[a].x * w, landmarks[a].y * h);
+      ctx.lineTo(landmarks[b].x * w, landmarks[b].y * h);
     }
     ctx.stroke();
 
     ctx.fillStyle = '#4488ff';
     for (const i of [4, 8, 12, 16, 20]) {
       ctx.beginPath();
-      ctx.arc(lm[i].x * w, lm[i].y * h, 3, 0, Math.PI * 2);
+      ctx.arc(landmarks[i].x * w, landmarks[i].y * h, 3, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -516,15 +454,16 @@
   async function activate() {
     if (active) return;
     active = true;
+    workerReady = false;
     buildOverlay();
-    console.log('[Gesture] Activating...');
+    console.log('[Gesture] Activating (Web Worker mode)...');
 
     try {
-      await loadRecognizer();
+      await initWorker();
     } catch (err) {
-      console.error('[Gesture] Model load failed:', err);
-      setStatus('MODEL LOAD FAILED', false);
-      setTimeout(() => deactivate(), 4000);
+      console.error('[Gesture] Worker init failed:', err);
+      setStatus('LOAD FAILED', false);
+      setTimeout(() => deactivate(), 3000);
       return;
     }
 
@@ -533,21 +472,24 @@
     } catch (err) {
       console.error('[Gesture] Camera failed:', err);
       setStatus(err.name === 'NotAllowedError' ? 'CAM DENIED' : 'CAM FAILED', false);
-      setTimeout(() => deactivate(), 4000);
+      setTimeout(() => deactivate(), 3000);
       return;
     }
 
     if (dom.overlay) dom.overlay.classList.add('active');
     const btn = document.getElementById('gestureToggleBtn');
     if (btn) btn.classList.add('active');
-    console.log('[Gesture] Active and tracking');
+
+    startCapture();
+    console.log('[Gesture] Active — inference running in worker');
   }
 
   function deactivate() {
     active = false;
     stopCam();
-    try { if (recognizer) recognizer.close(); } catch (_) {}
-    recognizer = null;
+    if (worker) { worker.terminate(); worker = null; }
+    workerReady = false;
+    pendingFrame = false;
 
     if (dom.overlay) { dom.overlay.classList.remove('active'); setTimeout(() => { if (dom.overlay) dom.overlay.remove(); }, 300); }
     const btn = document.getElementById('gestureToggleBtn');
