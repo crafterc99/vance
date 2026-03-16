@@ -784,6 +784,7 @@
         case 'd': case 'D': case 'ArrowRight': cam.targetPos.addScaledVector(right, speed); cam.targetLookAt.addScaledVector(right, speed); break;
         case 'Escape': unfocus(); break;
         case ' ': e.preventDefault(); jumpToLayer(1); break;
+        case 'g': case 'G': if (window._gestureController) window._gestureController.toggle(); break;
       }
     });
 
@@ -804,6 +805,68 @@
   // INIT
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GESTURE BRIDGE — Exposed API for gesture.js overlay controller
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  window._spatialGestureAPI = {
+    // Raycast from gesture cursor (screen coords)
+    gestureRaycast(screenX, screenY) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((screenX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((screenY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const objs = [...platformMeshes.map(pm => pm.mesh), ...nodeMeshes.map(nm => nm.mesh)];
+      const hits = raycaster.intersectObjects(objs);
+      if (hits.length > 0) {
+        const p = projects.find(pr => pr.id === hits[0].object.userData.projectId);
+        if (p && p !== focusedProject) focusProject(p);
+      }
+    },
+
+    // Zoom via pinch delta
+    gestureZoom(delta) {
+      const dir = cam.targetPos.clone().sub(cam.targetLookAt).normalize();
+      cam.targetPos.addScaledVector(dir, -delta);
+    },
+
+    // Orbit via fist drag
+    gestureOrbit(dx, dy) {
+      const offset = cam.targetPos.clone().sub(cam.targetLookAt);
+      const dist = offset.length();
+      cam.orbitTheta -= dx * 0.5;
+      cam.orbitPhi = Math.max(-0.8, Math.min(1.2, cam.orbitPhi - dy * 0.5));
+      offset.x = dist * Math.sin(cam.orbitPhi) * Math.sin(cam.orbitTheta);
+      offset.y = dist * Math.cos(cam.orbitPhi);
+      offset.z = dist * Math.sin(cam.orbitPhi) * Math.cos(cam.orbitTheta);
+      cam.targetPos.copy(cam.targetLookAt).add(offset);
+    },
+
+    // Layer navigation via palm swipe
+    gestureLayerNext() {
+      const next = Math.min(3, currentLayer + 1);
+      if (next !== currentLayer) jumpToLayer(next);
+    },
+    gestureLayerPrev() {
+      const prev = Math.max(1, currentLayer - 1);
+      if (prev !== currentLayer) jumpToLayer(prev);
+    },
+
+    // Confirm action (thumbs up) — approve first pending brain update
+    confirmAction() {
+      if (pendingBrainUpdates.length > 0) {
+        const first = pendingBrainUpdates[0];
+        wsSend({ action: 'approve-brain-update', updateId: first.id });
+        setTimeout(() => wsSend({ action: 'get-spatial-data' }), 500);
+      }
+    },
+
+    // Expose state for gesture system
+    getCurrentLayer() { return currentLayer; },
+    getFocusedProject() { return focusedProject; },
+    unfocus() { unfocus(); },
+  };
+
   document.addEventListener('DOMContentLoaded', () => {
     initThree();
     bindEvents();
@@ -811,6 +874,14 @@
     updateDashboard(); // initial render with empty states
     setInterval(() => { if (wsConnected) wsSend({ action: 'get-spatial-data' }); }, 15000);
     animate();
+
+    // Gesture toggle button
+    const gestureBtn = document.getElementById('gestureToggleBtn');
+    if (gestureBtn) {
+      gestureBtn.addEventListener('click', () => {
+        if (window._gestureController) window._gestureController.toggle();
+      });
+    }
   });
 
 })();
