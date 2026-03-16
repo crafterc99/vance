@@ -47,17 +47,17 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .breadcrumbs a.active { color: var(--text); font-weight: 500; }
 
 .topbar-right { display: flex; align-items: center; gap: 10px; }
-.theme-toggle {
+.view-toggle {
   display: flex; gap: 0; background: var(--surface); border-radius: 10px;
   border: 1px solid var(--border); overflow: hidden;
 }
-.theme-btn {
+.view-btn {
   padding: 8px 12px; background: transparent; border: none;
   color: var(--text-muted); cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center;
 }
-.theme-btn.active { background: var(--accent); color: white; }
-.theme-btn:hover:not(.active) { color: var(--text-dim); }
+.view-btn.active { background: var(--accent); color: white; }
+.view-btn:hover:not(.active) { color: var(--text-dim); }
 
 .status-pill {
   display: flex; align-items: center; gap: 7px;
@@ -99,13 +99,13 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 
 /* ─── Bottom Left: Approval Queue ─── */
 .l1-bottom-left {
-  position: absolute; bottom: 80px; left: 24px;
+  position: absolute; bottom: 32px; left: 24px;
   width: 400px; max-width: 38vw;
 }
 
 /* ─── Bottom Right: Gauges + Priorities ─── */
 .l1-bottom-right {
-  position: absolute; bottom: 80px; right: 24px;
+  position: absolute; bottom: 32px; right: 24px;
   display: flex; align-items: flex-end; gap: 16px;
 }
 .l1-bottom-right .l1-priorities {
@@ -381,27 +381,6 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .classify-layer { font-size: 14px; font-weight: 700; color: var(--accent); }
 .classify-btn.layer3 .classify-layer { color: var(--purple); }
 
-/* Layer Bar */
-.layer-bar {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-  z-index: 100; display: flex; gap: 4px;
-  padding: 4px; border-radius: 16px;
-  background: rgba(9,9,15,0.85); backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-}
-.layer-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px; border-radius: 12px;
-  border: 1px solid transparent; background: transparent;
-  color: var(--text-dim); cursor: pointer;
-  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
-  text-transform: uppercase; transition: all .2s var(--ease);
-}
-.layer-btn:hover { color: var(--text); background: var(--surface); }
-.layer-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
-.layer-num { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: rgba(255,255,255,0.1); font-weight: 700; font-size: 10px; }
-.layer-btn.active .layer-num { background: rgba(255,255,255,0.2); }
-
 /* HUD Brackets — Background corner accents */
 .hud-brackets { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
 .hud-bracket { position: absolute; width: 60px; height: 60px; opacity: 0.08; }
@@ -409,6 +388,241 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .hud-bracket--tr { top: 0; right: 0; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
 .hud-bracket--bl { bottom: 0; left: 0; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
 .hud-bracket--br { bottom: 0; right: 0; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Layer 2 Dashboard — Project Card Clusters
+   ═══════════════════════════════════════════════════════════════════════════ */
+.l2-dashboard {
+  position: fixed; inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease);
+  display: flex; flex-direction: column;
+  padding: 90px 32px 28px;
+}
+.l2-dashboard > * { pointer-events: auto; }
+.l2-dashboard.hidden { opacity: 0; pointer-events: none !important; }
+.l2-dashboard.hidden > * { pointer-events: none !important; }
+
+/* ─── Project Row ─── */
+.l2-projects-row {
+  flex: 1;
+  display: flex; justify-content: center; align-items: flex-start;
+  gap: 24px;
+  padding-top: 20px;
+  overflow: hidden;
+}
+.l2-cluster {
+  flex: 1; max-width: 340px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+}
+.l2-cluster-name {
+  font-family: var(--sans); font-size: 22px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  text-shadow: 0 0 20px currentColor;
+}
+.l2-cluster-type {
+  font-family: var(--mono); font-size: 8px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-muted); margin-top: -8px;
+}
+.l2-cluster-cards {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; width: 100%;
+}
+
+/* ─── L2 Card ─── */
+.l2-card {
+  background: rgba(12, 12, 28, 0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.l2-cluster .l2-card {
+  border-color: color-mix(in srgb, var(--project-color, var(--accent)) 20%, transparent);
+}
+.l2-cluster .l2-card:hover {
+  border-color: color-mix(in srgb, var(--project-color, var(--accent)) 45%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--project-color, var(--accent)) 12%, transparent);
+}
+.l2-card-title {
+  font-family: var(--mono); font-size: 8px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 10px;
+}
+.l2-card-empty {
+  font-family: var(--mono); font-size: 9px; color: var(--text-muted);
+  text-align: center; padding: 6px 0;
+}
+
+/* ─── Progress Card ─── */
+.l2-progress-bar {
+  height: 4px; border-radius: 2px;
+  background: var(--surface3); overflow: hidden;
+  margin-bottom: 8px;
+}
+.l2-progress-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.6s var(--ease);
+}
+.l2-progress-stats {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+}
+
+/* ─── Milestones Card ─── */
+.l2-milestones-list { display: flex; flex-direction: column; gap: 6px; }
+.l2-milestone-row {
+  display: flex; align-items: center; gap: 7px;
+}
+.l2-milestone-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  flex-shrink: 0; background: var(--text-muted);
+}
+.l2-milestone-dot.done { background: var(--green); }
+.l2-milestone-text {
+  font-family: var(--sans); font-size: 10px; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ─── Status Card ─── */
+.l2-card-sm { padding: 12px 14px; }
+.l2-status-row {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--sans); font-size: 11px; color: var(--text-dim);
+}
+.l2-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-muted);
+}
+.l2-status-dot.online {
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* ─── Task Count Card ─── */
+.l2-task-count {
+  font-family: var(--sans); font-size: 28px; font-weight: 700;
+  color: var(--text); line-height: 1;
+}
+.l2-task-label {
+  font-family: var(--mono); font-size: 8px; color: var(--text-muted);
+  letter-spacing: 1px; text-transform: uppercase; margin-top: 4px;
+}
+
+/* ─── Bottom Operational Row ─── */
+.l2-bottom-row {
+  display: flex; gap: 10px;
+  padding-top: 14px;
+  flex-shrink: 0;
+}
+.l2-bottom-card {
+  flex: 1; min-width: 0;
+  background: rgba(10, 10, 24, 0.8);
+  border-color: rgba(68, 136, 255, 0.12);
+}
+.l2-bottom-card:hover {
+  border-color: rgba(68, 136, 255, 0.3);
+  box-shadow: 0 0 16px rgba(68, 136, 255, 0.06);
+}
+
+/* Stat grid */
+.l2-stat-grid { display: flex; gap: 16px; }
+.l2-stat { display: flex; flex-direction: column; gap: 2px; }
+.l2-stat-value {
+  font-family: var(--sans); font-size: 20px; font-weight: 700; color: var(--text);
+}
+.l2-stat-value.l2-stat-green { color: var(--green); }
+.l2-stat-label {
+  font-family: var(--mono); font-size: 8px; color: var(--text-muted);
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+/* Priorities mini */
+.l2-priorities-mini { display: flex; flex-direction: column; gap: 6px; }
+.l2-priority-row {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--sans); font-size: 11px; color: var(--text-dim);
+}
+.l2-priority-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* Payment info */
+.l2-payment-info { display: flex; flex-direction: column; gap: 5px; }
+.l2-payment-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--sans); font-size: 11px; color: var(--text-dim);
+}
+.l2-payment-val {
+  font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text);
+}
+.l2-payment-val.l2-stat-green { color: var(--green); }
+
+/* Deadlines */
+.l2-deadlines-list { display: flex; flex-direction: column; gap: 6px; }
+.l2-deadline-row {
+  display: flex; align-items: center; gap: 7px;
+}
+.l2-deadline-dot {
+  width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+}
+.l2-deadline-text {
+  font-family: var(--sans); font-size: 10px; color: var(--text-dim);
+  flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.l2-deadline-date {
+  font-family: var(--mono); font-size: 8px; color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Approval count */
+.l2-approval-count {
+  font-family: var(--sans); font-size: 28px; font-weight: 700;
+  color: var(--text); line-height: 1;
+}
+.l2-approval-label {
+  font-family: var(--mono); font-size: 8px; color: var(--text-muted);
+  letter-spacing: 1px; text-transform: uppercase; margin-top: 4px;
+}
+
+/* ─── L2 Entrance Animation ─── */
+.l2-dashboard:not(.hidden) .l2-cluster {
+  animation: l2ClusterIn 0.6s var(--ease) both;
+}
+.l2-dashboard:not(.hidden) .l2-cluster:nth-child(1) { animation-delay: 0.05s; }
+.l2-dashboard:not(.hidden) .l2-cluster:nth-child(2) { animation-delay: 0.12s; }
+.l2-dashboard:not(.hidden) .l2-cluster:nth-child(3) { animation-delay: 0.19s; }
+.l2-dashboard:not(.hidden) .l2-cluster:nth-child(4) { animation-delay: 0.26s; }
+.l2-dashboard:not(.hidden) .l2-cluster:nth-child(5) { animation-delay: 0.33s; }
+.l2-dashboard:not(.hidden) .l2-cluster:nth-child(6) { animation-delay: 0.40s; }
+@keyframes l2ClusterIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.l2-dashboard:not(.hidden) .l2-bottom-card {
+  animation: l2BottomIn 0.5s var(--ease) 0.3s both;
+}
+@keyframes l2BottomIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* View Toggle */
+.view-toggle {
+  display: flex; gap: 0; background: var(--surface); border-radius: 10px;
+  border: 1px solid var(--border); overflow: hidden;
+}
+.view-btn {
+  padding: 8px 12px; background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.view-btn.active { background: var(--accent); color: white; }
+.view-btn:hover:not(.active) { color: var(--text-dim); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Responsive

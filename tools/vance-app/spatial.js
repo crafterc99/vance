@@ -248,8 +248,9 @@
     cam.targetLookAt.set(...cfg.camera.lookAt);
 
     const dash = $('l1Dashboard');
-    if (layer === 1) { dash.classList.remove('hidden'); }
-    else { dash.classList.add('hidden'); }
+    const l2dash = $('l2Dashboard');
+    if (layer === 1) { dash.classList.remove('hidden'); } else { dash.classList.add('hidden'); }
+    if (layer === 2) { l2dash.classList.remove('hidden'); updateL2Dashboard(); } else { l2dash.classList.add('hidden'); }
 
     document.querySelectorAll('.layer-btn').forEach(btn => {
       btn.classList.toggle('active', parseInt(btn.dataset.layer) === layer);
@@ -344,6 +345,7 @@
     updateCalendar();
     updateGauges();
     updatePriorities();
+    updateL2Dashboard();
   }
 
   // ─── Credits Widget (live from cost API) ───
@@ -590,6 +592,101 @@
         </div>
       </div>
     `).join('');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 2 DASHBOARD — Project card clusters + operational bar
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function updateL2Dashboard() {
+    const container = $('l2Dashboard');
+    if (!container) return;
+
+    const l2Projects = projects.filter(p => autoClassify(p) === 2);
+
+    if (l2Projects.length === 0) {
+      container.innerHTML = '<div class="l2-projects-row"><div class="l2-card-empty" style="margin:auto;padding:40px">No core projects detected</div></div>';
+      return;
+    }
+
+    let html = '<div class="l2-projects-row">';
+
+    l2Projects.forEach(project => {
+      const color = getProjectDotColor(project);
+      const state = project.state || {};
+      const milestones = project.milestones || [];
+      const done = milestones.filter(m => m.completed || m.status === 'completed').length;
+      const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
+      const slug = slugify(project.name);
+
+      const projectTasks = tasks.filter(t => {
+        const tid = slugify(t.projectId || t.title || '');
+        return tid.includes(slug) || slug.includes(tid);
+      });
+
+      html += `
+        <div class="l2-cluster" style="--project-color: ${color}">
+          <div class="l2-cluster-name" style="color: ${color}">${escapeHtml(project.name)}</div>
+          <div class="l2-cluster-type">${escapeHtml(state.dev_framework || project.projectType || 'Project')}</div>
+          <div class="l2-cluster-cards">
+            <div class="l2-card">
+              <div class="l2-card-title">Development Progress</div>
+              <div class="l2-progress-bar"><div class="l2-progress-fill" style="width:${pct}%; background:${color}"></div></div>
+              <div class="l2-progress-stats"><span>${pct}% Complete</span><span>${done}/${milestones.length}</span></div>
+            </div>
+            <div class="l2-card">
+              <div class="l2-card-title">Milestones</div>
+              <div class="l2-milestones-list">${milestones.length === 0 ? '<div class="l2-card-empty">None</div>' :
+                milestones.slice(0, 4).map(m => {
+                  const isDone = m.completed || m.status === 'completed';
+                  return '<div class="l2-milestone-row"><div class="l2-milestone-dot' + (isDone ? ' done' : '') + '"' + (isDone ? ' style="background:' + color + '"' : '') + '></div><span class="l2-milestone-text">' + escapeHtml(m.title || m.name || m.text || '') + '</span></div>';
+                }).join('')}
+              </div>
+            </div>
+            <div class="l2-card l2-card-sm">
+              <div class="l2-card-title">Status</div>
+              <div class="l2-status-row">
+                <div class="l2-status-dot${state.dev_server_running ? ' online' : ''}" style="${state.dev_server_running ? 'background:' + color + ';color:' + color : ''}"></div>
+                <span>${state.dev_server_running ? 'Running' : 'Offline'}</span>
+              </div>
+            </div>
+            <div class="l2-card l2-card-sm">
+              <div class="l2-card-title">Tasks</div>
+              <div class="l2-task-count">${projectTasks.length}</div>
+              <div class="l2-task-label">Active</div>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    html += '</div>';
+
+    // Bottom operational row
+    const totalTasks = tasks.length;
+    const runningTasks = tasks.filter(t => t.status === 'running').length;
+    const queuedTasks = tasks.filter(t => t.status === 'queued').length;
+    const todayCost = costData.totalCost || 0;
+    const budget = getDailyBudget();
+
+    const upcoming = [];
+    projects.forEach(p => {
+      (p.milestones || []).forEach(m => {
+        if (m.completed || m.status === 'completed') return;
+        const ts = m.timestamp || m.dueDate || m.date;
+        if (ts) upcoming.push({ project: p.name, title: m.title || m.name || '', date: new Date(ts), color: getProjectDotColor(p) });
+      });
+    });
+    upcoming.sort((a, b) => a.date - b.date);
+
+    html += '<div class="l2-bottom-row">';
+    html += '<div class="l2-card l2-bottom-card"><div class="l2-card-title">Task Overview</div><div class="l2-stat-grid"><div class="l2-stat"><span class="l2-stat-value">' + totalTasks + '</span><span class="l2-stat-label">Total</span></div><div class="l2-stat"><span class="l2-stat-value l2-stat-green">' + runningTasks + '</span><span class="l2-stat-label">Running</span></div><div class="l2-stat"><span class="l2-stat-value">' + queuedTasks + '</span><span class="l2-stat-label">Queued</span></div></div></div>';
+    html += '<div class="l2-card l2-bottom-card"><div class="l2-card-title">Current Priorities</div><div class="l2-priorities-mini">' + l2Projects.slice(0, 4).map(p => { const c = getProjectDotColor(p); return '<div class="l2-priority-row"><div class="l2-priority-dot" style="background:' + c + ';color:' + c + '"></div><span>' + escapeHtml(p.name) + '</span></div>'; }).join('') + '</div></div>';
+    html += '<div class="l2-card l2-bottom-card"><div class="l2-card-title">Payment Status</div><div class="l2-payment-info"><div class="l2-payment-row"><span>Today</span><span class="l2-payment-val">' + formatCost(todayCost) + '</span></div><div class="l2-payment-row"><span>Budget</span><span class="l2-payment-val">' + formatCost(budget) + '</span></div><div class="l2-payment-row"><span>Remaining</span><span class="l2-payment-val l2-stat-green">' + formatCost(Math.max(0, budget - todayCost)) + '</span></div></div></div>';
+    html += '<div class="l2-card l2-bottom-card"><div class="l2-card-title">Deadlines</div><div class="l2-deadlines-list">' + (upcoming.length === 0 ? '<div class="l2-card-empty">No upcoming</div>' : upcoming.slice(0, 3).map(u => '<div class="l2-deadline-row"><div class="l2-deadline-dot" style="background:' + u.color + '"></div><span class="l2-deadline-text">' + escapeHtml(u.title) + '</span><span class="l2-deadline-date">' + u.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + '</span></div>').join('')) + '</div></div>';
+    html += '<div class="l2-card l2-bottom-card"><div class="l2-card-title">Approvals</div><div class="l2-approval-count">' + (pendingBrainUpdates || []).length + '</div><div class="l2-approval-label">Pending Items</div></div>';
+    html += '</div>';
+
+    container.innerHTML = html;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
