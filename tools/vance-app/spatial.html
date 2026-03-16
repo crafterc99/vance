@@ -40,14 +40,12 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     Layer 1 Dashboard — Replicating widget layout
+     Layer 1 Dashboard — Corner-pinned spatial layout
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="l1-dashboard" id="l1Dashboard">
 
-  <!-- ─── Left Column ─── -->
-  <div class="l1-col-left">
-
-    <!-- Total Credits Used -->
+  <!-- ─── Top Left: Credits & Income ─── -->
+  <div class="l1-top-left">
     <div class="l1-card l1-credits">
       <div class="l1-credits-header">
         <span class="l1-credits-title">Total Credits Used</span>
@@ -61,26 +59,34 @@
       </div>
     </div>
 
-    <!-- Income & Expenses -->
     <div class="l1-income-section">
       <h3 class="l1-section-title">INCOME & EXPENSES</h3>
-
       <div class="l1-income-block">
         <span class="l1-income-label">Income</span>
         <span class="l1-income-value" id="l1Income">&mdash;</span>
         <span class="l1-income-detail">Daily budget &mdash; loading&hellip;</span>
       </div>
-
       <div class="l1-income-divider"></div>
-
       <div class="l1-income-block">
         <span class="l1-income-label">Expences</span>
         <span class="l1-income-value" id="l1Expenses">&mdash;</span>
         <span class="l1-income-detail">API calls today</span>
       </div>
     </div>
+  </div>
 
-    <!-- Approval Queue -->
+  <!-- ─── Top Right: Calendar ─── -->
+  <div class="l1-top-right">
+    <div class="l1-card l1-calendar">
+      <h3 class="l1-section-title">PROJECT CALENDAR</h3>
+      <div class="l1-calendar-grid" id="l1CalendarGrid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Bottom Left: Approval Queue ─── -->
+  <div class="l1-bottom-left">
     <div class="l1-card l1-approvals">
       <div class="l1-approvals-header">
         <h3 class="l1-approvals-title">APPROVAL QUEUE</h3>
@@ -90,13 +96,11 @@
         <!-- populated by JS -->
       </div>
     </div>
-
   </div>
 
-  <!-- ─── Center Column (Gauges at bottom) ─── -->
-  <div class="l1-col-center">
+  <!-- ─── Bottom Right: Gauges + Priorities ─── -->
+  <div class="l1-bottom-right">
     <div class="l1-gauges" id="l1Gauges">
-
       <div class="l1-gauge">
         <svg class="l1-gauge-svg" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="40" fill="none" stroke="#1a1a2e" stroke-width="5"/>
@@ -110,7 +114,6 @@
         </div>
         <span class="l1-gauge-label">Daily Usage</span>
       </div>
-
       <div class="l1-gauge">
         <svg class="l1-gauge-svg" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="40" fill="none" stroke="#1a1a2e" stroke-width="5"/>
@@ -123,30 +126,15 @@
         </div>
         <span class="l1-gauge-label">CPU</span>
       </div>
-
     </div>
-  </div>
-
-  <!-- ─── Right Column ─── -->
-  <div class="l1-col-right">
-
-    <!-- Project Calendar -->
-    <div class="l1-card l1-calendar">
-      <h3 class="l1-section-title">PROJECT CALENDAR</h3>
-      <div class="l1-calendar-grid" id="l1CalendarGrid">
-        <!-- populated by JS -->
-      </div>
-    </div>
-
-    <!-- Current Priorities -->
     <div class="l1-card l1-priorities">
       <h3 class="l1-section-title">CURRENT<br>PRIORITIES</h3>
       <div class="l1-priorities-list" id="l1PrioritiesList">
         <!-- populated by JS -->
       </div>
     </div>
-
   </div>
+
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════

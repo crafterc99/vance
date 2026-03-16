@@ -73,21 +73,47 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Layer 1 Dashboard — 3-column layout
+   Layer 1 Dashboard — Corner-pinned spatial layout
    ═══════════════════════════════════════════════════════════════════════════ */
 .l1-dashboard {
-  position: fixed; top: 88px; left: 0; right: 0; bottom: 64px;
-  z-index: 40; padding: 16px 32px 20px;
-  display: flex; justify-content: space-between;
-  pointer-events: auto;
+  position: fixed; inset: 0;
+  z-index: 40;
+  pointer-events: none;
   transition: opacity 0.5s var(--ease);
-  overflow-y: auto;
 }
+.l1-dashboard > * { pointer-events: auto; }
 .l1-dashboard.hidden { opacity: 0; pointer-events: none; }
 
-.l1-col-left { flex: 0 0 40%; max-width: 420px; display: flex; flex-direction: column; gap: 24px; }
-.l1-col-center { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 16px; min-width: 200px; }
-.l1-col-right { flex: 0 0 28%; max-width: 300px; display: flex; flex-direction: column; gap: 20px; }
+/* ─── Top Left: Credits & Income ─── */
+.l1-top-left {
+  position: absolute; top: 88px; left: 32px;
+  display: flex; flex-direction: column; gap: 32px;
+  max-width: 300px;
+}
+
+/* ─── Top Right: Calendar ─── */
+.l1-top-right {
+  position: absolute; top: 88px; right: 32px;
+  max-width: 280px;
+}
+
+/* ─── Bottom Left: Approval Queue ─── */
+.l1-bottom-left {
+  position: absolute; bottom: 80px; left: 24px;
+  width: 400px; max-width: 38vw;
+}
+
+/* ─── Bottom Right: Gauges + Priorities ─── */
+.l1-bottom-right {
+  position: absolute; bottom: 80px; right: 24px;
+  display: flex; align-items: flex-end; gap: 16px;
+}
+.l1-bottom-right .l1-priorities {
+  max-width: 220px; min-width: 190px;
+}
+.l1-bottom-right .l1-gauges {
+  padding-bottom: 8px;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Card Base
@@ -107,10 +133,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 /* ═══════════════════════════════════════════════════════════════════════════
    Total Credits Used
    ═══════════════════════════════════════════════════════════════════════════ */
-.l1-credits { max-width: 280px; }
+.l1-credits { max-width: 240px; padding: 14px 18px; }
 .l1-credits-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .l1-credits-title {
   font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--text);
@@ -123,30 +149,33 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
 .l1-credits-value {
-  font-family: var(--sans); font-size: 36px; font-weight: 700; color: var(--text);
+  font-family: var(--sans); font-size: 32px; font-weight: 700; color: var(--text);
   letter-spacing: -1px;
 }
 .l1-sparkline { width: 80px; height: 32px; flex-shrink: 0; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Income & Expenses
+   Income & Expenses — compact floating section (no card bg)
    ═══════════════════════════════════════════════════════════════════════════ */
 .l1-income-section { padding: 0 4px; }
-.l1-income-divider {
-  height: 1px; background: var(--border); margin: 4px 0 20px;
+.l1-income-section .l1-section-title {
+  font-size: 11px; letter-spacing: 1.2px; margin-bottom: 12px;
 }
-.l1-income-block { margin-bottom: 20px; }
+.l1-income-divider {
+  height: 1px; background: var(--border); margin: 2px 0 14px;
+}
+.l1-income-block { margin-bottom: 14px; }
 .l1-income-block:last-child { margin-bottom: 0; }
 .l1-income-label {
-  display: block; font-family: var(--sans); font-size: 12px; color: var(--text-muted);
-  margin-bottom: 4px;
+  display: block; font-family: var(--sans); font-size: 11px; color: var(--text-muted);
+  margin-bottom: 2px;
 }
 .l1-income-value {
-  display: block; font-family: var(--sans); font-size: 34px; font-weight: 700;
-  color: var(--text); letter-spacing: -1px; margin-bottom: 4px;
+  display: block; font-family: var(--sans); font-size: 26px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.5px; margin-bottom: 3px;
 }
 .l1-income-detail {
-  display: block; font-family: var(--sans); font-size: 11px; color: var(--text-muted);
+  display: block; font-family: var(--sans); font-size: 10px; color: var(--text-muted);
 }
 .l1-income-detail strong { color: var(--text-dim); font-weight: 600; }
 
@@ -167,7 +196,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 }
 .l1-approval-item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 0; border-bottom: 1px solid rgba(30,30,60,0.4);
+  padding: 8px 0; border-bottom: 1px solid rgba(30,30,60,0.4);
 }
 .l1-approval-item:last-child { border-bottom: none; }
 .l1-approval-info { flex: 1; min-width: 0; }
@@ -198,23 +227,23 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 /* ═══════════════════════════════════════════════════════════════════════════
    Gauges — Circular SVG
    ═══════════════════════════════════════════════════════════════════════════ */
-.l1-gauges { display: flex; gap: 20px; align-items: flex-end; }
+.l1-gauges { display: flex; gap: 14px; align-items: flex-end; }
 .l1-gauge {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
-.l1-gauge-svg { width: 100px; height: 100px; }
+.l1-gauge-svg { width: 88px; height: 88px; }
 .l1-gauge-center {
-  position: absolute; top: 0; left: 0; width: 100px; height: 100px;
+  position: absolute; top: 0; left: 0; width: 88px; height: 88px;
   display: flex; align-items: center; justify-content: center;
 }
 .l1-gauge-value {
-  font-family: var(--sans); font-size: 22px; font-weight: 700; color: var(--text);
+  font-family: var(--sans); font-size: 20px; font-weight: 700; color: var(--text);
 }
 .l1-gauge-pct {
-  font-size: 13px; font-weight: 500; opacity: 0.7;
+  font-size: 12px; font-weight: 500; opacity: 0.7;
 }
 .l1-gauge-label {
-  font-family: var(--sans); font-size: 10px; color: var(--text-muted);
+  font-family: var(--sans); font-size: 9px; color: var(--text-muted);
   letter-spacing: 0.5px;
 }
 /* Gauge glow */
@@ -254,11 +283,11 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 /* ═══════════════════════════════════════════════════════════════════════════
    Current Priorities
    ═══════════════════════════════════════════════════════════════════════════ */
-.l1-priorities { padding: 18px 22px; }
-.l1-priorities .l1-section-title { line-height: 1.3; }
+.l1-priorities { padding: 16px 20px; }
+.l1-priorities .l1-section-title { line-height: 1.3; margin-bottom: 12px; }
 .l1-priority-item {
-  display: flex; gap: 12px; align-items: flex-start;
-  padding: 10px 0;
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 7px 0;
 }
 .l1-priority-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -373,13 +402,13 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .layer-num { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: rgba(255,255,255,0.1); font-weight: 700; font-size: 10px; }
 .layer-btn.active .layer-num { background: rgba(255,255,255,0.2); }
 
-/* HUD Brackets */
-.hud-brackets { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
-.hud-bracket { position: absolute; width: 40px; height: 40px; opacity: 0.12; }
-.hud-bracket--tl { top: 12px; left: 12px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
-.hud-bracket--tr { top: 12px; right: 12px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
-.hud-bracket--bl { bottom: 12px; left: 12px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
-.hud-bracket--br { bottom: 12px; right: 12px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+/* HUD Brackets — Background corner accents */
+.hud-brackets { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.hud-bracket { position: absolute; width: 60px; height: 60px; opacity: 0.08; }
+.hud-bracket--tl { top: 0; left: 0; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+.hud-bracket--tr { top: 0; right: 0; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.hud-bracket--bl { bottom: 0; left: 0; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+.hud-bracket--br { bottom: 0; right: 0; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Responsive
@@ -391,15 +420,16 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 }
 
 @media (max-width: 1100px) {
-  .l1-dashboard { flex-wrap: wrap; gap: 20px; padding: 16px 20px; }
-  .l1-col-left { flex: 1 1 100%; max-width: 100%; }
-  .l1-col-right { flex: 1 1 100%; max-width: 100%; flex-direction: row; }
-  .l1-col-center { order: 3; flex: 1 1 100%; justify-content: center; padding-bottom: 10px; min-width: 0; }
+  .l1-top-left { max-width: 260px; }
+  .l1-top-right { max-width: 240px; }
+  .l1-bottom-left { max-width: 320px; }
+  .l1-bottom-right { flex-direction: column; align-items: flex-end; }
 }
 @media (max-width: 768px) {
   .topbar { padding: 12px 16px; }
   .logo { font-size: 20px; letter-spacing: 4px; }
   .breadcrumbs { display: none; }
-  .l1-dashboard { padding: 12px 16px; }
-  .l1-col-right { flex-direction: column; }
+  .l1-top-left, .l1-top-right { max-width: 48%; }
+  .l1-bottom-left { left: 12px; max-width: 45%; }
+  .l1-bottom-right { right: 12px; flex-direction: column; align-items: flex-end; }
 }
