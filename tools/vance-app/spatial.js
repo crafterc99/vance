@@ -254,6 +254,10 @@
     document.querySelectorAll('.layer-btn').forEach(btn => {
       btn.classList.toggle('active', parseInt(btn.dataset.layer) === layer);
     });
+
+    document.querySelectorAll('.breadcrumb-link').forEach(link => {
+      link.classList.toggle('active', parseInt(link.dataset.layer) === layer);
+    });
   }
 
   function focusProject(project) {
@@ -789,6 +793,7 @@
     });
 
     document.querySelectorAll('.layer-btn').forEach(btn => { btn.addEventListener('click', () => jumpToLayer(parseInt(btn.dataset.layer))); });
+    document.querySelectorAll('.breadcrumb-link').forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); jumpToLayer(parseInt(link.dataset.layer)); }); });
     $('ppClose').addEventListener('click', unfocus);
     $('ppOpenChat').addEventListener('click', () => { if (focusedProject) window.location.href = '/?project=' + focusedProject.id; });
     $('classifyL2').addEventListener('click', () => classifyProjectAction(2));

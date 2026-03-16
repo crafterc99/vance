@@ -42,9 +42,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 .breadcrumbs {
   font-family: var(--sans); font-size: 13px; color: var(--text-muted);
 }
-.breadcrumbs a { color: var(--text-dim); text-decoration: none; transition: color .15s; }
+.breadcrumbs a { color: var(--text-muted); text-decoration: none; transition: color .15s; cursor: pointer; }
 .breadcrumbs a:hover { color: var(--text); }
-.breadcrumbs span { color: var(--text-muted); }
+.breadcrumbs a.active { color: var(--text); font-weight: 500; }
 
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .theme-toggle {
@@ -86,7 +86,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); heig
 
 /* ─── Top Left: Credits & Income ─── */
 .l1-top-left {
-  position: absolute; top: 88px; left: 32px;
+  position: absolute; top: 116px; left: 32px;
   display: flex; flex-direction: column; gap: 32px;
   max-width: 300px;
 }
