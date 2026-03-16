@@ -1,11 +1,16 @@
 /**
- * VANCE — Voice System
+ * VANCE — Voice System (v2 — Upgraded)
  *
  * Main orchestrator for the conversational voice pipeline:
- *   Mic → VAD → Whisper STT → Vance Brain → TTS → Audio Playback
+ *   Mic → VAD → Whisper STT → Vance Brain (Sonnet 4.6) → TTS → Audio Playback
  *
- * Manages the full conversation loop with interruption support,
- * state management, and integration with the Vance server.
+ * Upgraded:
+ *   - Groq Whisper support (ultra-fast cloud STT)
+ *   - ElevenLabs TTS support (highest quality)
+ *   - Sonnet 4.6 as default voice brain (natural conversation)
+ *   - Noise/hallucination filtering in transcription
+ *   - Configurable backend preferences
+ *   - Better status reporting with latency metrics
  *
  * States:
  *   idle      — voice system initialized but not active
@@ -33,17 +38,22 @@ class VoiceSystem extends EventEmitter {
       sampleRate: config.sampleRate || 16000,
       whisperModel: config.whisperModel || 'base',
       whisperLanguage: config.whisperLanguage || 'en',
+      whisperBackend: config.whisperBackend || null,
+      ttsBackend: config.ttsBackend || null,
       ttsVoice: config.ttsVoice || null,
       ttsSpeed: config.ttsSpeed || 1.0,
       interruptionSensitivity: config.interruptionSensitivity || 0.5,
       silenceTimeout: config.silenceTimeout || 800,
       energyThreshold: config.energyThreshold || 0.008,
       openaiKey: config.openaiKey || null,
+      groqKey: config.groqKey || null,
+      elevenLabsKey: config.elevenLabsKey || null,
+      elevenLabsVoice: config.elevenLabsVoice || null,
       micDevice: config.micDevice || null,
       ...config,
     };
 
-    // Initialize components
+    // Initialize components with new backend options
     this.mic = new MicListener({
       sampleRate: this.config.sampleRate,
       device: this.config.micDevice,
@@ -59,13 +69,18 @@ class VoiceSystem extends EventEmitter {
       modelSize: this.config.whisperModel,
       language: this.config.whisperLanguage,
       openaiKey: this.config.openaiKey,
+      groqKey: this.config.groqKey,
+      preferredBackend: this.config.whisperBackend,
       sampleRate: this.config.sampleRate,
     });
 
     this.tts = new TTSEngine({
       voice: this.config.ttsVoice,
       speed: this.config.ttsSpeed,
+      preferredBackend: this.config.ttsBackend,
       openaiKey: this.config.openaiKey,
+      elevenLabsKey: this.config.elevenLabsKey,
+      elevenLabsVoice: this.config.elevenLabsVoice,
     });
 
     this.audioPlayer = new AudioPlayer();
@@ -78,6 +93,14 @@ class VoiceSystem extends EventEmitter {
 
     // Conversation handler (injected from server)
     this.conversationHandler = null;
+
+    // Latency tracking
+    this.metrics = {
+      totalConversations: 0,
+      avgTranscribeTime: 0,
+      avgResponseTime: 0,
+      avgTTSTime: 0,
+    };
 
     // Bind event pipeline
     this._setupPipeline();
@@ -102,8 +125,6 @@ class VoiceSystem extends EventEmitter {
     // VAD speech end with audio → transcribe
     this.vad.on('speech-audio', async (audioBuffer, meta) => {
       if (this.state !== 'listening' && this.state !== 'speaking') {
-        // If we're already thinking, queue or discard
-        // If we interrupted (speaking → listening), process it
         if (this.state === 'thinking') return;
       }
       await this._handleSpeechAudio(audioBuffer, meta);
@@ -151,6 +172,7 @@ class VoiceSystem extends EventEmitter {
         text: transcript,
         duration: meta.duration,
         transcribeTime,
+        sttBackend: this.transcriber.backend,
       });
 
       if (!transcript || !transcript.trim()) {
@@ -158,7 +180,7 @@ class VoiceSystem extends EventEmitter {
         return;
       }
 
-      // 2. Get response from Vance brain
+      // 2. Get response from Vance brain (Sonnet 4.6)
       if (!this.conversationHandler) {
         this.emit('error', { component: 'conversation', error: new Error('No conversation handler set') });
         this._setState('listening');
@@ -182,7 +204,6 @@ class VoiceSystem extends EventEmitter {
           sentenceBuffer = sentenceBuffer.slice(idx);
           if (sentence) {
             sentences.push(sentence);
-            // Start speaking the first sentence immediately
             if (sentences.length === 1 && this.state === 'thinking') {
               this._startStreamingSpeech(sentences);
             }
@@ -207,7 +228,13 @@ class VoiceSystem extends EventEmitter {
         text: response || fullResponse,
         responseTime,
         totalLatency: transcribeTime + responseTime,
+        brainModel: 'sonnet-4.6',
       });
+
+      // Update metrics
+      this.metrics.totalConversations++;
+      this.metrics.avgTranscribeTime = (this.metrics.avgTranscribeTime * (this.metrics.totalConversations - 1) + transcribeTime) / this.metrics.totalConversations;
+      this.metrics.avgResponseTime = (this.metrics.avgResponseTime * (this.metrics.totalConversations - 1) + responseTime) / this.metrics.totalConversations;
 
       // If we haven't started speaking yet (short response), speak now
       if (this.state === 'thinking' && (response || fullResponse)) {
@@ -235,8 +262,6 @@ class VoiceSystem extends EventEmitter {
     while (i < sentences.length && this.state === 'speaking') {
       await this.tts.speak(sentences[i]);
       i++;
-      // Check if more sentences arrived while we were speaking
-      // (sentences array is mutated by the onToken callback)
     }
 
     if (this.state === 'speaking') {
@@ -267,7 +292,10 @@ class VoiceSystem extends EventEmitter {
     if (!sttBackend) {
       this.emit('error', {
         component: 'transcriber',
-        error: new Error('No speech recognition backend. Install whisper.cpp or set OPENAI_API_KEY.'),
+        error: new Error(
+          'No speech recognition backend available.\n' +
+          'Options: whisper.cpp (brew install whisper-cpp), Groq API (GROQ_API_KEY), or OpenAI API (OPENAI_API_KEY)'
+        ),
       });
       return false;
     }
@@ -289,6 +317,7 @@ class VoiceSystem extends EventEmitter {
     this.emit('started', {
       stt: sttBackend,
       tts: ttsBackend,
+      brain: 'sonnet-4.6',
       config: this.config,
     });
 
@@ -350,17 +379,20 @@ class VoiceSystem extends EventEmitter {
    * Get current system status
    */
   getStatus() {
-    // Sanitize config to avoid leaking API keys
     const safeConfig = { ...this.config };
     if (safeConfig.openaiKey) safeConfig.openaiKey = '***set***';
+    if (safeConfig.groqKey) safeConfig.groqKey = '***set***';
+    if (safeConfig.elevenLabsKey) safeConfig.elevenLabsKey = '***set***';
     return {
       state: this.state,
+      brain: 'sonnet-4.6',
       mic: {
         active: this.mic.isActive(),
         backend: this.mic.backend,
       },
       stt: this.transcriber.getInfo(),
       tts: this.tts.getInfo(),
+      metrics: this.metrics,
       config: safeConfig,
     };
   }

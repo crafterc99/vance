@@ -2063,17 +2063,25 @@ taskManager.setBroadcast((event) => {
 let voiceSystem = null;
 
 function initVoiceSystem() {
+  const GROQ_KEY = process.env.GROQ_API_KEY || '';
+  const ELEVENLABS_KEY = process.env.ELEVENLABS_API_KEY || '';
+
   voiceSystem = new VoiceSystem({
     openaiKey: OPENAI_KEY,
+    groqKey: GROQ_KEY,
+    elevenLabsKey: ELEVENLABS_KEY,
     whisperModel: process.env.WHISPER_MODEL || 'base',
+    whisperBackend: process.env.WHISPER_BACKEND || null,  // force: whisper-cpp, groq, openai
+    ttsBackend: process.env.TTS_BACKEND || null,          // force: piper, elevenlabs, openai, macos-say
     ttsVoice: process.env.TTS_VOICE || null,
     ttsSpeed: parseFloat(process.env.TTS_SPEED) || 1.0,
+    elevenLabsVoice: process.env.ELEVENLABS_VOICE_ID || null,
     silenceTimeout: parseInt(process.env.VOICE_SILENCE_TIMEOUT) || 800,
     energyThreshold: parseFloat(process.env.VOICE_ENERGY_THRESHOLD) || 0.008,
     interruptionSensitivity: parseFloat(process.env.VOICE_INTERRUPTION_SENSITIVITY) || 0.5,
   });
 
-  // Wire voice conversation handler to the existing chat pipeline
+  // Wire voice conversation handler — uses Sonnet 4.6 directly for natural voice
   const voiceConversationHandler = new ConversationHandler({
     handleChat: async (message, projectId, wsSend) => {
       // Inject voice-specific prompt into the brain system
@@ -2083,19 +2091,21 @@ function initVoiceSystem() {
         return basePrompt + ConversationHandler.VOICE_PROMPT_ADDITION;
       };
 
-      // Use a temporary override for voice chat
       const convId = projectId || 'voice';
       const convMessages = loadConversation(convId);
       convMessages.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
 
       const ctx = buildChatContext(projectId);
-      const routing = modelRouter.getDefaultTier();
-      let currentModel = routing.model;
-      let currentTier = routing.tier;
-      let currentLabel = routing.label;
+
+      // Voice uses Sonnet 4.6 directly — no Haiku escalation overhead
+      const routing = modelRouter.getVoiceTier();
+      const currentModel = routing.model;
+      const currentTier = routing.tier;
+      const currentLabel = routing.label;
 
       const systemPrompt = voiceBuild(message, ctx, currentTier);
-      let tools = [...CLAUDE_TOOLS, ESCALATION_TOOL];
+      // No escalation tool needed — already on Sonnet
+      const tools = [...CLAUDE_TOOLS];
       const apiMessages = [];
       const recent = convMessages.slice(-20);
       for (const m of recent) {
@@ -2140,19 +2150,7 @@ function initVoiceSystem() {
           break;
         }
 
-        // Escalation check
-        const escalateCall = Object.values(toolUses).find(tu => tu.name === 'escalate_to_sonnet');
-        if (escalateCall) {
-          const sonnet = modelRouter.TIERS.sonnet;
-          currentModel = sonnet.model;
-          currentTier = 'sonnet';
-          currentLabel = sonnet.label;
-          tools = [...CLAUDE_TOOLS];
-          activeSystem = voiceBuild(message, ctx, 'sonnet');
-          continue;
-        }
-
-        // Execute tools
+        // Execute tools (no escalation needed — already on Sonnet)
         const assistantContent = [];
         if (text) assistantContent.push({ type: 'text', text });
         for (const [, tu] of Object.entries(toolUses)) {
@@ -2289,7 +2287,7 @@ if (!claudeBudget.dailyBudget) {
   const smartMem = brain.getSmartMemory();
   const dailyNotes = memory.listDailyNotes(5);
   const vecStats = vectorMemory.getStats();
-  console.log(`  Model Tiers: Haiku (conversation) → Sonnet (reasoning) → Claude Code (projects)`);
+  console.log(`  Model Tiers: Haiku (text chat) → Sonnet 4.6 (reasoning + voice) → Claude Code (projects)`);
   console.log(`  Anthropic Key: ${ANTHROPIC_KEY ? 'Set' : 'MISSING — set ANTHROPIC_API_KEY'}`);
   console.log(`  Brain: ${brainLoaded}/${Object.keys(brainFiles).length} files loaded`);
   console.log(`  Memory: MEMORY.md ${smartMem.memoryMd ? '✓' : '—'} | projects.md ${smartMem.projectsMd ? '✓' : '—'} | ${dailyNotes.length} daily notes`);
@@ -2303,6 +2301,6 @@ if (!claudeBudget.dailyBudget) {
   const stateCount = Object.keys(projectState.getAllStates()).length;
   console.log(`  Project States: ${stateCount} tracked`);
   const voiceInfo = voiceSystem ? voiceSystem.getStatus() : null;
-  console.log(`  Voice: ${voiceInfo ? 'Ready' : 'Not available'} (STT: ${voiceInfo?.stt?.backend || '—'} | TTS: ${voiceInfo?.tts?.backend || '—'})\n`);
+  console.log(`  Voice: ${voiceInfo ? 'Ready' : 'Not available'} (Brain: Sonnet 4.6 | STT: ${voiceInfo?.stt?.backend || '—'} | TTS: ${voiceInfo?.tts?.backend || '—'})\n`);
   });
 })();

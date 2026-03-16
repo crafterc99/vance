@@ -2,17 +2,15 @@
  * VANCE — Model Router
  *
  * Tiered model system for cost-efficient AI orchestration:
- *   Tier 1 (Haiku)  — DEFAULT for ALL conversation. Fast, cheap, handles everything
+ *   Tier 1 (Haiku)  — DEFAULT for text conversation. Fast, cheap, handles everything
  *                      unless deep thinking is explicitly required.
- *   Tier 2 (Sonnet) — Escalation only: deep reasoning, multi-step planning,
- *                      complex debugging, architecture decisions, design interpretation.
- *                      Haiku decides when to escalate via the escalate_to_sonnet tool.
+ *   Tier 2 (Sonnet) — Escalation from Haiku for deep reasoning. Also used as
+ *                      DEFAULT for voice conversations (better quality, more natural).
  *   Tier 3 (Claude Code) — Project implementation via start_coding_task (already exists).
  *                          Sonnet or Haiku can delegate here for actual code changes.
  *
- * ALL conversations start with Haiku. Haiku handles interaction, tool use,
- * memory, status, commands, and lightweight reasoning. Haiku can escalate
- * to Sonnet mid-conversation when it recognizes it needs deeper thinking.
+ * Text conversations start with Haiku. Haiku can escalate to Sonnet.
+ * Voice conversations start with Sonnet directly for natural, high-quality responses.
  */
 
 const TIERS = {
@@ -29,11 +27,18 @@ const TIERS = {
 };
 
 /**
- * All requests start at Haiku. Haiku decides if escalation is needed
- * via the escalate_to_sonnet tool. No pre-routing classification needed.
+ * Default tier for text chat — starts at Haiku
  */
 function getDefaultTier() {
-  return { tier: 'haiku', ...TIERS.haiku, reason: 'default — all conversations start at Haiku' };
+  return { tier: 'haiku', ...TIERS.haiku, reason: 'default — text conversations start at Haiku' };
+}
+
+/**
+ * Default tier for voice conversations — starts at Sonnet 4.6
+ * Voice mode uses Sonnet directly for more natural, expressive responses
+ */
+function getVoiceTier() {
+  return { tier: 'sonnet', ...TIERS.sonnet, reason: 'voice mode — Sonnet 4.6 for natural conversation' };
 }
 
 /**
@@ -57,4 +62,4 @@ function costModelName(model) {
   return model.replace(/-\d{8}$/, '');
 }
 
-module.exports = { TIERS, getDefaultTier, convertToolsToAnthropic, costModelName };
+module.exports = { TIERS, getDefaultTier, getVoiceTier, convertToolsToAnthropic, costModelName };
