@@ -1,37 +1,43 @@
 /**
- * VANCE — Voice System (v2 — Upgraded)
+ * VANCE — Voice System (v3 — Conversational)
  *
- * Main orchestrator for the conversational voice pipeline:
- *   Mic → VAD → Whisper STT → Vance Brain (Sonnet 4.6) → TTS → Audio Playback
+ * Full conversational voice system modeled after ChatGPT Advanced Voice Mode:
+ *   - Always-on mic (stays listening until conversational dismissal)
+ *   - Deepgram streaming STT for real-time word recognition
+ *   - Backchannel detection (doesn't treat "mm-hmm" as a question)
+ *   - Filler audio to mask latency ("Hmm, let me think...")
+ *   - Natural dismissal ("thanks", "goodbye", "that's all")
+ *   - Sonnet 4.6 brain for natural responses
+ *   - Interruption support (cut Vance off mid-sentence)
  *
- * Upgraded:
- *   - Groq Whisper support (ultra-fast cloud STT)
- *   - ElevenLabs TTS support (highest quality)
- *   - Sonnet 4.6 as default voice brain (natural conversation)
- *   - Noise/hallucination filtering in transcription
- *   - Configurable backend preferences
- *   - Better status reporting with latency metrics
+ * Pipeline:
+ *   Mic → Deepgram STT (streaming) → Turn Manager → Sonnet 4.6 → TTS → Speaker
+ *         ↑                            ↓
+ *         └── always-on ←── dismissal detection
  *
  * States:
- *   idle      — voice system initialized but not active
- *   listening — mic open, waiting for speech
+ *   idle      — voice system off, not listening
+ *   listening — mic open, always-on, waiting for speech
  *   thinking  — processing user speech, generating response
- *   speaking  — playing TTS response
+ *   speaking  — playing TTS response, then returns to listening
  */
 const { EventEmitter } = require('events');
 const MicListener = require('./micListener');
 const SpeechDetection = require('./speechDetection');
 const WhisperTranscriber = require('./whisperTranscriber');
+const DeepgramTranscriber = require('./deepgramTranscriber');
 const ConversationHandler = require('./conversationHandler');
 const TTSEngine = require('./ttsEngine');
 const AudioPlayer = require('./audioPlayer');
 const InterruptionController = require('./interruptionController');
+const TurnManager = require('./turnManager');
 
 class VoiceSystem extends EventEmitter {
   constructor(config = {}) {
     super();
 
-    this.state = 'idle'; // idle | listening | thinking | speaking
+    this.state = 'idle';
+    this.mode = 'always-on'; // 'always-on' | 'push-to-talk'
 
     // Configuration
     this.config = {
@@ -47,25 +53,37 @@ class VoiceSystem extends EventEmitter {
       energyThreshold: config.energyThreshold || 0.008,
       openaiKey: config.openaiKey || null,
       groqKey: config.groqKey || null,
+      deepgramKey: config.deepgramKey || null,
       elevenLabsKey: config.elevenLabsKey || null,
       elevenLabsVoice: config.elevenLabsVoice || null,
       micDevice: config.micDevice || null,
+      alwaysOn: config.alwaysOn !== false,
+      fillerEnabled: config.fillerEnabled !== false,
+      fillerDelay: config.fillerDelay || 800,
       ...config,
     };
 
-    // Initialize components with new backend options
+    // Initialize mic
     this.mic = new MicListener({
       sampleRate: this.config.sampleRate,
       device: this.config.micDevice,
     });
 
+    // VAD for energy-based speech detection (used with Whisper fallback)
     this.vad = new SpeechDetection({
       sampleRate: this.config.sampleRate,
       energyThreshold: this.config.energyThreshold,
       silenceTimeout: this.config.silenceTimeout,
     });
 
-    this.transcriber = new WhisperTranscriber({
+    // STT backends — Deepgram (streaming, preferred) or Whisper (batch, fallback)
+    this.deepgram = new DeepgramTranscriber({
+      deepgramKey: this.config.deepgramKey,
+      language: this.config.whisperLanguage,
+      sampleRate: this.config.sampleRate,
+    });
+
+    this.whisper = new WhisperTranscriber({
       modelSize: this.config.whisperModel,
       language: this.config.whisperLanguage,
       openaiKey: this.config.openaiKey,
@@ -74,6 +92,9 @@ class VoiceSystem extends EventEmitter {
       sampleRate: this.config.sampleRate,
     });
 
+    this.sttMode = null; // 'deepgram' | 'whisper'
+
+    // TTS
     this.tts = new TTSEngine({
       voice: this.config.ttsVoice,
       speed: this.config.ttsSpeed,
@@ -91,112 +112,209 @@ class VoiceSystem extends EventEmitter {
       micListener: this.mic,
     });
 
+    // Turn manager — handles dismissal, backchannels, fillers
+    this.turnManager = new TurnManager({
+      alwaysOn: this.config.alwaysOn,
+      fillerEnabled: this.config.fillerEnabled,
+      fillerDelay: this.config.fillerDelay,
+    });
+
     // Conversation handler (injected from server)
     this.conversationHandler = null;
 
-    // Latency tracking
+    // Metrics
     this.metrics = {
       totalConversations: 0,
       avgTranscribeTime: 0,
       avgResponseTime: 0,
-      avgTTSTime: 0,
+      dismissals: 0,
+      backchannelsIgnored: 0,
+      fillersPlayed: 0,
     };
 
-    // Bind event pipeline
     this._setupPipeline();
   }
 
   /**
-   * Wire up the audio → detection → transcription → response → speech pipeline
+   * Wire up the full conversational pipeline
    */
   _setupPipeline() {
-    // Mic audio → VAD
+    // ─── Deepgram streaming path ─────────────────────────────────────
+    // Mic audio → Deepgram (streaming STT)
     this.mic.on('audio', (chunk) => {
+      if (this.sttMode === 'deepgram') {
+        this.deepgram.sendAudio(chunk);
+      }
+      // Always feed VAD for interruption detection during TTS
       this.vad.processChunk(chunk);
     });
 
-    // VAD speech start → update state
-    this.vad.on('speech-start', () => {
+    // Deepgram emits partial transcripts in real-time
+    this.deepgram.on('partial', (data) => {
+      this.emit('partial-transcript', { text: data.text });
+    });
+
+    // Deepgram emits final transcript when utterance ends
+    this.deepgram.on('utterance-end', async (data) => {
+      if (this.state !== 'listening' && this.state !== 'speaking') {
+        if (this.state === 'thinking') return;
+      }
+      await this._handleTranscription(data.text, 'deepgram');
+    });
+
+    this.deepgram.on('speech-started', () => {
       if (this.state === 'listening') {
         this.emit('speech-start');
       }
     });
 
-    // VAD speech end with audio → transcribe
+    // ─── Whisper fallback path ───────────────────────────────────────
+    this.vad.on('speech-start', () => {
+      if (this.state === 'listening' && this.sttMode === 'whisper') {
+        this.emit('speech-start');
+      }
+    });
+
     this.vad.on('speech-audio', async (audioBuffer, meta) => {
+      if (this.sttMode !== 'whisper') return;
       if (this.state !== 'listening' && this.state !== 'speaking') {
         if (this.state === 'thinking') return;
       }
-      await this._handleSpeechAudio(audioBuffer, meta);
+      try {
+        const startTime = Date.now();
+        const transcript = await this.whisper.transcribe(audioBuffer);
+        const transcribeTime = Date.now() - startTime;
+        if (transcript && transcript.trim()) {
+          await this._handleTranscription(transcript, 'whisper', transcribeTime);
+        } else {
+          // Empty transcript — stay listening
+        }
+      } catch (err) {
+        this.emit('error', { component: 'whisper', error: err });
+      }
     });
 
-    // Interruption handling
+    // ─── Interruption handling ───────────────────────────────────────
     this.interruption.on('interrupted', () => {
+      this.turnManager.cancelFillerTimer();
       this._setState('listening');
       this.emit('interrupted');
     });
 
-    // TTS events
+    // ─── TTS events ─────────────────────────────────────────────────
     this.tts.on('speak-start', () => {
       this._setState('speaking');
     });
 
     this.tts.on('speak-end', () => {
+      this.turnManager.markAISpeechEnd();
       if (this.state === 'speaking') {
         this._setState('listening');
       }
     });
 
     this.tts.on('speak-cancelled', () => {
-      // Interrupted — already handled by interruption controller
+      // Interrupted
     });
 
-    // Error forwarding
+    // ─── Filler events ──────────────────────────────────────────────
+    this.turnManager.on('filler', async ({ text }) => {
+      if (this.state === 'thinking') {
+        this.metrics.fillersPlayed++;
+        this.emit('filler', { text });
+        try {
+          await this.tts.speak(text);
+        } catch {}
+        // After filler, we might already be speaking the real response
+      }
+    });
+
+    // ─── Error forwarding ───────────────────────────────────────────
     this.mic.on('error', (err) => this.emit('error', { component: 'mic', error: err }));
-    this.transcriber.on?.('error', (err) => this.emit('error', { component: 'transcriber', error: err }));
+    this.deepgram.on('error', (err) => this.emit('error', { component: 'deepgram', error: err }));
   }
 
   /**
-   * Process speech audio through the pipeline
+   * Central transcription handler — classifies utterance and decides action
    */
-  async _handleSpeechAudio(audioBuffer, meta) {
+  async _handleTranscription(text, source, transcribeTime = 0) {
+    // Classify the utterance
+    const classification = this.turnManager.classifyUtterance(text);
+
+    this.emit('transcription', {
+      text,
+      source,
+      transcribeTime,
+      classification: classification.type,
+      action: classification.action,
+    });
+
+    switch (classification.action) {
+      case 'end_session':
+        // User said goodbye — respond warmly and stop
+        this.metrics.dismissals++;
+        this.emit('dismissal', { text, response: this.turnManager.getDismissalResponse() });
+        const goodbyeText = this.turnManager.getDismissalResponse();
+        this._setState('speaking');
+        try {
+          await this.tts.speak(goodbyeText);
+        } catch {}
+        this.stop();
+        return;
+
+      case 'ignore':
+        // Backchannel right after AI speech — just ignore it
+        this.metrics.backchannelsIgnored++;
+        this.emit('backchannel', { text });
+        return;
+
+      case 'acknowledge':
+        // Standalone backchannel — brief acknowledgment if appropriate
+        this.metrics.backchannelsIgnored++;
+        this.emit('backchannel', { text });
+        return;
+
+      case 'respond':
+        // Real question/statement — process through brain
+        await this._processUtterance(text, transcribeTime);
+        return;
+    }
+  }
+
+  /**
+   * Process a real utterance through the Vance brain
+   */
+  async _processUtterance(transcript, transcribeTime = 0) {
     this._setState('thinking');
 
+    // Start filler timer — will play thinking audio if response is slow
+    const cancelToken = { cancelled: false };
+    this.turnManager.startFillerTimer(cancelToken);
+
     try {
-      // 1. Transcribe
-      const startTime = Date.now();
-      const transcript = await this.transcriber.transcribe(audioBuffer);
-      const transcribeTime = Date.now() - startTime;
-
-      this.emit('transcription', {
-        text: transcript,
-        duration: meta.duration,
-        transcribeTime,
-        sttBackend: this.transcriber.backend,
-      });
-
-      if (!transcript || !transcript.trim()) {
-        this._setState('listening');
-        return;
-      }
-
-      // 2. Get response from Vance brain (Sonnet 4.6)
       if (!this.conversationHandler) {
         this.emit('error', { component: 'conversation', error: new Error('No conversation handler set') });
         this._setState('listening');
         return;
       }
 
-      // Collect response text, building sentences for streaming TTS
+      // Collect response text for streaming TTS
       let fullResponse = '';
       let sentenceBuffer = '';
       const sentences = [];
+      let firstTokenReceived = false;
 
       const onToken = (token) => {
+        if (!firstTokenReceived) {
+          firstTokenReceived = true;
+          // Cancel filler timer — real response is coming
+          cancelToken.cancelled = true;
+          this.turnManager.cancelFillerTimer();
+        }
+
         fullResponse += token;
         sentenceBuffer += token;
 
-        // Check if we have a complete sentence
         const sentenceEnd = sentenceBuffer.match(/[.!?]\s/);
         if (sentenceEnd) {
           const idx = sentenceEnd.index + 1;
@@ -214,12 +332,12 @@ class VoiceSystem extends EventEmitter {
       const responseStart = Date.now();
       const response = await this.conversationHandler.processVoiceInput(
         transcript,
-        null, // projectId
+        null,
         onToken
       );
       const responseTime = Date.now() - responseStart;
 
-      // Handle any remaining text in the buffer
+      // Handle remaining text
       if (sentenceBuffer.trim()) {
         sentences.push(sentenceBuffer.trim());
       }
@@ -233,27 +351,31 @@ class VoiceSystem extends EventEmitter {
 
       // Update metrics
       this.metrics.totalConversations++;
-      this.metrics.avgTranscribeTime = (this.metrics.avgTranscribeTime * (this.metrics.totalConversations - 1) + transcribeTime) / this.metrics.totalConversations;
-      this.metrics.avgResponseTime = (this.metrics.avgResponseTime * (this.metrics.totalConversations - 1) + responseTime) / this.metrics.totalConversations;
+      const n = this.metrics.totalConversations;
+      this.metrics.avgTranscribeTime = (this.metrics.avgTranscribeTime * (n - 1) + transcribeTime) / n;
+      this.metrics.avgResponseTime = (this.metrics.avgResponseTime * (n - 1) + responseTime) / n;
 
       // If we haven't started speaking yet (short response), speak now
       if (this.state === 'thinking' && (response || fullResponse)) {
-        const textToSpeak = response || fullResponse;
+        cancelToken.cancelled = true;
+        this.turnManager.cancelFillerTimer();
         this._setState('speaking');
-        await this.tts.speak(textToSpeak);
+        await this.tts.speak(response || fullResponse);
         if (this.state === 'speaking') {
           this._setState('listening');
         }
       }
 
     } catch (err) {
+      cancelToken.cancelled = true;
+      this.turnManager.cancelFillerTimer();
       this.emit('error', { component: 'pipeline', error: err });
       this._setState('listening');
     }
   }
 
   /**
-   * Start speaking sentences as they arrive (streaming TTS)
+   * Stream sentences to TTS as they arrive
    */
   async _startStreamingSpeech(sentences) {
     this._setState('speaking');
@@ -270,54 +392,68 @@ class VoiceSystem extends EventEmitter {
   }
 
   /**
-   * Set the conversation handler (called from server integration)
+   * Set the conversation handler (called from server)
    */
   setConversationHandler(handler) {
     this.conversationHandler = handler;
   }
 
   /**
-   * Start the voice conversation loop
+   * Start the voice system (always-on mode)
    */
   async start() {
-    // Detect backends
-    const sttBackend = this.transcriber.detect();
-    const ttsBackend = this.tts.detect();
+    // Detect STT backend: prefer Deepgram (streaming) → Whisper (batch)
+    if (this.deepgram.isAvailable()) {
+      try {
+        await this.deepgram.start();
+        this.sttMode = 'deepgram';
+      } catch (err) {
+        this.emit('error', { component: 'deepgram', error: err });
+        // Fall back to Whisper
+        this.sttMode = this.whisper.detect() ? 'whisper' : null;
+      }
+    } else {
+      this.sttMode = this.whisper.detect() ? 'whisper' : null;
+    }
 
-    this.emit('backends-detected', {
-      stt: this.transcriber.getInfo(),
-      tts: this.tts.getInfo(),
-    });
-
-    if (!sttBackend) {
+    if (!this.sttMode) {
       this.emit('error', {
         component: 'transcriber',
         error: new Error(
           'No speech recognition backend available.\n' +
-          'Options: whisper.cpp (brew install whisper-cpp), Groq API (GROQ_API_KEY), or OpenAI API (OPENAI_API_KEY)'
+          'For best results: set DEEPGRAM_API_KEY (streaming, real-time)\n' +
+          'Alternatives: whisper.cpp (local), GROQ_API_KEY (fast cloud), OPENAI_API_KEY'
         ),
       });
       return false;
     }
 
+    // Detect TTS backend
+    const ttsBackend = this.tts.detect();
     if (!ttsBackend) {
-      this.emit('error', {
-        component: 'tts',
-        error: new Error('No TTS backend available.'),
-      });
+      this.emit('error', { component: 'tts', error: new Error('No TTS backend available.') });
       return false;
     }
 
-    // Start mic + VAD + interruption monitoring
+    this.emit('backends-detected', {
+      stt: this.sttMode === 'deepgram' ? this.deepgram.getInfo() : this.whisper.getInfo(),
+      tts: this.tts.getInfo(),
+      mode: this.config.alwaysOn ? 'always-on' : 'push-to-talk',
+    });
+
+    // Start mic + monitoring
     this.mic.start();
     this.interruption.startMonitoring();
     this.interruption.setSensitivity(this.config.interruptionSensitivity);
 
+    this.turnManager.conversationActive = true;
     this._setState('listening');
+
     this.emit('started', {
-      stt: sttBackend,
+      stt: this.sttMode,
       tts: ttsBackend,
       brain: 'sonnet-4.6',
+      mode: this.config.alwaysOn ? 'always-on' : 'push-to-talk',
       config: this.config,
     });
 
@@ -325,28 +461,28 @@ class VoiceSystem extends EventEmitter {
   }
 
   /**
-   * Stop the voice conversation loop
+   * Stop the voice system
    */
   stop() {
+    this.turnManager.cancelFillerTimer();
+    this.turnManager.conversationActive = false;
     this.tts.cancel();
     this.mic.stop();
+    if (this.sttMode === 'deepgram') {
+      this.deepgram.stop();
+    }
     this.interruption.stopMonitoring();
     this.vad.reset();
+    this.turnManager.reset();
     this._setState('idle');
     this.emit('stopped');
   }
 
-  /**
-   * Mute (pause listening but keep system active)
-   */
   mute() {
     this.mic.pause();
     this.emit('muted');
   }
 
-  /**
-   * Unmute
-   */
   unmute() {
     this.mic.resume();
     this.emit('unmuted');
@@ -373,6 +509,12 @@ class VoiceSystem extends EventEmitter {
     if (updates.ttsVoice !== undefined) {
       this.tts.voice = updates.ttsVoice;
     }
+    if (updates.fillerEnabled !== undefined) {
+      this.turnManager.fillerEnabled = updates.fillerEnabled;
+    }
+    if (updates.fillerDelay !== undefined) {
+      this.turnManager.fillerDelay = updates.fillerDelay;
+    }
   }
 
   /**
@@ -382,16 +524,25 @@ class VoiceSystem extends EventEmitter {
     const safeConfig = { ...this.config };
     if (safeConfig.openaiKey) safeConfig.openaiKey = '***set***';
     if (safeConfig.groqKey) safeConfig.groqKey = '***set***';
+    if (safeConfig.deepgramKey) safeConfig.deepgramKey = '***set***';
     if (safeConfig.elevenLabsKey) safeConfig.elevenLabsKey = '***set***';
     return {
       state: this.state,
+      mode: this.config.alwaysOn ? 'always-on' : 'push-to-talk',
       brain: 'sonnet-4.6',
       mic: {
         active: this.mic.isActive(),
         backend: this.mic.backend,
       },
-      stt: this.transcriber.getInfo(),
+      stt: this.sttMode === 'deepgram'
+        ? { ...this.deepgram.getInfo(), type: 'streaming' }
+        : { ...this.whisper.getInfo(), type: 'batch' },
       tts: this.tts.getInfo(),
+      turnManager: {
+        alwaysOn: this.turnManager.alwaysOn,
+        fillerEnabled: this.turnManager.fillerEnabled,
+        turnCount: this.turnManager.turnCount,
+      },
       metrics: this.metrics,
       config: safeConfig,
     };

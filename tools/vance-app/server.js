@@ -2065,14 +2065,19 @@ let voiceSystem = null;
 function initVoiceSystem() {
   const GROQ_KEY = process.env.GROQ_API_KEY || '';
   const ELEVENLABS_KEY = process.env.ELEVENLABS_API_KEY || '';
+  const DEEPGRAM_KEY = process.env.DEEPGRAM_API_KEY || '';
 
   voiceSystem = new VoiceSystem({
     openaiKey: OPENAI_KEY,
     groqKey: GROQ_KEY,
+    deepgramKey: DEEPGRAM_KEY,
     elevenLabsKey: ELEVENLABS_KEY,
     whisperModel: process.env.WHISPER_MODEL || 'base',
     whisperBackend: process.env.WHISPER_BACKEND || null,  // force: whisper-cpp, groq, openai
     ttsBackend: process.env.TTS_BACKEND || null,          // force: piper, elevenlabs, openai, macos-say
+    alwaysOn: process.env.VOICE_ALWAYS_ON !== 'false',    // default: true (always-on conversational mode)
+    fillerEnabled: process.env.VOICE_FILLERS !== 'false', // default: true (thinking fillers)
+    fillerDelay: parseInt(process.env.VOICE_FILLER_DELAY) || 800,
     ttsVoice: process.env.TTS_VOICE || null,
     ttsSpeed: parseFloat(process.env.TTS_SPEED) || 1.0,
     elevenLabsVoice: process.env.ELEVENLABS_VOICE_ID || null,
@@ -2240,8 +2245,38 @@ function initVoiceSystem() {
     for (const client of clients) {
       try { client.send({ type: 'voice-backends', ...data }); } catch {}
     }
-    console.log(`  Voice STT: ${data.stt.backend || 'none'} (${data.stt.modelSize})`);
+    const sttLabel = data.stt.backend || data.stt.model || 'none';
+    const sttType = data.stt.type || 'batch';
+    console.log(`  Voice STT: ${sttLabel} (${sttType})`);
     console.log(`  Voice TTS: ${data.tts.backend || 'none'}`);
+    console.log(`  Voice Mode: ${data.mode || 'always-on'}`);
+  });
+
+  // ─── New conversational events ─────────────────────────────────────
+
+  voiceSystem.on('partial-transcript', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-partial', text: data.text }); } catch {}
+    }
+  });
+
+  voiceSystem.on('dismissal', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-dismissal', text: data.text, response: data.response }); } catch {}
+    }
+    console.log(`  Voice: Dismissed ("${data.text}")`);
+  });
+
+  voiceSystem.on('backchannel', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-backchannel', text: data.text }); } catch {}
+    }
+  });
+
+  voiceSystem.on('filler', (data) => {
+    for (const client of clients) {
+      try { client.send({ type: 'voice-filler', text: data.text }); } catch {}
+    }
   });
 
   return voiceSystem;
@@ -2301,6 +2336,9 @@ if (!claudeBudget.dailyBudget) {
   const stateCount = Object.keys(projectState.getAllStates()).length;
   console.log(`  Project States: ${stateCount} tracked`);
   const voiceInfo = voiceSystem ? voiceSystem.getStatus() : null;
-  console.log(`  Voice: ${voiceInfo ? 'Ready' : 'Not available'} (Brain: Sonnet 4.6 | STT: ${voiceInfo?.stt?.backend || '—'} | TTS: ${voiceInfo?.tts?.backend || '—'})\n`);
+  const voiceMode = voiceInfo?.mode || '—';
+  const sttInfo = voiceInfo?.stt?.backend || voiceInfo?.stt?.model || '—';
+  const sttType = voiceInfo?.stt?.type || 'batch';
+  console.log(`  Voice: ${voiceInfo ? 'Ready' : 'Not available'} (${voiceMode} | Brain: Sonnet 4.6 | STT: ${sttInfo} [${sttType}] | TTS: ${voiceInfo?.tts?.backend || '—'})\n`);
   });
 })();

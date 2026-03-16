@@ -1,28 +1,32 @@
 /**
- * VANCE — useVoiceConversation Hook
+ * VANCE — useVoiceConversation Hook (v2 — Conversational)
  *
- * Client-side interface for the voice conversation system.
- * Communicates with the Vance server over WebSocket to control
- * the voice pipeline (start/stop, state monitoring, configuration).
+ * Client-side interface for the always-on voice conversation system.
+ * Communicates with the Vance server over WebSocket.
  *
- * This is a vanilla JS "hook" (not React) that manages voice state
- * and provides a clean API for the command center UI.
+ * New in v2:
+ *   - Always-on mode (mic stays on until dismissed)
+ *   - Partial transcript display (real-time as user speaks)
+ *   - Dismissal events (user says "thanks", "goodbye")
+ *   - Backchannel detection (ignores "mm-hmm", "yeah")
+ *   - Filler events (Vance thinking aloud)
  *
  * Usage:
  *   const voice = createVoiceConversation(ws);
- *   voice.start();
- *   voice.on('state-change', ({ from, to }) => updateOrb(to));
- *   voice.on('transcription', ({ text }) => showUserSpeech(text));
- *   voice.on('response', ({ text }) => showVanceResponse(text));
+ *   voice.start();  // starts always-on listening
+ *   voice.on('partial-transcript', ({ text }) => showPartial(text));
+ *   voice.on('transcription', ({ text }) => showFinal(text));
+ *   voice.on('response', ({ text }) => showResponse(text));
+ *   voice.on('dismissal', () => showGoodbye());
+ *   // voice stops automatically on dismissal, or manually:
  *   voice.stop();
  */
 
 function createVoiceConversation(ws) {
-  // State
-  let state = 'idle'; // idle | listening | thinking | speaking
+  let state = 'idle';
+  let mode = 'always-on';
   const listeners = {};
 
-  // Event system
   function on(event, handler) {
     if (!listeners[event]) listeners[event] = [];
     listeners[event].push(handler);
@@ -42,14 +46,12 @@ function createVoiceConversation(ws) {
     }
   }
 
-  // Send WS message
   function send(action, data = {}) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action, ...data }));
     }
   }
 
-  // Handle incoming WS messages related to voice
   function handleMessage(msg) {
     switch (msg.type) {
       case 'voice-state':
@@ -59,6 +61,7 @@ function createVoiceConversation(ws) {
 
       case 'voice-started':
         state = 'listening';
+        mode = msg.mode || 'always-on';
         emit('started', msg);
         break;
 
@@ -68,7 +71,16 @@ function createVoiceConversation(ws) {
         break;
 
       case 'voice-transcription':
-        emit('transcription', { text: msg.text, duration: msg.duration });
+        emit('transcription', {
+          text: msg.text,
+          duration: msg.duration,
+          classification: msg.classification,
+          source: msg.source,
+        });
+        break;
+
+      case 'voice-partial':
+        emit('partial-transcript', { text: msg.text });
         break;
 
       case 'voice-response':
@@ -83,12 +95,26 @@ function createVoiceConversation(ws) {
         emit('interrupted', {});
         break;
 
+      case 'voice-dismissal':
+        emit('dismissal', { text: msg.text, response: msg.response });
+        // State will transition to idle via voice-stopped
+        break;
+
+      case 'voice-backchannel':
+        emit('backchannel', { text: msg.text });
+        break;
+
+      case 'voice-filler':
+        emit('filler', { text: msg.text });
+        break;
+
       case 'voice-backends':
         emit('backends', msg);
         break;
 
       case 'voice-status':
         state = msg.status.state;
+        mode = msg.status.mode || 'always-on';
         emit('status', msg.status);
         break;
 
@@ -98,21 +124,20 @@ function createVoiceConversation(ws) {
     }
   }
 
-  // Public API
   return {
     on,
     off,
     handleMessage,
 
     /**
-     * Start the voice conversation loop
+     * Start always-on voice conversation
      */
     start(config = {}) {
       send('voice-start', { config });
     },
 
     /**
-     * Stop the voice conversation loop
+     * Stop voice (or say "goodbye" to stop naturally)
      */
     stop() {
       send('voice-stop');
@@ -120,51 +145,23 @@ function createVoiceConversation(ws) {
       emit('state-change', { from: state, to: 'idle' });
     },
 
-    /**
-     * Mute the microphone (keep voice system active)
-     */
-    mute() {
-      send('voice-mute');
-    },
+    mute() { send('voice-mute'); },
+    unmute() { send('voice-unmute'); },
 
-    /**
-     * Unmute the microphone
-     */
-    unmute() {
-      send('voice-unmute');
-    },
-
-    /**
-     * Update voice configuration
-     */
     configure(updates) {
       send('voice-configure', { config: updates });
     },
 
-    /**
-     * Get current voice system status
-     */
-    getStatus() {
-      send('voice-status');
-    },
-
-    /**
-     * Get current state
-     */
-    getState() {
-      return state;
-    },
-
-    /**
-     * Check if voice is active (not idle)
-     */
-    isActive() {
-      return state !== 'idle';
-    },
+    getStatus() { send('voice-status'); },
+    getState() { return state; },
+    getMode() { return mode; },
+    isActive() { return state !== 'idle'; },
+    isListening() { return state === 'listening'; },
+    isSpeaking() { return state === 'speaking'; },
+    isThinking() { return state === 'thinking'; },
   };
 }
 
-// Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { createVoiceConversation };
 }

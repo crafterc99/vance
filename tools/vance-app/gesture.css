@@ -218,6 +218,85 @@
   transform: scale(1);
 }
 
+/* ─── Controls Legend Panel ─── */
+.gesture-legend {
+  position: fixed; bottom: 80px; left: 24px;
+  width: 200px;
+  background: rgba(10, 10, 20, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(68, 136, 255, 0.2);
+  border-radius: 14px;
+  padding: 14px 16px 10px;
+  pointer-events: none;
+  z-index: 510;
+}
+.gesture-legend-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(68, 136, 255, 0.6);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(68, 136, 255, 0.1);
+}
+.gesture-legend-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  opacity: 0.5;
+}
+.gesture-legend-row.active-row {
+  opacity: 1;
+  background: rgba(68, 136, 255, 0.08);
+}
+.gesture-legend-icon {
+  font-size: 14px;
+  width: 20px; text-align: center;
+  flex-shrink: 0;
+}
+.gesture-legend-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px; font-weight: 600;
+  color: rgba(232, 232, 244, 0.85);
+  flex: 1;
+}
+.gesture-legend-action {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: rgba(122, 122, 160, 0.7);
+  flex-shrink: 0;
+}
+.gesture-legend-row.active-row .gesture-legend-action {
+  color: #4488ff;
+}
+.gesture-legend-row[data-gesture="pinch"].active-row .gesture-legend-action { color: #00e5a0; }
+.gesture-legend-row[data-gesture="fist"].active-row .gesture-legend-action { color: #ffa040; }
+.gesture-legend-row[data-gesture="palm"].active-row .gesture-legend-action { color: #a855f7; }
+.gesture-legend-row[data-gesture="thumbsup"].active-row .gesture-legend-action { color: #00e5a0; }
+.gesture-legend-row[data-gesture="peace"].active-row .gesture-legend-action { color: #ff8c00; }
+
+.gesture-legend-hint {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(68, 136, 255, 0.1);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  color: rgba(122, 122, 160, 0.5);
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.gesture-legend-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid rgba(68, 136, 255, 0.25);
+  border-radius: 3px;
+  font-size: 8px;
+  color: rgba(68, 136, 255, 0.6);
+  background: rgba(68, 136, 255, 0.05);
+}
+
 /* ─── Toggle Button (injected into topbar) ─── */
 .gesture-toggle-btn {
   display: flex; align-items: center; gap: 6px;

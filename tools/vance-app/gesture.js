@@ -26,8 +26,8 @@
     cursorSmoothing: 0.25,
     zoomSensitivity: 6,
     orbitSensitivity: 3,
-    swipeMinDist: 0.12,
-    swipeMinVelocity: 12,
+    swipeMinDist: 0.06,
+    swipeMinVelocity: 5,
     holdMs: 500,
     cooldownMs: 500,
     layerCooldownMs: 900,
@@ -94,7 +94,41 @@
         <span class="gesture-status-dot"></span>
         <span class="gesture-status-text">INITIALIZING</span>
       </div>
-      <div class="gesture-trail" id="gestureTrail"></div>`;
+      <div class="gesture-trail" id="gestureTrail"></div>
+      <div class="gesture-legend" id="gestureLegend">
+        <div class="gesture-legend-title">GESTURE CONTROLS</div>
+        <div class="gesture-legend-row active-row" data-gesture="point">
+          <span class="gesture-legend-icon">\u261D</span>
+          <span class="gesture-legend-name">Point</span>
+          <span class="gesture-legend-action">Select</span>
+        </div>
+        <div class="gesture-legend-row" data-gesture="pinch">
+          <span class="gesture-legend-icon">\uD83E\uDD0F</span>
+          <span class="gesture-legend-name">Pinch</span>
+          <span class="gesture-legend-action">Zoom</span>
+        </div>
+        <div class="gesture-legend-row" data-gesture="fist">
+          <span class="gesture-legend-icon">\u270A</span>
+          <span class="gesture-legend-name">Fist</span>
+          <span class="gesture-legend-action">Orbit</span>
+        </div>
+        <div class="gesture-legend-row" data-gesture="palm">
+          <span class="gesture-legend-icon">\uD83D\uDD90</span>
+          <span class="gesture-legend-name">Palm + Swipe</span>
+          <span class="gesture-legend-action">Switch Layer</span>
+        </div>
+        <div class="gesture-legend-row" data-gesture="thumbsup">
+          <span class="gesture-legend-icon">\uD83D\uDC4D</span>
+          <span class="gesture-legend-name">Thumbs Up</span>
+          <span class="gesture-legend-action">Confirm</span>
+        </div>
+        <div class="gesture-legend-row" data-gesture="peace">
+          <span class="gesture-legend-icon">\u270C</span>
+          <span class="gesture-legend-name">Peace</span>
+          <span class="gesture-legend-action">\u2014</span>
+        </div>
+        <div class="gesture-legend-hint">Press <kbd>G</kbd> to toggle</div>
+      </div>`;
     document.body.appendChild(el);
 
     videoEl = document.getElementById('gestureVideo');
@@ -244,9 +278,13 @@
     moveCursor();
     setCursorVisible(true);
 
-    // Swipe log
-    swipeLog.push({ x: cursor.x, y: cursor.y, t: Date.now() });
-    if (swipeLog.length > 10) swipeLog.shift();
+    // Only log positions when palm is active (swipe needs clean data)
+    if (gestureName === 'Open_Palm') {
+      swipeLog.push({ x: cursor.x, y: cursor.y, t: Date.now() });
+      if (swipeLog.length > 10) swipeLog.shift();
+    } else {
+      swipeLog.length = 0; // clear stale data when not palm
+    }
 
     // Check for pinch via landmark distance (not a built-in gesture)
     const thumbTip = lm[THUMB_TIP];
@@ -312,14 +350,16 @@
       }
 
       case 'Open_Palm': {
-        // Swipe detection
-        if (swipeLog.length < 4 || now - lastLayerSwitch < CONFIG.layerCooldownMs) break;
+        // Swipe: need at least 3 samples, respect cooldown
+        if (swipeLog.length < 3 || now - lastLayerSwitch < CONFIG.layerCooldownMs) break;
         const first = swipeLog[0], last = swipeLog[swipeLog.length - 1];
-        const dx = last.x - first.x, dt = last.t - first.t;
-        if (dt === 0) break;
-        if (Math.abs(dx) > CONFIG.swipeMinDist && (Math.abs(dx) / dt * 1000) > CONFIG.swipeMinVelocity) {
+        const dx = last.x - first.x;
+        const dt = last.t - first.t;
+        if (dt < 50) break; // need at least 50ms of data
+        const velocity = Math.abs(dx) / dt * 1000;
+        if (Math.abs(dx) > CONFIG.swipeMinDist && velocity > CONFIG.swipeMinVelocity) {
           lastLayerSwitch = now;
-          dx > 0 ? api.gestureLayerNext() : api.gestureLayerPrev();
+          if (dx > 0) { api.gestureLayerNext(); } else { api.gestureLayerPrev(); }
           flash();
           swipeLog.length = 0;
         }
@@ -379,6 +419,14 @@
     }
     const curEl = document.getElementById('gestureCursor');
     if (curEl) curEl.className = 'gesture-cursor gesture-cursor-' + mapped;
+
+    // Highlight active row in legend
+    const legend = document.getElementById('gestureLegend');
+    if (legend) {
+      legend.querySelectorAll('.gesture-legend-row').forEach(row => {
+        row.classList.toggle('active-row', row.dataset.gesture === mapped);
+      });
+    }
   }
 
   function moveCursor() {

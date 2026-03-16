@@ -1,12 +1,12 @@
 /**
- * VANCE — Voice Conversation Handler
+ * VANCE — Voice Conversation Handler (v2 — Conversational)
  *
- * Routes voice transcriptions through the Vance brain (Haiku for conversation,
- * escalate to Sonnet for complex reasoning). Integrates with the existing
- * handleChat pipeline but optimized for voice:
- *   - Shorter, more natural responses
- *   - Voice-specific system prompt additions
+ * Routes voice transcriptions through the Vance brain (Sonnet 4.6 for voice).
+ * Optimized for natural spoken conversation:
+ *   - Concise, warm, human-sounding responses
  *   - Streaming text output for low-latency TTS
+ *   - Context-aware conversational style
+ *   - No markdown, no formatting — pure speech
  */
 
 class ConversationHandler {
@@ -21,31 +21,38 @@ class ConversationHandler {
 
   /**
    * Voice-specific system prompt addition.
-   * Appended to the normal brain system prompt to guide voice-appropriate responses.
+   * Modeled after ChatGPT Advanced Voice Mode's conversational style.
    */
   static VOICE_PROMPT_ADDITION = `
 
-## VOICE MODE ACTIVE
+## VOICE MODE — ALWAYS-ON CONVERSATION
 
-You are speaking aloud to the user through a voice interface. Follow these rules strictly:
+You're in a live voice conversation. The mic is always on. This is like talking to a friend — not giving a presentation.
 
-1. **Be conversational** — respond as if you're having a natural spoken conversation. No markdown, no bullet points, no code blocks, no formatting.
-2. **Be concise** — keep responses to 2-4 sentences unless the user asks for detail. Aim for 15-30 seconds of speech.
-3. **Sound natural** — avoid robotic phrases like "processing request", "certainly", "I'd be happy to". Talk like a calm, knowledgeable human friend.
-4. **No visual formatting** — no asterisks, no headers, no lists. Everything must sound natural when read aloud.
-5. **Use contractions** — say "I'll", "you're", "that's", "won't" etc.
-6. **Acknowledge naturally** — instead of "Understood", say something like "Got it" or "Yeah" or just dive into the answer.
-7. **When listing things** — use "first... second... third..." or "the main ones are..." instead of bullet points.
-8. **Prioritize actionable information** — lead with what matters most.
+### How to speak:
+- **Talk, don't write.** No markdown, no bullets, no code blocks, no asterisks, no headers. Everything you say will be read aloud by a TTS engine.
+- **Be brief.** 1-3 sentences is ideal. Only go longer if the user asks you to explain in detail. Think 10-20 seconds of speech max.
+- **Sound human.** Use contractions (I'll, you're, that's, won't, can't). Start sentences with "So", "Yeah", "Well", "Actually" sometimes. Vary your sentence length.
+- **Lead with the answer.** Don't build up to it. Say the answer first, then explain if needed.
+- **Match their energy.** If they're casual, be casual. If they're focused, be direct. If they're excited, match it.
+
+### What NOT to do:
+- Don't say "Certainly!", "I'd be happy to!", "Absolutely!", "Great question!" — these sound robotic.
+- Don't repeat back what they said ("You asked about...") — just answer.
+- Don't give disclaimers unless safety-critical.
+- Don't list things with numbers or bullets. Use "first... then... and also..." naturally.
+- Don't say "Is there anything else?" — the conversation is always on, they'll just keep talking.
+- Don't use colons, semicolons, or em dashes — they sound weird when read aloud.
+
+### Conversation flow:
+- If they say something short like "yeah" or "okay" after your response, they're just acknowledging. Don't respond to that.
+- If there's a natural pause in conversation, don't fill it. Just wait.
+- If you need to do something that takes time, say so briefly: "Looking that up now" or "Give me a sec."
+- When you finish a thought, just stop. Don't add filler at the end.
 `;
 
   /**
    * Process a voice transcription and return the response text.
-   *
-   * @param {string} transcript - The user's transcribed speech
-   * @param {string} projectId - Optional project context
-   * @param {function} onToken - Callback for streaming tokens (for low-latency TTS)
-   * @returns {Promise<string>} The full response text
    */
   async processVoiceInput(transcript, projectId, onToken) {
     if (!transcript || !transcript.trim()) {
@@ -54,7 +61,6 @@ You are speaking aloud to the user through a voice interface. Follow these rules
 
     const cleanTranscript = transcript.trim();
 
-    // Collect the full response
     let fullResponse = '';
     let firstTokenTime = null;
 
@@ -64,31 +70,14 @@ You are speaking aloud to the user through a voice interface. Follow these rules
         fullResponse += data.content;
         if (onToken) onToken(data.content);
       }
-      // We capture stream-end to know when done, but don't need to forward most events
     };
 
     try {
       const result = await this.handleChat(cleanTranscript, projectId, wsSend);
       return result || fullResponse;
     } catch (err) {
-      return `Sorry, I hit an issue. ${err.message}`;
+      return `Sorry, I ran into an issue. ${err.message}`;
     }
-  }
-
-  /**
-   * Get a quick acknowledgment while processing (for perceived responsiveness).
-   * Returns a brief phrase Vance says immediately while thinking.
-   */
-  static getThinkingPhrase() {
-    const phrases = [
-      'Let me check on that.',
-      'One sec.',
-      'Looking into it.',
-      'Give me a moment.',
-      'On it.',
-      'Checking now.',
-    ];
-    return phrases[Math.floor(Math.random() * phrases.length)];
   }
 }
 
