@@ -2090,6 +2090,19 @@ async function handleMessage(ws, msg) {
       break;
     }
 
+    // ─── Task Intelligence Direct Actions (from Spatial UI) ───
+    case 'complete-user-task': {
+      const task = taskIntelligence.completeUserTask(msg.taskId);
+      ws.send({ type: 'user-task-completed', taskId: msg.taskId, success: !!task });
+      break;
+    }
+
+    case 'dismiss-user-task': {
+      const task = taskIntelligence.dismissUserTask(msg.taskId);
+      ws.send({ type: 'user-task-dismissed', taskId: msg.taskId, success: !!task });
+      break;
+    }
+
     case 'classify-project': {
       const projects = loadProjects();
       const idx = projects.findIndex(p => p.id === msg.projectId);

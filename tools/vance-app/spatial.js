@@ -40,6 +40,7 @@
 
   let projects = [], tasks = [], costData = {}, systemData = {};
   let pendingBrainUpdates = [];
+  let taskIntelligenceData = null;
   let projectStates = {};
 
   let renderer, scene, camera, clock;
@@ -405,17 +406,47 @@
     }
   }
 
-  // ─── Approval Queue (live from brain pending updates) ───
+  // ─── Approval Queue + User Tasks ───
   function updateApprovalQueue() {
     const list = $('l1ApprovalsList');
     const pending = Array.isArray(pendingBrainUpdates) ? pendingBrainUpdates : [];
+    const userTasks = taskIntelligenceData?.userTasks || [];
+    const totalPending = pending.length + userTasks.length;
 
-    $('l1ApprovalsBadge').textContent = 'Pending: ' + pending.length;
+    $('l1ApprovalsBadge').textContent = 'Pending: ' + totalPending;
 
-    if (pending.length === 0) {
-      list.innerHTML = '<div class="l1-empty-state">No pending approvals</div>';
+    if (totalPending === 0) {
+      list.innerHTML = '<div class="l1-empty-state">No pending items</div>';
       return;
     }
+
+    // Show user tasks when no brain updates
+    if (pending.length === 0 && userTasks.length > 0) {
+      const titleEl = $('l1ApprovalsTitle') || document.querySelector('.l1-approvals-title');
+      if (titleEl) titleEl.textContent = 'YOUR TASKS';
+
+      list.innerHTML = userTasks.slice(0, 5).map(t => {
+        const pLevel = t.priority?.level || 'medium';
+        const pColor = pLevel === 'critical' ? '#ef4444' : pLevel === 'high' ? '#f59e0b' : '#7070a0';
+        return `
+          <div class="l1-approval-item">
+            <div class="l1-approval-info">
+              <div class="l1-approval-project" style="color:${pColor}">${escapeHtml(t.title)}</div>
+              <div class="l1-approval-desc">${escapeHtml(pLevel)}${t.project ? ' &mdash; ' + escapeHtml(t.project) : ''}</div>
+            </div>
+            <div class="l1-approval-actions">
+              <button class="l1-btn-approve" onclick="window._completeUserTask('${t.id}')">Done</button>
+              <button class="l1-btn-deny" onclick="window._dismissUserTask('${t.id}')">Dismiss</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      return;
+    }
+
+    // Reset title if showing brain updates
+    const titleEl = $('l1ApprovalsTitle') || document.querySelector('.l1-approvals-title');
+    if (titleEl) titleEl.textContent = 'APPROVAL QUEUE';
 
     list.innerHTML = pending.map(u => {
       const name = escapeHtml(u.file || u.section || 'Brain Update');
@@ -442,6 +473,19 @@
   };
   window._rejectUpdate = function(id) {
     wsSend({ action: 'reject-brain-update', updateId: id });
+    setTimeout(() => wsSend({ action: 'get-spatial-data' }), 500);
+  };
+
+  // Expose user task handlers globally
+  window._completeUserTask = function(id) {
+    wsSend({ action: 'chat', message: `/complete-user-task ${id}`, projectId: null });
+    // Also send direct action for immediate update
+    wsSend({ action: 'complete-user-task', taskId: id });
+    setTimeout(() => wsSend({ action: 'get-spatial-data' }), 500);
+  };
+  window._dismissUserTask = function(id) {
+    wsSend({ action: 'chat', message: `/dismiss-user-task ${id}`, projectId: null });
+    wsSend({ action: 'dismiss-user-task', taskId: id });
     setTimeout(() => wsSend({ action: 'get-spatial-data' }), 500);
   };
 
@@ -537,12 +581,55 @@
     $('l1GaugeCpuArc').setAttribute('stroke-dashoffset', circumference * (1 - cpuPct / 100));
   }
 
-  // ─── Priorities (live from projects + tasks) ───
+  // ─── Priorities (live from task intelligence + projects + tasks) ───
   function updatePriorities() {
     const list = $('l1PrioritiesList');
     const items = [];
 
-    // Build from real projects
+    // 1. Real priorities from task intelligence (highest priority)
+    if (taskIntelligenceData?.priorities?.length) {
+      taskIntelligenceData.priorities.forEach(p => {
+        const scoreColor = p.score >= 8 ? '#ef4444' : p.score >= 5 ? '#f59e0b' : '#7070a0';
+        items.push({
+          project: p.title.toUpperCase(),
+          desc: p.project ? p.project : (p.description || '').slice(0, 40),
+          status: `Score: ${p.score}`,
+          color: scoreColor,
+          sortOrder: 0,
+        });
+      });
+    }
+
+    // 2. Running/queued tasks
+    tasks.forEach(t => {
+      if (t.status === 'running' || t.status === 'queued') {
+        const color = t.status === 'running' ? '#22c55e' : '#3b82f6';
+        items.push({
+          project: (t.title || 'Task').toUpperCase(),
+          desc: t.lastMilestone || t.durationFormatted || (t.source === 'conversation' ? 'Auto-detected' : ''),
+          status: t.status === 'running' ? 'Running' : 'Queued',
+          color,
+          sortOrder: 1,
+        });
+      }
+    });
+
+    // 3. User tasks from task intelligence
+    if (taskIntelligenceData?.userTasks?.length) {
+      taskIntelligenceData.userTasks.slice(0, 3).forEach(t => {
+        const pLevel = t.priority?.level || 'medium';
+        const color = pLevel === 'critical' || pLevel === 'high' ? '#f59e0b' : '#7070a0';
+        items.push({
+          project: t.title.toUpperCase(),
+          desc: t.project || '',
+          status: pLevel,
+          color,
+          sortOrder: 2,
+        });
+      });
+    }
+
+    // 4. Active projects (fill remaining slots)
     projects.forEach(p => {
       const color = getProjectDotColor(p);
       let status = 'Active';
@@ -560,28 +647,18 @@
       const latestMs = ms[ms.length - 1];
       const desc = latestMs ? (latestMs.title || latestMs.name || latestMs.text || '') : (p.description || '').slice(0, 40);
 
-      items.push({ project: p.name.toUpperCase(), desc, status, color });
-    });
-
-    // Add running tasks as priorities
-    tasks.forEach(t => {
-      if (t.status === 'running' || t.status === 'queued') {
-        const color = t.projectId ? getProjectDotColor({ name: t.projectId }) : '#7070a0';
-        items.push({
-          project: (t.title || 'Task').toUpperCase(),
-          desc: t.lastMilestone || t.durationFormatted || '',
-          status: t.status === 'running' ? 'Running' : 'Queued',
-          color,
-        });
-      }
+      items.push({ project: p.name.toUpperCase(), desc, status, color, sortOrder: 3 });
     });
 
     if (items.length === 0) {
-      list.innerHTML = '<div class="l1-empty-state">No active projects</div>';
+      list.innerHTML = '<div class="l1-empty-state">No active items</div>';
       return;
     }
 
-    const displayItems = items.slice(0, 6);
+    // Sort: priorities first, then tasks, then user tasks, then projects
+    items.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+    const displayItems = items.slice(0, 7);
 
     list.innerHTML = displayItems.map(item => `
       <div class="l1-priority-item">
@@ -763,8 +840,13 @@
         systemData = msg.system || {};
         pendingBrainUpdates = msg.pendingBrainUpdates || [];
         projectStates = msg.projectStates || {};
+        taskIntelligenceData = msg.taskIntelligence || null;
         rebuildScene();
         updateDashboard();
+        break;
+      case 'task-intelligence':
+        // Refresh spatial data when task intelligence detects something
+        wsSend({ action: 'get-spatial-data' });
         break;
       case 'project-classified':
         const pc = projects.find(p => p.id === msg.projectId);

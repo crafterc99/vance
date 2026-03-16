@@ -39,6 +39,8 @@
     runningTask: null,
     taskStartTime: null,
     taskTimerInterval: null,
+    // Task intelligence
+    taskDashboard: null,
     // Welcome
     typewriterDone: false,
     // Model tier
@@ -354,6 +356,24 @@
       case 'task-cancelled':
         addEvent('task', `Cancelled: ${d.title || d.taskId}`);
         hideTaskCard();
+        break;
+
+      // ─── Task Intelligence Events ───
+      case 'task-intelligence':
+        if (d.action === 'user-task-detected') {
+          addEvent('task', `Your task: ${d.task?.title || 'New item'}`);
+          renderTaskDashboard();
+        } else if (d.action === 'vance-task-queued') {
+          addEvent('task', `Auto-queued: ${d.task?.title || 'New task'}`);
+          renderTaskDashboard();
+        }
+        break;
+
+      case 'task-dashboard':
+        if (d.dashboard) {
+          state.taskDashboard = d.dashboard;
+          renderTaskDashboard();
+        }
         break;
 
       // Store memory events
@@ -1060,6 +1080,110 @@
       state.runningTask = running;
       showTaskCard(running);
     }
+    // Store tasks for dashboard
+    state.allTasks = tasks;
+    renderTaskDashboard();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Task Dashboard (Priorities, User Tasks, Queue, Status)
+  // ═══════════════════════════════════════════════════════════════════════
+  function renderTaskDashboard() {
+    const panel = $('#taskDashboard');
+    if (!panel) return;
+
+    let html = '';
+    const dash = state.taskDashboard;
+    const tasks = state.allTasks || [];
+
+    // ─── Priorities ───
+    const priorities = dash?.priorities || [];
+    if (priorities.length) {
+      html += '<div class="td-section"><div class="td-label">Priorities</div>';
+      for (const p of priorities.slice(0, 5)) {
+        const scoreClass = p.score >= 8 ? 'high' : p.score >= 5 ? 'med' : 'low';
+        html += `<div class="td-item">
+          <span class="td-dot td-dot--${scoreClass}"></span>
+          <span class="td-title">${esc(p.title)}</span>
+          <span class="td-meta">${p.score}/10</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // ─── User Tasks ───
+    const userTasks = dash?.userTasks || [];
+    if (userTasks.length) {
+      html += '<div class="td-section"><div class="td-label">Your Tasks</div>';
+      for (const t of userTasks.slice(0, 6)) {
+        const pLevel = t.priority?.level || 'medium';
+        const pClass = pLevel === 'critical' || pLevel === 'high' ? 'high' : pLevel === 'low' ? 'low' : 'med';
+        html += `<div class="td-item">
+          <span class="td-dot td-dot--${pClass}"></span>
+          <span class="td-title">${esc(t.title)}</span>
+          <span class="td-badge td-badge--${pClass}">${pLevel}</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // ─── Running Task ───
+    const running = tasks.find(t => t.status === 'running') || dash?.vanceTasks?.running;
+    if (running) {
+      html += `<div class="td-section"><div class="td-label">Running</div>
+        <div class="td-item td-item--active">
+          <span class="td-dot td-dot--running"></span>
+          <span class="td-title">${esc(running.title)}</span>
+          <span class="td-meta">${running.tier || ''} $${(running.costUsd || 0).toFixed(2)}</span>
+        </div></div>`;
+    }
+
+    // ─── Queued Tasks ───
+    const queued = tasks.filter(t => t.status === 'queued');
+    if (queued.length) {
+      html += '<div class="td-section"><div class="td-label">Queued <span class="td-count">' + queued.length + '</span></div>';
+      for (const t of queued.slice(0, 4)) {
+        html += `<div class="td-item">
+          <span class="td-dot td-dot--queued"></span>
+          <span class="td-title">${esc(t.title)}</span>
+          <span class="td-meta">${t.source === 'conversation' ? 'auto' : ''}</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // ─── Recent Completed ───
+    const completed = tasks.filter(t => t.status === 'completed').slice(-3);
+    if (completed.length) {
+      html += '<div class="td-section"><div class="td-label">Recent</div>';
+      for (const t of completed) {
+        html += `<div class="td-item td-item--done">
+          <span class="td-dot td-dot--done"></span>
+          <span class="td-title">${esc(t.title)}</span>
+          <span class="td-meta">$${(t.costUsd || 0).toFixed(2)}</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // ─── Failed Tasks ───
+    const failed = tasks.filter(t => t.status === 'failed');
+    if (failed.length) {
+      html += '<div class="td-section"><div class="td-label">Failed</div>';
+      for (const t of failed.slice(-2)) {
+        html += `<div class="td-item td-item--failed">
+          <span class="td-dot td-dot--failed"></span>
+          <span class="td-title">${esc(t.title)}</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    if (!html) {
+      html = '<div class="td-empty">No active tasks</div>';
+    }
+
+    panel.innerHTML = html;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
