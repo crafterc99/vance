@@ -42,6 +42,7 @@ const executionLogger = require('./runtime/logger');
 const projectState = require('./runtime/project-state');
 const VoiceSystem = require('./voice');
 const ConversationHandler = require('./voice/conversationHandler');
+const TaskIntelligence = require('./task-intelligence');
 
 // Agent modules (lazy-loaded for modularity)
 const AGENTS = {
@@ -451,6 +452,108 @@ const TOOLS = [
           monthly: { type: 'number', description: 'Monthly budget in USD' },
         },
         required: ['daily', 'monthly'],
+      },
+    },
+  },
+  // ─── Task Intelligence Tools ─────────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'add_user_task',
+      description: 'Add a task/reminder to the user\'s personal task board. Use when the user mentions something THEY need to do (not Vance). Examples: "I need to call the bank", "remind me to review the PR".',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Task title' },
+          description: { type: 'string', description: 'Additional details' },
+          project: { type: 'string', description: 'Project ID if related to a project' },
+          priority: { type: 'string', enum: ['critical', 'high', 'medium', 'low'], description: 'Priority level (default: medium)' },
+          due_at: { type: 'string', description: 'Due date/time in ISO format' },
+        },
+        required: ['title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'complete_user_task',
+      description: 'Mark a user task as done.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'string', description: 'User task ID' },
+        },
+        required: ['task_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'dismiss_user_task',
+      description: 'Dismiss a user task (no longer relevant).',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'string', description: 'User task ID' },
+        },
+        required: ['task_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_user_tasks',
+      description: 'List the user\'s active personal tasks/reminders.',
+      parameters: {
+        type: 'object',
+        properties: {
+          project: { type: 'string', description: 'Filter by project ID' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_priority',
+      description: 'Add a high-level priority/objective to the priority board. Priorities are top-level goals that tasks roll up to.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Priority title' },
+          description: { type: 'string', description: 'Details about this priority' },
+          project: { type: 'string', description: 'Related project ID' },
+          score: { type: 'number', description: 'Priority score 1-10 (10 = most important)' },
+        },
+        required: ['title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'complete_priority',
+      description: 'Mark a priority as completed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          priority_id: { type: 'string', description: 'Priority ID' },
+        },
+        required: ['priority_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_task_dashboard',
+      description: 'Get the full task intelligence dashboard: priorities, user tasks, Vance coding tasks (running/queued/completed/failed), and stats.',
+      parameters: {
+        type: 'object',
+        properties: {},
       },
     },
   },
@@ -1199,6 +1302,97 @@ async function executeFunction(name, args, wsSend) {
       return `Claude budget set: $${args.daily}/day, $${args.monthly}/month`;
     }
 
+    // ─── Task Intelligence Tools ───
+    case 'add_user_task': {
+      const priorityMap = { critical: 10, high: 8, medium: 5, low: 3 };
+      const score = priorityMap[args.priority] || 5;
+      const task = taskIntelligence.addUserTask(args.title, {
+        description: args.description,
+        project: args.project,
+        priority: { level: args.priority || 'medium', score },
+        dueAt: args.due_at,
+        source: 'tool',
+      });
+      return `Added to your task board: "${task.title}" [${task.priority.level} priority, ID: ${task.id}]`;
+    }
+
+    case 'complete_user_task': {
+      const task = taskIntelligence.completeUserTask(args.task_id);
+      if (!task) return `Task not found: ${args.task_id}`;
+      return `Task completed: "${task.title}"`;
+    }
+
+    case 'dismiss_user_task': {
+      const task = taskIntelligence.dismissUserTask(args.task_id);
+      if (!task) return `Task not found: ${args.task_id}`;
+      return `Task dismissed: "${task.title}"`;
+    }
+
+    case 'list_user_tasks': {
+      const tasks = taskIntelligence.getUserTasks({ project: args.project });
+      if (!tasks.length) return 'No active user tasks.';
+      let output = `Your tasks (${tasks.length}):\n`;
+      for (const t of tasks) {
+        output += `  [${t.id}] ${t.title} — ${t.priority?.level || 'medium'}${t.project ? ` (${t.project})` : ''}${t.dueAt ? ` due: ${t.dueAt}` : ''}\n`;
+      }
+      return output;
+    }
+
+    case 'add_priority': {
+      const p = taskIntelligence.addPriority(args.title, {
+        description: args.description,
+        project: args.project,
+        score: args.score || 5,
+      });
+      return `Priority added: "${p.title}" [score: ${p.score}, ID: ${p.id}]`;
+    }
+
+    case 'complete_priority': {
+      const p = taskIntelligence.completePriority(args.priority_id);
+      if (!p) return `Priority not found: ${args.priority_id}`;
+      return `Priority completed: "${p.title}"`;
+    }
+
+    case 'get_task_dashboard': {
+      const dashboard = taskIntelligence.getDashboard();
+      let output = '## Task Dashboard\n\n';
+
+      if (dashboard.priorities.length) {
+        output += `### Priorities (${dashboard.priorities.length})\n`;
+        for (const p of dashboard.priorities) {
+          output += `  [${p.id}] ${p.title} (score: ${p.score})${p.project ? ` — ${p.project}` : ''}\n`;
+        }
+      }
+
+      if (dashboard.userTasks.length) {
+        output += `\n### Your Tasks (${dashboard.userTasks.length})\n`;
+        for (const t of dashboard.userTasks) {
+          output += `  [${t.id}] ${t.title} — ${t.priority?.level || 'medium'}\n`;
+        }
+      }
+
+      const vt = dashboard.vanceTasks;
+      if (vt.running) {
+        output += `\n### Running: "${vt.running.title}" (${vt.running.tier}, $${(vt.running.costUsd || 0).toFixed(2)})\n`;
+      }
+      if (vt.queued.length) {
+        output += `\n### Queued (${vt.queued.length})\n`;
+        for (const t of vt.queued) output += `  [${t.id}] ${t.title}\n`;
+      }
+      if (vt.recentCompleted.length) {
+        output += `\n### Recently Completed (${vt.recentCompleted.length})\n`;
+        for (const t of vt.recentCompleted) output += `  [${t.id}] ${t.title} — $${(t.costUsd || 0).toFixed(2)}\n`;
+      }
+      if (vt.failed.length) {
+        output += `\n### Failed (${vt.failed.length})\n`;
+        for (const t of vt.failed) output += `  [${t.id}] ${t.title} — ${t.error}\n`;
+      }
+
+      output += `\n### Stats\n`;
+      output += `  User tasks: ${dashboard.stats.totalUserTasks} | Queued: ${dashboard.stats.totalQueuedTasks} | Running: ${dashboard.stats.isRunning ? 'Yes' : 'No'} | Priorities: ${dashboard.stats.activePriorities}`;
+      return output;
+    }
+
     // ─── Memory System Tools ───
     case 'write_daily_note': {
       const filePath = memory.appendDailyNote(args.section, args.content);
@@ -1445,7 +1639,9 @@ function buildChatContext(projectId) {
   const projectContext = project ? { ...project, milestones: loadMilestones(projectId) } : null;
   const runningTask = taskManager.getRunningTask();
   const queuedTasks = taskManager.getAllTasks({ status: 'queued' });
-  return { projects, project, projectContext, runningTask, queuedTasks };
+  const userTasks = taskIntelligence.getUserTasks();
+  const priorities = taskIntelligence.getActivePriorities();
+  return { projects, project, projectContext, runningTask, queuedTasks, userTasks, priorities };
 }
 
 function buildSystemPromptForChat(userMessage, ctx, tier) {
@@ -1471,6 +1667,8 @@ function buildSystemPromptForChat(userMessage, ctx, tier) {
     },
     runningTask: ctx.runningTask ? taskManager.taskSummary(ctx.runningTask) : null,
     queuedTaskCount: ctx.queuedTasks.length,
+    userTasks: ctx.userTasks,
+    priorities: ctx.priorities,
     modelTier: tier,
   });
 }
@@ -1479,6 +1677,37 @@ async function handleChat(userMessage, projectId, wsSend) {
   const convId = projectId || 'general';
   const convMessages = loadConversation(convId);
   convMessages.push({ role: 'user', content: userMessage, timestamp: new Date().toISOString() });
+
+  // ─── Task Intelligence: analyze every message for actionable items ───
+  try {
+    const analysis = taskIntelligence.analyzeMessage(userMessage, projectId);
+    if (analysis.hasAction) {
+      for (const item of analysis.items) {
+        if (item.type === 'user-task') {
+          const created = taskIntelligence.addUserTask(item.title, {
+            description: item.description,
+            priority: item.priority,
+            project: item.project,
+            source: 'conversation',
+          });
+          wsSend({ type: 'task-intelligence', action: 'user-task-detected', task: created });
+        } else if (item.type === 'vance-task' && item.autoQueue) {
+          // Find project directory for auto-queuing
+          const projects = loadProjects();
+          const proj = item.project ? projects.find(p => p.id === item.project) : null;
+          const projDir = proj?.directory || null;
+          const queued = taskIntelligence.autoQueueTask(item, projDir);
+          if (queued) {
+            wsSend({ type: 'task-intelligence', action: 'vance-task-queued', task: taskManager.taskSummary(queued) });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Task intelligence errors should never block chat
+    console.error('[TaskIntelligence] Analysis error:', e.message);
+  }
+
   return handleClaudeChat(userMessage, convId, convMessages, projectId, wsSend);
 }
 
@@ -1847,6 +2076,7 @@ async function handleMessage(ws, msg) {
       const sysInfo = await getSystemInfo('all');
       const pending = brain.getPendingUpdates();
       const allStates = projectState.getAllStates();
+      const taskDashboard = taskIntelligence.getDashboard();
       ws.send({
         type: 'spatial-data',
         projects,
@@ -1855,6 +2085,7 @@ async function handleMessage(ws, msg) {
         system: sysInfo,
         pendingBrainUpdates: pending,
         projectStates: allStates,
+        taskIntelligence: taskDashboard,
       });
       break;
     }
@@ -2052,10 +2283,20 @@ process.on('unhandledRejection', (err) => {
 
 // ─── Task Manager Broadcast Setup ─────────────────────────────────────────
 
-taskManager.setBroadcast((event) => {
+const wsBroadcast = (event) => {
   for (const client of clients) {
     try { client.send(event); } catch {}
   }
+};
+
+taskManager.setBroadcast(wsBroadcast);
+
+// ─── Task Intelligence Setup ──────────────────────────────────────────────
+
+const taskIntelligence = new TaskIntelligence({
+  taskManager,
+  memory,
+  broadcast: wsBroadcast,
 });
 
 // ─── Voice System Setup ───────────────────────────────────────────────────

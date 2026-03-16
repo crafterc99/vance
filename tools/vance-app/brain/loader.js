@@ -133,9 +133,17 @@ Do NOT escalate for: status checks, simple questions, tool execution, memory loo
 - Memory: remember, recall, create_skill, learn_preference, propose_brain_update
 - Projects: create_project, add_milestone, get_cost_report
 - Tasks: start_coding_task, get_task_status, list_tasks, control_task, merge_task
+- Task Intelligence: add_user_task, complete_user_task, add_priority, get_task_dashboard
 - Coding: run_claude_code (complex multi-step only), start_coding_task (autonomous background tasks)
 - Execution: run_tool (direct tool execution), run_agent (multi-step agent workflows)
 - Budget: set_claude_budget
+
+## PROACTIVE TASK INTELLIGENCE
+Every user message is analyzed for actionable content. When you detect intent:
+- Coding requests → auto-queue via start_coding_task (don't wait for permission)
+- User personal tasks ("I need to...", "remind me...") → add via add_user_task
+- High-level goals/priorities → track via add_priority
+- Reference the task dashboard when relevant: "That's queued behind the auth task, sir."
 
 ## CODE CHANGE RULES
 - ALL code changes MUST go through Claude Code tools (run_claude_code, start_coding_task, or run_tool with claude_code).
@@ -217,9 +225,17 @@ ${proactiveRules}
 - Memory: remember, recall, create_skill, learn_preference, propose_brain_update
 - Projects: create_project, add_milestone, get_cost_report
 - Tasks: start_coding_task, get_task_status, list_tasks, control_task, merge_task
+- Task Intelligence: add_user_task, complete_user_task, add_priority, get_task_dashboard
 - Coding: run_claude_code (complex multi-step only), start_coding_task (autonomous background tasks)
 - Execution: run_tool (direct tool execution), run_agent (multi-step agent workflows)
 - Budget: set_claude_budget
+
+## PROACTIVE TASK INTELLIGENCE
+Every user message is analyzed for actionable content. When you detect intent:
+- Coding requests → auto-queue via start_coding_task (don't wait for permission)
+- User personal tasks ("I need to...", "remind me...") → add via add_user_task
+- High-level goals/priorities → track via add_priority
+- Reference the task dashboard when relevant: "That's queued behind the auth task, sir."
 
 ## CODING TASKS
 - Use 'start_coding_task' for autonomous multi-file implementation work
@@ -304,7 +320,7 @@ function buildProjectStateContext(context = {}) {
 
 function buildLiveContext(context = {}) {
   let prompt = '';
-  const { project, memories, skills, preferences, stats, costs, runningTask, queuedTaskCount } = context;
+  const { project, memories, skills, preferences, stats, costs, runningTask, queuedTaskCount, userTasks, priorities } = context;
 
   if (stats) {
     prompt += `\n\n## CURRENT STATE
@@ -364,6 +380,20 @@ Milestones: ${runningTask.milestones?.slice(-3).map(m => m.detail).join(', ') ||
   }
   if (queuedTaskCount > 0) {
     prompt += `\n${queuedTaskCount} task${queuedTaskCount > 1 ? 's' : ''} queued behind current task.`;
+  }
+
+  if (priorities?.length) {
+    prompt += `\n\n## ACTIVE PRIORITIES`;
+    for (const p of priorities.slice(0, 5)) {
+      prompt += `\n- [${p.id}] ${p.title} (score: ${p.score})${p.project ? ` — ${p.project}` : ''}`;
+    }
+  }
+
+  if (userTasks?.length) {
+    prompt += `\n\n## USER'S TASK BOARD (${userTasks.length} pending)`;
+    for (const t of userTasks.slice(0, 8)) {
+      prompt += `\n- [${t.id}] ${t.title} — ${t.priority?.level || 'medium'}${t.dueAt ? ` (due: ${t.dueAt})` : ''}`;
+    }
   }
 
   if (pendingUpdates.length) {

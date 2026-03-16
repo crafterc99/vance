@@ -21,6 +21,20 @@ const LOGS_DIR = path.join(DATA_DIR, 'task-logs');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(LOGS_DIR, { recursive: true });
 
+// ─── Project Directory Resolution ─────────────────────────────────────────
+
+const PROJECTS_FILE = path.join(DATA_DIR, 'projects.json');
+
+function resolveProjectDir(projectId) {
+  if (!projectId) return null;
+  try {
+    if (!fs.existsSync(PROJECTS_FILE)) return null;
+    const projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8'));
+    const project = projects.find(p => p.id === projectId);
+    return project?.directory || null;
+  } catch { return null; }
+}
+
 // ─── In-Memory State ──────────────────────────────────────────────────────
 
 let runningProcess = null; // Reference to child process
@@ -93,18 +107,25 @@ function createTask(opts) {
     if (opts.maxBudget) modelInfo.maxBudget = opts.maxBudget;
   }
 
+  // Auto-resolve project directory from known projects
+  let projectDir = opts.projectDir || null;
+  if (!projectDir && opts.projectId) {
+    projectDir = resolveProjectDir(opts.projectId);
+  }
+
   const task = {
     id: crypto.randomUUID().slice(0, 8),
     title: opts.title,
     prompt: opts.prompt,
     projectId: opts.projectId || null,
-    projectDir: opts.projectDir || null,
+    projectDir,
     model: modelInfo.model,
     tier: modelInfo.tier,
     effort: opts.effort || null,
     maxBudget: modelInfo.maxBudget,
     priority: opts.priority || 5,
     status: 'queued',
+    source: opts.source || 'manual', // manual | conversation | voice | auto
     sessionId: null,
     branch: null,
     stashed: false,
@@ -425,6 +446,7 @@ function taskSummary(task) {
     tier: task.tier,
     branch: task.branch,
     priority: task.priority,
+    source: task.source || 'manual',
     costUsd: task.costUsd,
     maxBudget: task.maxBudget,
     durationSec: duration,

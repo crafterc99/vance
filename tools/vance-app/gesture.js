@@ -134,27 +134,48 @@
   // LOAD — MediaPipe Tasks Vision
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async function loadRecognizer() {
-    setStatus('LOADING VISION SDK...', false);
+  const MP_VERSION = '0.10.32';
+  const MP_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
+  const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task';
 
-    const vision = await import(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs'
-    );
+  async function loadRecognizer() {
+    setStatus('LOADING SDK...', false);
+    console.log('[Gesture] Loading MediaPipe Tasks Vision v' + MP_VERSION);
+
+    let vision;
+    try {
+      vision = await import(MP_CDN + '/vision_bundle.mjs');
+    } catch (importErr) {
+      console.error('[Gesture] SDK import failed:', importErr);
+      setStatus('SDK LOAD FAILED', false);
+      throw importErr;
+    }
 
     const { GestureRecognizer, FilesetResolver } = vision;
+    if (!GestureRecognizer || !FilesetResolver) {
+      const err = new Error('GestureRecognizer or FilesetResolver not found in module');
+      console.error('[Gesture]', err.message);
+      setStatus('SDK MISSING EXPORTS', false);
+      throw err;
+    }
+
+    setStatus('LOADING WASM...', false);
+    console.log('[Gesture] Loading WASM fileset...');
+
+    let fileset;
+    try {
+      fileset = await FilesetResolver.forVisionTasks(MP_CDN + '/wasm');
+    } catch (wasmErr) {
+      console.error('[Gesture] WASM load failed:', wasmErr);
+      setStatus('WASM FAILED', false);
+      throw wasmErr;
+    }
 
     setStatus('LOADING MODEL...', false);
+    console.log('[Gesture] Creating GestureRecognizer...');
 
-    const fileset = await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
-    );
-
-    // Try GPU first, fall back to CPU
     const opts = {
-      baseOptions: {
-        modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task',
-      },
+      baseOptions: { modelAssetPath: MODEL_URL },
       runningMode: 'VIDEO',
       numHands: CONFIG.numHands,
       minHandDetectionConfidence: CONFIG.minHandDetectionConfidence,
@@ -162,15 +183,24 @@
       minTrackingConfidence: CONFIG.minTrackingConfidence,
     };
 
+    // Try GPU first, fall back to CPU
     try {
       opts.baseOptions.delegate = 'GPU';
       recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
-      setStatus('MODEL READY (GPU)', true);
+      console.log('[Gesture] Model ready (GPU)');
+      setStatus('TRACKING (GPU)', true);
     } catch (gpuErr) {
-      console.warn('GPU delegate failed, falling back to CPU:', gpuErr);
-      opts.baseOptions.delegate = 'CPU';
-      recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
-      setStatus('MODEL READY (CPU)', true);
+      console.warn('[Gesture] GPU failed, trying CPU:', gpuErr.message);
+      try {
+        opts.baseOptions.delegate = 'CPU';
+        recognizer = await GestureRecognizer.createFromOptions(fileset, opts);
+        console.log('[Gesture] Model ready (CPU)');
+        setStatus('TRACKING (CPU)', true);
+      } catch (cpuErr) {
+        console.error('[Gesture] CPU also failed:', cpuErr);
+        setStatus('MODEL FAILED', false);
+        throw cpuErr;
+      }
     }
   }
 
@@ -208,6 +238,7 @@
     setStatus('TRACKING', true);
     frameCount = 0;
     lastVideoTime = -1;
+    lastTimestamp = 0;
     runLoop();
   }
 
@@ -222,6 +253,7 @@
   // ═══════════════════════════════════════════════════════════════════════════
 
   let consecutiveErrors = 0;
+  let lastTimestamp = 0;
 
   function runLoop() {
     if (!active) return;
@@ -235,16 +267,22 @@
       if (now !== lastVideoTime) {
         lastVideoTime = now;
 
+        // Ensure monotonically increasing timestamp (MediaPipe requirement)
+        let ts = performance.now();
+        if (ts <= lastTimestamp) ts = lastTimestamp + 1;
+        lastTimestamp = ts;
+
         try {
-          const result = recognizer.recognizeForVideo(videoEl, performance.now());
+          const result = recognizer.recognizeForVideo(videoEl, ts);
           consecutiveErrors = 0;
           handleResult(result);
         } catch (err) {
           consecutiveErrors++;
-          console.warn('recognizeForVideo error #' + consecutiveErrors + ':', err.message);
-          // If we get 10+ errors in a row, stop gracefully
+          if (consecutiveErrors <= 3 || consecutiveErrors % 10 === 0) {
+            console.warn('[Gesture] recognizeForVideo error #' + consecutiveErrors + ':', err.message);
+          }
           if (consecutiveErrors > 10) {
-            console.error('Too many consecutive errors, stopping gesture control');
+            console.error('[Gesture] Too many errors, stopping');
             setStatus('ERROR — STOPPED', false);
             setTimeout(() => deactivate(), 2000);
             return;
@@ -548,20 +586,31 @@
     active = true;
     consecutiveErrors = 0;
     buildOverlay();
+    console.log('[Gesture] Activating...');
 
     try {
       await loadRecognizer();
-      await startCam();
-
-      const ov = document.getElementById('gestureOverlay');
-      if (ov) ov.classList.add('active');
-      const btn = document.getElementById('gestureToggleBtn');
-      if (btn) btn.classList.add('active');
     } catch (err) {
-      console.error('Gesture activation failed:', err);
-      setStatus((err.message || 'FAILED').slice(0, 24).toUpperCase(), false);
+      console.error('[Gesture] Model load failed:', err);
+      setStatus('MODEL LOAD FAILED', false);
       setTimeout(() => deactivate(), 4000);
+      return;
     }
+
+    try {
+      await startCam();
+    } catch (err) {
+      console.error('[Gesture] Camera failed:', err);
+      setStatus(err.name === 'NotAllowedError' ? 'CAM DENIED' : 'CAM FAILED', false);
+      setTimeout(() => deactivate(), 4000);
+      return;
+    }
+
+    const ov = document.getElementById('gestureOverlay');
+    if (ov) ov.classList.add('active');
+    const btn = document.getElementById('gestureToggleBtn');
+    if (btn) btn.classList.add('active');
+    console.log('[Gesture] Active and tracking');
   }
 
   function deactivate() {
