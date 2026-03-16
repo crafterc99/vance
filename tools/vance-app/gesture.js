@@ -27,6 +27,8 @@
   let active = false;
   let worker = null;
   let workerReady = false;
+  let mainRecognizer = null;   // fallback: recognizer on main thread
+  let useMainThread = false;   // true if worker failed
   let cameraStream = null;
   let videoEl = null;
   let canvasEl = null;
@@ -140,7 +142,27 @@
 
   function initWorker() {
     return new Promise((resolve, reject) => {
-      worker = new Worker('gesture-worker.js', { type: 'module' });
+      try {
+        worker = new Worker('gesture-worker.js', { type: 'module' });
+      } catch (e) {
+        console.warn('[Gesture] Module worker not supported:', e.message);
+        return reject(e);
+      }
+
+      // Timeout — if worker doesn't respond in 30s, give up
+      const timeout = setTimeout(() => {
+        console.warn('[Gesture] Worker init timed out');
+        if (worker) { worker.terminate(); worker = null; }
+        reject(new Error('Worker init timeout'));
+      }, 30000);
+
+      let settled = false;
+      function done(fn, arg) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        fn(arg);
+      }
 
       worker.onmessage = (e) => {
         const msg = e.data;
@@ -153,14 +175,13 @@
           workerReady = true;
           setStatus('TRACKING', true);
           console.log('[Gesture] Worker ready');
-          resolve();
+          done(resolve);
         }
 
         if (msg.type === 'error') {
           console.error('[Gesture] Worker error:', msg.message);
           if (!workerReady) {
-            setStatus('LOAD FAILED', false);
-            reject(new Error(msg.message));
+            done(reject, new Error(msg.message));
           }
           pendingFrame = false;
         }
@@ -173,13 +194,43 @@
 
       worker.onerror = (e) => {
         console.error('[Gesture] Worker crashed:', e.message);
-        setStatus('WORKER CRASHED', false);
-        if (!workerReady) reject(new Error(e.message));
+        done(reject, new Error(e.message || 'Worker error'));
         pendingFrame = false;
       };
 
       worker.postMessage({ type: 'init' });
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAIN THREAD FALLBACK — loads MediaPipe directly if worker fails
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const MP_VERSION = '0.10.32';
+  const MP_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
+  const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task';
+
+  async function initMainThread() {
+    useMainThread = true;
+    setStatus('LOADING SDK...', false);
+
+    const vision = await import(MP_CDN + '/vision_bundle.mjs');
+    const { GestureRecognizer, FilesetResolver } = vision;
+
+    setStatus('LOADING WASM...', false);
+    const fileset = await FilesetResolver.forVisionTasks(MP_CDN + '/wasm');
+
+    setStatus('LOADING MODEL...', false);
+    mainRecognizer = await GestureRecognizer.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL_URL, delegate: 'CPU' },
+      runningMode: 'VIDEO',
+      numHands: 1,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.4,
+      minTrackingConfidence: 0.4,
+    });
+
+    setStatus('TRACKING', true);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -226,20 +277,40 @@
   function captureFrame() {
     if (!active) return;
 
-    // Only send a new frame if the worker finished the last one
-    if (!pendingFrame && workerReady && videoEl && videoEl.readyState >= 2) {
+    if (!pendingFrame && videoEl && videoEl.readyState >= 2) {
       let ts = performance.now();
       if (ts <= lastTimestamp) ts = lastTimestamp + 1;
       lastTimestamp = ts;
 
-      createImageBitmap(videoEl).then(bitmap => {
-        if (!active || !worker) { bitmap.close(); return; }
+      if (useMainThread && mainRecognizer) {
+        // Main thread fallback — run inference directly (throttled)
         pendingFrame = true;
-        worker.postMessage({ type: 'frame', bitmap, timestamp: ts }, [bitmap]);
-      }).catch(() => {});
+        try {
+          const result = mainRecognizer.recognizeForVideo(videoEl, ts);
+          let landmarks = null;
+          if (result.landmarks && result.landmarks.length > 0) {
+            landmarks = result.landmarks[0].map(lm => ({ x: lm.x, y: lm.y, z: lm.z || 0 }));
+          }
+          let gesture = 'None';
+          if (result.gestures && result.gestures.length > 0 && result.gestures[0].length > 0) {
+            gesture = result.gestures[0][0].categoryName || 'None';
+          }
+          handleResult(landmarks, gesture);
+        } catch (e) {
+          console.warn('[Gesture] Inference error:', e.message);
+        }
+        pendingFrame = false;
+      } else if (workerReady && worker) {
+        // Worker mode — send frame as ImageBitmap
+        createImageBitmap(videoEl).then(bitmap => {
+          if (!active || !worker) { bitmap.close(); return; }
+          pendingFrame = true;
+          worker.postMessage({ type: 'frame', bitmap, timestamp: ts }, [bitmap]);
+        }).catch(() => {});
+      }
     }
 
-    timerId = setTimeout(captureFrame, CONFIG.captureIntervalMs);
+    timerId = setTimeout(captureFrame, useMainThread ? 250 : CONFIG.captureIntervalMs);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -456,17 +527,16 @@
     active = true;
     workerReady = false;
     buildOverlay();
-    console.log('[Gesture] Activating (Web Worker mode)...');
 
-    try {
-      await initWorker();
-    } catch (err) {
-      console.error('[Gesture] Worker init failed:', err);
-      setStatus('LOAD FAILED', false);
-      setTimeout(() => deactivate(), 3000);
-      return;
-    }
+    // Show overlay immediately so user sees status messages
+    if (dom.overlay) dom.overlay.classList.add('active');
+    const btn = document.getElementById('gestureToggleBtn');
+    if (btn) btn.classList.add('active');
 
+    console.log('[Gesture] Activating...');
+    setStatus('STARTING...', false);
+
+    // Start camera first (fast)
     try {
       await startCam();
     } catch (err) {
@@ -476,19 +546,34 @@
       return;
     }
 
-    if (dom.overlay) dom.overlay.classList.add('active');
-    const btn = document.getElementById('gestureToggleBtn');
-    if (btn) btn.classList.add('active');
+    // Try worker, fall back to main thread if it fails
+    try {
+      await initWorker();
+      console.log('[Gesture] Active — inference in worker');
+    } catch (err) {
+      console.warn('[Gesture] Worker failed, falling back to main thread:', err.message);
+      setStatus('LOADING SDK...', false);
+      try {
+        await initMainThread();
+        console.log('[Gesture] Active — inference on main thread (throttled)');
+      } catch (err2) {
+        console.error('[Gesture] Main thread init also failed:', err2);
+        setStatus('LOAD FAILED', false);
+        setTimeout(() => deactivate(), 3000);
+        return;
+      }
+    }
 
     startCapture();
-    console.log('[Gesture] Active — inference running in worker');
   }
 
   function deactivate() {
     active = false;
     stopCam();
     if (worker) { worker.terminate(); worker = null; }
+    if (mainRecognizer) { try { mainRecognizer.close(); } catch(_){} mainRecognizer = null; }
     workerReady = false;
+    useMainThread = false;
     pendingFrame = false;
 
     if (dom.overlay) { dom.overlay.classList.remove('active'); setTimeout(() => { if (dom.overlay) dom.overlay.remove(); }, 300); }
