@@ -45,8 +45,9 @@
 
   let renderer, scene, camera, clock;
   let centralOrb = null, orbRings = [], particles = null;
-  let orbPlasmaCore = null, orbParticleCloud = null, orbGlassShell = null, orbGlowRing = null;
+  let orbPlasmaCore = null, orbGlassShell = null, orbGlowSprite = null;
   let voiceIntensity = 0.1, voiceTargetIntensity = 0.1;
+  let bloomComposer = null;
   let platformMeshes = [], nodeMeshes = [], connectionLines = [];
 
   const cam = {
@@ -123,6 +124,7 @@
     createGrid();
     createParticles();
     createCentralOrb();
+    initBloom();
   }
 
   function createGrid() {
@@ -208,104 +210,257 @@
     }
   `;
 
+  // ─── Custom bloom post-processing (no addons needed) ───
+  function initBloom() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const pr = Math.min(window.devicePixelRatio, 2);
+
+    // Scene render target
+    const sceneRT = new THREE.WebGLRenderTarget(w * pr, h * pr, {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat
+    });
+
+    // Downsample targets for blur
+    const bloomRT1 = new THREE.WebGLRenderTarget(Math.floor(w * pr / 4), Math.floor(h * pr / 4), {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat
+    });
+    const bloomRT2 = new THREE.WebGLRenderTarget(Math.floor(w * pr / 4), Math.floor(h * pr / 4), {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat
+    });
+
+    const fullscreenGeo = new THREE.PlaneGeometry(2, 2);
+    const orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    // Brightness threshold pass
+    const thresholdMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uThreshold: { value: 0.35 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0); }`,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float uThreshold;
+        varying vec2 vUv;
+        void main(){
+          vec4 c=texture2D(tDiffuse,vUv);
+          float brightness=dot(c.rgb,vec3(0.2126,0.7152,0.0722));
+          gl_FragColor=brightness>uThreshold?c:vec4(0.0);
+        }
+      `
+    });
+
+    // Gaussian blur pass
+    const blurMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uDirection: { value: new THREE.Vector2(1, 0) }, uResolution: { value: new THREE.Vector2(bloomRT1.width, bloomRT1.height) } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0); }`,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform vec2 uDirection;
+        uniform vec2 uResolution;
+        varying vec2 vUv;
+        void main(){
+          vec2 texel=1.0/uResolution;
+          vec4 result=vec4(0.0);
+          float weights[5]; weights[0]=0.227027; weights[1]=0.1945946; weights[2]=0.1216216; weights[3]=0.054054; weights[4]=0.016216;
+          result+=texture2D(tDiffuse,vUv)*weights[0];
+          for(int i=1;i<5;i++){
+            vec2 off=uDirection*texel*float(i)*1.5;
+            result+=texture2D(tDiffuse,vUv+off)*weights[i];
+            result+=texture2D(tDiffuse,vUv-off)*weights[i];
+          }
+          gl_FragColor=result;
+        }
+      `
+    });
+
+    // Composite pass — additive blend
+    const compositeMat = new THREE.ShaderMaterial({
+      uniforms: { tScene: { value: null }, tBloom: { value: null }, uBloomStrength: { value: 1.2 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0); }`,
+      fragmentShader: `
+        uniform sampler2D tScene;
+        uniform sampler2D tBloom;
+        uniform float uBloomStrength;
+        varying vec2 vUv;
+        void main(){
+          vec4 sceneColor=texture2D(tScene,vUv);
+          vec4 bloomColor=texture2D(tBloom,vUv);
+          gl_FragColor=sceneColor+bloomColor*uBloomStrength;
+        }
+      `
+    });
+
+    const fullscreenMesh = new THREE.Mesh(fullscreenGeo, thresholdMat);
+    const postScene = new THREE.Scene();
+    postScene.add(fullscreenMesh);
+
+    bloomComposer = {
+      sceneRT, bloomRT1, bloomRT2,
+      thresholdMat, blurMat, compositeMat,
+      fullscreenMesh, postScene, orthoCamera,
+      render: function () {
+        // 1. Render main scene to texture
+        renderer.setRenderTarget(sceneRT);
+        renderer.render(scene, camera);
+
+        // 2. Extract bright areas
+        fullscreenMesh.material = thresholdMat;
+        thresholdMat.uniforms.tDiffuse.value = sceneRT.texture;
+        renderer.setRenderTarget(bloomRT1);
+        renderer.render(postScene, orthoCamera);
+
+        // 3. Horizontal blur
+        fullscreenMesh.material = blurMat;
+        blurMat.uniforms.tDiffuse.value = bloomRT1.texture;
+        blurMat.uniforms.uDirection.value.set(1, 0);
+        renderer.setRenderTarget(bloomRT2);
+        renderer.render(postScene, orthoCamera);
+
+        // 4. Vertical blur
+        blurMat.uniforms.tDiffuse.value = bloomRT2.texture;
+        blurMat.uniforms.uDirection.value.set(0, 1);
+        renderer.setRenderTarget(bloomRT1);
+        renderer.render(postScene, orthoCamera);
+
+        // 5. Second blur pass for wider glow
+        blurMat.uniforms.tDiffuse.value = bloomRT1.texture;
+        blurMat.uniforms.uDirection.value.set(1, 0);
+        renderer.setRenderTarget(bloomRT2);
+        renderer.render(postScene, orthoCamera);
+
+        blurMat.uniforms.tDiffuse.value = bloomRT2.texture;
+        blurMat.uniforms.uDirection.value.set(0, 1);
+        renderer.setRenderTarget(bloomRT1);
+        renderer.render(postScene, orthoCamera);
+
+        // 6. Composite scene + bloom to screen
+        fullscreenMesh.material = compositeMat;
+        compositeMat.uniforms.tScene.value = sceneRT.texture;
+        compositeMat.uniforms.tBloom.value = bloomRT1.texture;
+        renderer.setRenderTarget(null);
+        renderer.render(postScene, orthoCamera);
+      },
+      resize: function (w, h) {
+        const pr = Math.min(window.devicePixelRatio, 2);
+        sceneRT.setSize(w * pr, h * pr);
+        bloomRT1.setSize(Math.floor(w * pr / 4), Math.floor(h * pr / 4));
+        bloomRT2.setSize(Math.floor(w * pr / 4), Math.floor(h * pr / 4));
+        blurMat.uniforms.uResolution.value.set(bloomRT1.width, bloomRT1.height);
+      }
+    };
+  }
+
   function createCentralOrb() {
     const orbGroup = new THREE.Group();
     orbGroup.position.set(0, 0.5, 0);
 
-    // ── Layer A: Inner plasma core ──
+    // ── Inner plasma core — volumetric energy strands via raymarched noise ──
     const plasmaVertexShader = `
-      ${GLSL_SIMPLEX_NOISE}
-      uniform float uTime;
-      uniform float uIntensity;
+      varying vec3 vWorldPos;
+      varying vec3 vLocalPos;
       varying vec3 vNormal;
-      varying vec3 vPosition;
-      varying float vDisplacement;
       void main() {
-        vNormal = normal;
-        vPosition = position;
-        float noiseFreq = 1.8 + uIntensity * 1.5;
-        float noiseAmp = 0.06 + uIntensity * 0.35;
-        float n = snoise(position * noiseFreq + uTime * (0.4 + uIntensity * 0.8));
-        float n2 = snoise(position * noiseFreq * 2.0 + uTime * (0.7 + uIntensity * 1.2)) * 0.5;
-        float displacement = (n + n2) * noiseAmp;
-        vDisplacement = displacement;
-        vec3 newPos = position + normal * displacement;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+        vLocalPos = position;
+        vNormal = normalize(normalMatrix * normal);
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
       }
     `;
     const plasmaFragmentShader = `
+      ${GLSL_SIMPLEX_NOISE}
       uniform float uTime;
       uniform float uIntensity;
+      varying vec3 vWorldPos;
+      varying vec3 vLocalPos;
       varying vec3 vNormal;
-      varying vec3 vPosition;
-      varying float vDisplacement;
-      void main() {
-        float d = vDisplacement * 3.0 + 0.5;
-        // Deep orange → gold → hot pink → white at peaks
-        vec3 deepOrange = vec3(0.8, 0.25, 0.0);
-        vec3 gold = vec3(1.0, 0.7, 0.1);
-        vec3 hotPink = vec3(1.0, 0.2, 0.5);
-        vec3 white = vec3(1.0, 0.95, 0.9);
-        vec3 col;
-        if (d < 0.35) {
-          col = mix(deepOrange, gold, d / 0.35);
-        } else if (d < 0.6) {
-          col = mix(gold, hotPink, (d - 0.35) / 0.25);
-        } else {
-          col = mix(hotPink, white, clamp((d - 0.6) / 0.4, 0.0, 1.0));
+
+      // FBM — layered noise for rich detail
+      float fbm(vec3 p, float t) {
+        float v = 0.0;
+        float amp = 0.5;
+        float freq = 1.0;
+        for (int i = 0; i < 5; i++) {
+          v += amp * snoise(p * freq + t);
+          freq *= 2.1;
+          amp *= 0.5;
         }
-        // Fresnel brightening at edges
-        vec3 viewDir = normalize(cameraPosition - vPosition);
-        float fresnel = 1.0 - abs(dot(normalize(vNormal), viewDir));
-        col += fresnel * 0.3 * uIntensity;
-        // Pulsing glow
-        float pulse = 0.9 + 0.1 * sin(uTime * 3.0 + vPosition.y * 4.0);
-        col *= pulse;
-        float alpha = 0.85 + uIntensity * 0.15;
+        return v;
+      }
+
+      // Flowing energy strands
+      float energyStrands(vec3 p, float t) {
+        float speed = 0.3 + uIntensity * 0.6;
+        // Multiple swirling strand layers
+        float s1 = fbm(p * 2.5 + vec3(t * speed, -t * speed * 0.7, t * speed * 0.3), t * 0.2);
+        float s2 = fbm(p * 3.5 + vec3(-t * speed * 0.5, t * speed * 0.4, -t * speed * 0.6), t * 0.15);
+        float s3 = fbm(p * 1.8 + vec3(t * speed * 0.3, t * speed * 0.8, t * speed * 0.2), t * 0.1);
+        // Combine: creates bright filaments
+        float strands = pow(abs(s1), 1.5) + pow(abs(s2), 1.5) * 0.7 + pow(abs(s3), 1.3) * 0.5;
+        return strands;
+      }
+
+      void main() {
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+
+        // Distance from center of sphere (0=center, 1=edge)
+        float dist = length(vLocalPos) / 0.55;
+
+        // Radial falloff — bright center, fades toward edge
+        float radialFalloff = 1.0 - smoothstep(0.0, 1.0, dist);
+        float radialGlow = pow(radialFalloff, 1.5);
+
+        // Compute energy strands
+        float energy = energyStrands(vLocalPos * 2.0, uTime);
+        energy *= radialGlow;
+
+        // Boost with intensity (voice reactivity)
+        energy *= (0.6 + uIntensity * 1.5);
+
+        // Color gradient: deep orange core → hot pink → magenta at bright spots → white peaks
+        vec3 deepOrange = vec3(0.85, 0.3, 0.0);
+        vec3 hotPink = vec3(1.0, 0.25, 0.45);
+        vec3 magenta = vec3(0.9, 0.15, 0.7);
+        vec3 white = vec3(1.0, 0.92, 0.85);
+
+        vec3 col;
+        float e = clamp(energy, 0.0, 2.5);
+        if (e < 0.4) {
+          col = mix(deepOrange * 0.5, deepOrange, e / 0.4);
+        } else if (e < 0.9) {
+          col = mix(deepOrange, hotPink, (e - 0.4) / 0.5);
+        } else if (e < 1.5) {
+          col = mix(hotPink, magenta, (e - 0.9) / 0.6);
+        } else {
+          col = mix(magenta, white, clamp((e - 1.5) / 1.0, 0.0, 1.0));
+        }
+
+        // Emissive boost — make it glow
+        col *= 1.4 + uIntensity * 0.8;
+
+        // Soft fresnel rim glow — warm edge
+        float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 3.0);
+        col += vec3(1.0, 0.4, 0.2) * fresnel * 0.4 * (0.5 + uIntensity);
+
+        // Alpha: solid at center, transparent at edges
+        float alpha = radialGlow * (0.7 + energy * 0.3);
+        alpha = clamp(alpha, 0.0, 1.0);
+
         gl_FragColor = vec4(col, alpha);
       }
     `;
+
     const plasmaMat = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 }, uIntensity: { value: 0.1 } },
       vertexShader: plasmaVertexShader,
       fragmentShader: plasmaFragmentShader,
       transparent: true,
-      depthWrite: true,
-      side: THREE.FrontSide,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
     });
-    orbPlasmaCore = new THREE.Mesh(new THREE.SphereGeometry(0.45, 64, 64), plasmaMat);
+    orbPlasmaCore = new THREE.Mesh(new THREE.SphereGeometry(0.55, 64, 64), plasmaMat);
     orbGroup.add(orbPlasmaCore);
 
-    // ── Layer B: Particle cloud ──
-    const particleCount = 300;
-    const pPositions = new Float32Array(particleCount * 3);
-    const pAngles = new Float32Array(particleCount * 3); // theta, phi, radius
-    for (let i = 0; i < particleCount; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 0.5 + Math.random() * 0.3;
-      pAngles[i * 3] = theta;
-      pAngles[i * 3 + 1] = phi;
-      pAngles[i * 3 + 2] = r;
-      pPositions[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
-      pPositions[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r;
-      pPositions[i * 3 + 2] = Math.cos(phi) * r;
-    }
-    const pGeo = new THREE.BufferGeometry();
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-    pGeo.userData.angles = pAngles;
-    const pMat = new THREE.PointsMaterial({
-      color: 0xffaa33,
-      size: 0.04,
-      transparent: true,
-      opacity: 0.6,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    orbParticleCloud = new THREE.Points(pGeo, pMat);
-    orbGroup.add(orbParticleCloud);
-
-    // ── Layer C: Outer glass shell ──
+    // ── Outer glass shell — transparent with fresnel rim light ──
     const glassVertexShader = `
       ${GLSL_SIMPLEX_NOISE}
       uniform float uTime;
@@ -313,7 +468,7 @@
       varying vec3 vNormal;
       varying vec3 vWorldPosition;
       void main() {
-        float wobble = snoise(position * 2.0 + uTime * 0.3) * 0.02 * (1.0 + uIntensity);
+        float wobble = snoise(position * 3.0 + uTime * 0.2) * 0.01 * (1.0 + uIntensity * 0.5);
         vec3 newPos = position + normal * wobble;
         vNormal = normalize(normalMatrix * normal);
         vec4 worldPos = modelMatrix * vec4(newPos, 1.0);
@@ -328,13 +483,13 @@
       varying vec3 vWorldPosition;
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-        float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 3.0);
-        // Blue-purple tint
-        vec3 rimColor = mix(vec3(0.3, 0.4, 1.0), vec3(0.6, 0.3, 1.0), fresnel);
-        // Pulse on speaking
-        float pulse = 1.0 + sin(uTime * 4.0) * 0.15 * uIntensity;
+        float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 4.0);
+        // Subtle cool rim: faint blue-white
+        vec3 rimColor = mix(vec3(0.5, 0.55, 0.8), vec3(0.8, 0.6, 1.0), fresnel);
+        // Very subtle pulse
+        float pulse = 1.0 + sin(uTime * 2.0) * 0.08 * uIntensity;
         rimColor *= pulse;
-        float alpha = fresnel * (0.3 + uIntensity * 0.25);
+        float alpha = fresnel * (0.15 + uIntensity * 0.1);
         gl_FragColor = vec4(rimColor, alpha);
       }
     `;
@@ -344,48 +499,34 @@
       fragmentShader: glassFragmentShader,
       transparent: true,
       depthWrite: false,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
     });
-    orbGlassShell = new THREE.Mesh(new THREE.SphereGeometry(0.9, 48, 48), glassMat);
+    orbGlassShell = new THREE.Mesh(new THREE.SphereGeometry(0.85, 48, 48), glassMat);
     orbGroup.add(orbGlassShell);
 
-    // ── Layer D: Outer glow ring ──
-    const ringVertexShader = `
-      uniform float uTime;
-      varying vec3 vPosition;
-      varying vec3 vNormal;
-      void main() {
-        vPosition = position;
-        vNormal = normalize(normalMatrix * normal);
-        vec3 p = position;
-        p.y += sin(uTime * 0.5 + position.x * 2.0) * 0.02;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-      }
-    `;
-    const ringFragmentShader = `
-      uniform float uTime;
-      uniform float uIntensity;
-      varying vec3 vPosition;
-      varying vec3 vNormal;
-      void main() {
-        vec3 viewDir = normalize(cameraPosition - vPosition);
-        float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 2.0);
-        vec3 col = mix(vec3(0.3, 0.35, 1.0), vec3(0.55, 0.25, 1.0), 0.5 + 0.5 * sin(uTime * 0.8));
-        float alpha = fresnel * (0.12 + uIntensity * 0.1);
-        gl_FragColor = vec4(col, alpha);
-      }
-    `;
-    const ringMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uIntensity: { value: 0.1 } },
-      vertexShader: ringVertexShader,
-      fragmentShader: ringFragmentShader,
+    // ── Soft glow halo (sprite) ──
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 256;
+    glowCanvas.height = 256;
+    const ctx = glowCanvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gradient.addColorStop(0, 'rgba(255, 120, 40, 0.4)');
+    gradient.addColorStop(0.3, 'rgba(255, 80, 60, 0.15)');
+    gradient.addColorStop(0.6, 'rgba(180, 40, 120, 0.05)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    const glowTexture = new THREE.CanvasTexture(glowCanvas);
+    const glowMat = new THREE.SpriteMaterial({
+      map: glowTexture,
       transparent: true,
+      blending: THREE.AdditiveBlending,
       depthWrite: false,
-      side: THREE.DoubleSide,
+      opacity: 0.7,
     });
-    orbGlowRing = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.04, 16, 64), ringMat);
-    orbGlowRing.rotation.x = Math.PI / 3;
-    orbGroup.add(orbGlowRing);
+    orbGlowSprite = new THREE.Sprite(glowMat);
+    orbGlowSprite.scale.set(3.5, 3.5, 1);
+    orbGroup.add(orbGlowSprite);
 
     centralOrb = orbGroup;
     scene.add(centralOrb);
@@ -396,36 +537,18 @@
 
     // Smooth lerp toward target voice intensity
     voiceIntensity += (voiceTargetIntensity - voiceIntensity) * 0.03;
-
     const intensity = voiceIntensity;
 
     // ── Plasma core ──
     if (orbPlasmaCore) {
       orbPlasmaCore.material.uniforms.uTime.value = time;
       orbPlasmaCore.material.uniforms.uIntensity.value = intensity;
+      // Slow organic rotation
+      orbPlasmaCore.rotation.y += 0.002 + intensity * 0.006;
+      orbPlasmaCore.rotation.x = Math.sin(time * 0.3) * 0.1;
       // Breathing scale
-      const breathe = 1.0 + Math.sin(time * 2.0) * 0.03 * (1.0 + intensity * 2.0);
+      const breathe = 1.0 + Math.sin(time * 1.5) * 0.02 * (1.0 + intensity * 2.0);
       orbPlasmaCore.scale.set(breathe, breathe, breathe);
-      orbPlasmaCore.rotation.y += 0.003 + intensity * 0.012;
-    }
-
-    // ── Particle cloud ──
-    if (orbParticleCloud) {
-      const pos = orbParticleCloud.geometry.attributes.position.array;
-      const angles = orbParticleCloud.geometry.userData.angles;
-      const spread = 1.0 + intensity * 0.6;
-      for (let i = 0; i < pos.length / 3; i++) {
-        const idx = i * 3;
-        const theta = angles[idx] + time * (0.2 + intensity * 0.5) + i * 0.01;
-        const phi = angles[idx + 1] + Math.sin(time * 0.5 + i * 0.1) * 0.1;
-        const r = angles[idx + 2] * spread + Math.sin(time * 2.0 + i * 0.3) * 0.05 * (1.0 + intensity);
-        pos[idx] = Math.sin(phi) * Math.cos(theta) * r;
-        pos[idx + 1] = Math.sin(phi) * Math.sin(theta) * r;
-        pos[idx + 2] = Math.cos(phi) * r;
-      }
-      orbParticleCloud.geometry.attributes.position.needsUpdate = true;
-      orbParticleCloud.material.opacity = 0.4 + intensity * 0.4;
-      orbParticleCloud.material.size = 0.03 + intensity * 0.03;
     }
 
     // ── Glass shell ──
@@ -434,11 +557,16 @@
       orbGlassShell.material.uniforms.uIntensity.value = intensity;
     }
 
-    // ── Glow ring ──
-    if (orbGlowRing) {
-      orbGlowRing.material.uniforms.uTime.value = time;
-      orbGlowRing.material.uniforms.uIntensity.value = intensity;
-      orbGlowRing.rotation.z += 0.004 + intensity * 0.008;
+    // ── Glow sprite ──
+    if (orbGlowSprite) {
+      const glowScale = 3.5 + Math.sin(time * 1.2) * 0.3 + intensity * 1.0;
+      orbGlowSprite.scale.set(glowScale, glowScale, 1);
+      orbGlowSprite.material.opacity = 0.4 + intensity * 0.4 + Math.sin(time * 2.0) * 0.05;
+    }
+
+    // Update bloom strength with intensity
+    if (bloomComposer) {
+      bloomComposer.compositeMat.uniforms.uBloomStrength.value = 0.8 + intensity * 0.8;
     }
   }
 
@@ -1163,7 +1291,11 @@
       nm.mesh.material.opacity = 0.5 + Math.sin(time + i) * 0.2;
     });
     updateOverlays();
-    renderer.render(scene, camera);
+    if (bloomComposer) {
+      bloomComposer.render();
+    } else {
+      renderer.render(scene, camera);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1255,6 +1387,7 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      if (bloomComposer) bloomComposer.resize(window.innerWidth, window.innerHeight);
     });
   }
 
