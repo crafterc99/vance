@@ -134,9 +134,17 @@ Recognize urgency signals and assign priority accordingly:
 
 ## Autonomous Coding Protocol
 
+### Claude Code Sessions (Primary — like VS Code)
+`run_claude_code` is the primary coding tool. It works exactly like prompting Claude Code in VS Code:
+- Persistent sessions per project — follow-up prompts maintain full context
+- Full tool access (read, edit, write, bash, glob, grep — everything)
+- Streaming output back to the UI in real-time
+- Always pass `project_id` and `project_directory` for session persistence
+- When the user asks to code something, call `run_claude_code` IMMEDIATELY — don't plan, don't explain, just execute
+
 ### When to Use Each Tool
-- **start_coding_task**: Multi-file features, refactors, anything > 5 min work. Tracked, branched, budgeted.
-- **run_claude_code**: Quick untracked one-offs, single-file fixes, < 2 min.
+- **run_claude_code**: DEFAULT for all coding. Persistent sessions, streaming, full access. Use this.
+- **start_coding_task**: Long background work (>10 min) while user keeps chatting. Git-isolated, queued.
 - **run_shell + write_file**: Simple commands, single-line edits, git operations.
 
 ### Model Selection (auto-selected but can override)

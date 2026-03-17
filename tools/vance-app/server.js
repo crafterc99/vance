@@ -43,6 +43,7 @@ const projectState = require('./runtime/project-state');
 const VoiceSystem = require('./voice');
 const ConversationHandler = require('./voice/conversationHandler');
 const TaskIntelligence = require('./task-intelligence');
+const claudeSession = require('./claude-session');
 
 // Agent modules (lazy-loaded for modularity)
 const AGENTS = {
@@ -225,14 +226,30 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'run_claude_code',
-      description: 'Execute a COMPLEX multi-step coding task using Claude Code AI. This spawns a full Claude session — use ONLY when the task requires AI reasoning across multiple files (e.g. "refactor the auth system", "add dark mode to the app", "debug why tests fail"). For simple tasks like reading files, running commands, or git operations, use the direct system tools instead.',
+      description: 'Execute a coding task using Claude Code — works like prompting Claude Code in VS Code. Maintains persistent sessions per project so follow-up prompts have full context. Use for: implementing features, fixing bugs, refactoring, debugging, testing, any code work that needs AI reasoning. Sessions resume automatically — you can say "now add tests for that" and it remembers what "that" is.',
       parameters: {
         type: 'object',
         properties: {
-          task: { type: 'string', description: 'The coding task to execute' },
+          task: { type: 'string', description: 'The coding task or follow-up prompt' },
           project_directory: { type: 'string', description: 'Working directory for the task' },
+          project_id: { type: 'string', description: 'Project ID for session persistence' },
         },
         required: ['task'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'claude_code_session',
+      description: 'Manage Claude Code sessions. List active sessions, cancel a running one, or reset a session to start fresh. Use run_claude_code to actually send prompts.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['list', 'cancel', 'reset', 'status'], description: 'Action to perform' },
+          session_id: { type: 'string', description: 'Session ID (for cancel/reset/status)' },
+        },
+        required: ['action'],
       },
     },
   },
@@ -1117,8 +1134,34 @@ async function executeFunction(name, args, wsSend) {
     // ─── Claude Code (complex AI tasks) ───
     case 'run_claude_code': {
       wsSend({ type: 'status', text: 'Executing code task...' });
-      const result = await runClaudeCode(args.task, args.project_directory, wsSend);
+      const result = await runClaudeCode(args.task, args.project_directory, wsSend, args.project_id);
       return result;
+    }
+
+    case 'claude_code_session': {
+      switch (args.action) {
+        case 'list': {
+          const sessions = claudeSession.listSessions();
+          if (!sessions.length) return 'No Claude Code sessions.';
+          return sessions.map(s =>
+            `[${s.id}] ${s.status} — ${s.promptCount} prompts, $${s.totalCost.toFixed(2)}${s.hasClaudeSession ? ' (resumable)' : ''}`
+          ).join('\n');
+        }
+        case 'status': {
+          const s = claudeSession.getSession(args.session_id);
+          if (!s) return `Session not found: ${args.session_id}`;
+          return `Session "${s.id}" — status: ${s.status}, prompts: ${s.promptCount}, cost: $${s.totalCost.toFixed(2)}, last: ${s.lastPrompt?.slice(0, 60) || 'none'}`;
+        }
+        case 'cancel': {
+          const r = claudeSession.cancel(args.session_id);
+          return r.error || `Session ${args.session_id} cancelled.`;
+        }
+        case 'reset': {
+          const r = claudeSession.resetSession(args.session_id);
+          return r.error || `Session ${args.session_id} reset. Next prompt starts fresh.`;
+        }
+        default: return `Unknown action: ${args.action}`;
+      }
     }
 
     // ─── Memory & Brain Tools ───
@@ -1578,57 +1621,29 @@ async function executeFunction(name, args, wsSend) {
 
 // ─── Claude Code Runner ──────────────────────────────────────────────────
 
-function runClaudeCode(task, projectDir, wsSend) {
-  return new Promise((resolve, reject) => {
-    const args = ['-p', task, '--output-format', 'stream-json',
-      '--allowedTools', 'Read,Edit,Write,Glob,Grep,Bash(git *),Bash(npm *),Bash(node *),Bash(ls *),Bash(mkdir *)'];
+/**
+ * Run Claude Code via session manager — persistent, multi-turn, full tool access.
+ * Works like prompting Claude Code in VS Code.
+ */
+async function runClaudeCode(task, projectDir, wsSend, projectId) {
+  // Get or create a session for this project
+  const session = claudeSession.getOrCreate(projectId || 'general', projectDir || process.env.HOME);
 
-    const cwd = projectDir || process.env.HOME;
-    const proc = spawn('claude', args, {
-      cwd, env: { ...process.env, FORCE_COLOR: '0' },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+  wsSend({ type: 'status', text: `Claude Code ${session.claudeSessionId ? '(resuming session)' : '(new session)'}...` });
 
-    let output = '';
-    let costUsd = 0;
-
-    proc.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n').filter(l => l.trim());
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.type === 'assistant' && parsed.message?.content) {
-            for (const block of parsed.message.content) {
-              if (block.type === 'text') {
-                output += block.text;
-                wsSend({ type: 'claude-stream', content: block.text });
-              } else if (block.type === 'tool_use') {
-                wsSend({ type: 'claude-tool', name: block.name });
-              }
-            }
-          } else if (parsed.type === 'result') {
-            costUsd = parsed.cost_usd || 0;
-          }
-        } catch {}
-      }
-    });
-
-    let stderr = '';
-    proc.stderr.on('data', d => stderr += d.toString());
-
-    proc.on('close', (code) => {
-      if (costUsd) {
-        costs.logCall('claude', 'claude-sonnet-4-6', { cost: costUsd });
-      }
-      if (code === 0) {
-        resolve(output || 'Task completed successfully.');
-      } else {
-        resolve(`Task encountered an issue: ${stderr.slice(0, 500) || 'Unknown error'}`);
-      }
-    });
-
-    proc.on('error', (err) => resolve(`Failed to run Claude Code: ${err.message}`));
+  const result = await claudeSession.prompt(session.id, task, {
+    onStream: (text) => {
+      wsSend({ type: 'claude-stream', content: text });
+    },
+    onToolUse: (name) => {
+      wsSend({ type: 'claude-tool', name });
+    },
   });
+
+  if (result.error) {
+    return `Claude Code encountered an issue: ${result.error}`;
+  }
+  return result.output || 'Done.';
 }
 
 // ─── Chat Handler ────────────────────────────────────────────────────────
@@ -2311,6 +2326,10 @@ const taskIntelligence = new TaskIntelligence({
   memory,
   broadcast: wsBroadcast,
 });
+
+// ─── Claude Code Session Manager Setup ────────────────────────────────────
+
+claudeSession.setBroadcast(wsBroadcast);
 
 // ─── Voice System Setup ───────────────────────────────────────────────────
 
