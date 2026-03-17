@@ -193,8 +193,8 @@ function prompt(sessionId, message, opts = {}) {
     // Full tool access
     args.push('--allowedTools', FULL_TOOLS);
 
-    // Stream JSON output
-    args.push('--output-format', 'stream-json');
+    // Stream JSON output (--verbose required for stream-json in print mode)
+    args.push('--output-format', 'stream-json', '--verbose');
 
     // System prompt with Vance context
     const systemAppend = [
@@ -208,12 +208,21 @@ function prompt(sessionId, message, opts = {}) {
 
     const cwd = session.projectDir || process.env.HOME;
 
+    // Remove Claude Code env vars to prevent "nested session" blocking
+    const cleanEnv = { ...process.env, FORCE_COLOR: '0' };
+    delete cleanEnv.CLAUDECODE;
+    delete cleanEnv.CLAUDE_CODE_SSE_PORT;
+    delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
+
     // Spawn
     const proc = spawn('claude', args, {
       cwd,
-      env: { ...process.env, FORCE_COLOR: '0' },
+      env: cleanEnv,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+
+    // Close stdin — claude -p doesn't need it, and an open pipe causes hangs
+    proc.stdin.end();
 
     activeProcesses[sessionId] = proc;
 

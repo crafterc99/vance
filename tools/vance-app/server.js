@@ -1244,12 +1244,22 @@ async function executeFunction(name, args, wsSend) {
       // Auto-start if nothing running
       const started = taskManager.startNext();
 
-      let response = `Task queued: "${task.title}" [${task.tier}/${task.model}, budget $${task.maxBudget}]`;
+      let response = `Task queued: "${task.title}" [${task.id}] [${task.tier}/${task.model}, budget $${task.maxBudget}]`;
       if (started) {
-        response = `Task started: "${task.title}" [${task.tier}/${task.model}, budget $${task.maxBudget}]`;
-        if (task.branch) response += `\nBranch: ${task.branch}`;
+        response = `Task RUNNING: "${task.title}" [${task.id}] [${task.tier}/${task.model}, budget $${task.maxBudget}]`;
+        if (started.branch) response += `\nBranch: ${started.branch}`;
+        response += `\nPID: ${started.pid || 'spawning'}`;
       } else if (taskManager.getRunningTask()) {
-        response += '\nQueued behind currently running task.';
+        const running = taskManager.getRunningTask();
+        response += `\nQueued behind running task: "${running.title}" [${running.id}]`;
+      } else {
+        // Nothing running and didn't start — something is wrong
+        const refreshedTask = taskManager.getTask(task.id);
+        if (refreshedTask && refreshedTask.status === 'failed') {
+          response = `Task FAILED immediately: "${task.title}" [${task.id}]\nError: ${refreshedTask.error || 'Unknown'}`;
+        } else if (refreshedTask && refreshedTask.status === 'queued') {
+          response += '\nWARNING: Task stayed queued — may be blocked by budget limits or a spawn error.';
+        }
       }
       return response;
     }
@@ -1706,15 +1716,10 @@ async function handleChat(userMessage, projectId, wsSend) {
             source: 'conversation',
           });
           wsSend({ type: 'task-intelligence', action: 'user-task-detected', task: created });
-        } else if (item.type === 'vance-task' && item.autoQueue) {
-          // Find project directory for auto-queuing
-          const projects = loadProjects();
-          const proj = item.project ? projects.find(p => p.id === item.project) : null;
-          const projDir = proj?.directory || null;
-          const queued = taskIntelligence.autoQueueTask(item, projDir);
-          if (queued) {
-            wsSend({ type: 'task-intelligence', action: 'vance-task-queued', task: taskManager.taskSummary(queued) });
-          }
+        } else if (item.type === 'vance-task') {
+          // Don't auto-queue — let the brain decide whether to use
+          // start_coding_task or run_claude_code with a proper prompt
+          wsSend({ type: 'task-intelligence', action: 'vance-task-detected', item });
         }
       }
     }

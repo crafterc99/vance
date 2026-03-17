@@ -206,11 +206,20 @@ function startNext() {
 }
 
 function _startTask(task) {
+  console.log(`[TaskManager] Starting task ${task.id}: "${task.title}"`);
+  console.log(`[TaskManager]   cwd: ${task.projectDir || 'HOME'}, model: ${task.model}`);
+
   // Git branch isolation
-  const gitResult = claudeRunner.prepareGitBranch(task);
+  let gitResult = null;
+  try {
+    gitResult = claudeRunner.prepareGitBranch(task);
+  } catch (err) {
+    console.error(`[TaskManager] Git branch prep failed for ${task.id}: ${err.message}`);
+  }
   if (gitResult) {
     task.branch = gitResult.branch;
     task.stashed = gitResult.stashed;
+    console.log(`[TaskManager]   branch: ${task.branch}`);
   }
 
   task.status = 'running';
@@ -221,6 +230,7 @@ function _startTask(task) {
   broadcast({ type: 'task-started', task: taskSummary(task) });
 
   // Spawn Claude
+  console.log(`[TaskManager] Spawning Claude Code for task ${task.id}...`);
   const proc = claudeRunner.run(task, {
     onStream: (text) => {
       appendLog(task.id, text);
@@ -251,6 +261,7 @@ function _startTask(task) {
     },
 
     onComplete: (result) => {
+      console.log(`[TaskManager] Task ${task.id} completed. Cost: $${result.costUsd || 0}`);
       runningProcess = null;
 
       // Post-task git cleanup
@@ -279,6 +290,7 @@ function _startTask(task) {
     },
 
     onFail: (result) => {
+      console.error(`[TaskManager] Task ${task.id} FAILED: ${result.error}`);
       runningProcess = null;
 
       const currentTask = getTask(task.id);

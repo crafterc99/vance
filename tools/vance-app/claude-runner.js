@@ -107,6 +107,14 @@ function prepareGitBranch(task) {
   const cwd = task.projectDir;
   if (!cwd) return null;
 
+  // Never switch branches in the vance-app directory itself
+  const vanceDir = path.resolve(__dirname);
+  const vanceRoot = path.resolve(__dirname, '../..');
+  if (path.resolve(cwd) === vanceDir || path.resolve(cwd) === vanceRoot) {
+    console.log(`[ClaudeRunner] Skipping git branch isolation — task dir is vance-app itself`);
+    return null;
+  }
+
   try {
     // Check if git repo
     execSync('git rev-parse --is-inside-work-tree', { cwd, stdio: 'pipe' });
@@ -220,8 +228,8 @@ function buildArgs(task) {
   // Tool allowlist
   args.push('--allowedTools', ALLOWED_TOOLS);
 
-  // Output format
-  args.push('--output-format', 'stream-json');
+  // Output format (--verbose required for stream-json in print mode)
+  args.push('--output-format', 'stream-json', '--verbose');
 
   // Resume support
   if (task.sessionId) {
@@ -254,12 +262,23 @@ function buildArgs(task) {
 function run(task, callbacks = {}) {
   const args = buildArgs(task);
   const cwd = task.projectDir || process.env.HOME;
+  console.log(`[ClaudeRunner] Spawning: claude ${args.slice(0, 4).join(' ')}...`);
+  console.log(`[ClaudeRunner]   cwd: ${cwd}, model: ${task.model}`);
+
+  // Remove Claude Code env vars to prevent "nested session" blocking
+  const cleanEnv = { ...process.env, FORCE_COLOR: '0' };
+  delete cleanEnv.CLAUDECODE;
+  delete cleanEnv.CLAUDE_CODE_SSE_PORT;
+  delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
 
   const proc = spawn('claude', args, {
     cwd,
-    env: { ...process.env, FORCE_COLOR: '0' },
+    env: cleanEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
+
+  // Close stdin — claude -p doesn't need it, and an open pipe causes hangs
+  proc.stdin.end();
 
   let output = '';
   let costUsd = 0;
@@ -331,6 +350,7 @@ function run(task, callbacks = {}) {
   });
 
   proc.on('error', (err) => {
+    console.error(`[ClaudeRunner] Spawn error: ${err.message}`);
     if (callbacks.onFail) {
       callbacks.onFail({ error: `Failed to spawn Claude: ${err.message}`, costUsd: 0 });
     }
