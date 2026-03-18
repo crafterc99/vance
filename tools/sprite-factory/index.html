@@ -1068,6 +1068,10 @@
       <button class="mode-tab" onclick="setMode('character')">New Character</button>
       <button class="mode-tab" onclick="openRoster()">Roster</button>
     </div>
+    <div class="status" id="headerCost" style="background:var(--surface);padding:5px 12px;border-radius:6px;border:1px solid var(--border);cursor:default" title="Total spend across all generations ever">
+      <span style="color:var(--accent2);font-weight:700" id="headerCostAmount">$0.00</span>
+      <span style="color:var(--text-muted);font-size:9px">total</span>
+    </div>
     <div class="status">
       <div class="status-dot" id="statusDot"></div>
       <span id="apiStatus">Connecting...</span>
@@ -2137,6 +2141,7 @@ async function loadCosts() {
 
 function renderCosts(data) {
   document.getElementById('costTotal').textContent = '$' + data.totalSpend.toFixed(3);
+  document.getElementById('headerCostAmount').textContent = '$' + data.totalSpend.toFixed(2);
   document.getElementById('costGens').textContent = data.totalGenerations;
   document.getElementById('costAvg').textContent = data.totalGenerations > 0
     ? '$' + (data.totalSpend / data.totalGenerations).toFixed(3)
