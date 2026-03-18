@@ -1898,9 +1898,9 @@ function handleFBFEvent(data, totalFrames, statusEl, fillEl, onFrameDone) {
       const card = document.getElementById(`fbf-card-${data.frame}`);
       if (card) {
         const st = document.getElementById(`fbf-status-${data.frame}`);
-        if (st) st.textContent = 'retrying...';
+        if (st) st.textContent = `retry ${data.attempt || '?'}/${data.maxRetries || '?'}`;
       }
-      log(`Frame ${data.frame + 1} retry: ${data.error}`, 'warn');
+      log(`Frame ${data.frame + 1} retry ${data.attempt || ''}/${data.maxRetries || ''} (wait ${data.waitSec || '?'}s): ${data.error}`, 'warn');
       break;
     }
     case 'frame_error': {

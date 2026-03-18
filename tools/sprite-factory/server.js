@@ -494,7 +494,15 @@ async function handleAPI(req, res, pathname) {
 
       sse({ type: 'prep_done', framesReady: upscaledPaths.length });
 
-      // Step 3: Generate each frame with sectioned prompts (concurrency = 2, ~2s delay)
+      // Step 3: Generate each frame with sectioned prompts
+      // Pro model (5 RPM limit) → concurrency 1, longer delays
+      // Flash models → concurrency 2, shorter delays
+      const isPro = modelId.includes('pro');
+      const concurrency = isPro ? 1 : 2;
+      const interFrameDelay = isPro ? 8000 : 2000;
+      const maxRetries = isPro ? 4 : 2;
+      const retryDelay = isPro ? 15000 : 3000;
+
       const rawOutputPaths = [];
 
       const tasks = upscaledPaths.map((upPath, i) => async () => {
@@ -516,7 +524,7 @@ async function handleAPI(req, res, pathname) {
         const outPath = path.join(fbfDir, `raw-frame-${String(i).padStart(3, '0')}.png`);
 
         let lastErr;
-        for (let attempt = 0; attempt < 2; attempt++) {
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
             await client.generateSingleFrame(prompt, upPath, portraitPath, {
               model: modelId,
@@ -528,16 +536,17 @@ async function handleAPI(req, res, pathname) {
             return;
           } catch (err) {
             lastErr = err;
-            if (attempt === 0) {
-              sse({ type: 'frame_retry', frame: i, error: err.message });
-              await new Promise(r => setTimeout(r, 3000));
+            if (attempt < maxRetries - 1) {
+              const wait = retryDelay * (attempt + 1);
+              sse({ type: 'frame_retry', frame: i, error: err.message, attempt: attempt + 1, maxRetries, waitSec: Math.round(wait / 1000) });
+              await new Promise(r => setTimeout(r, wait));
             }
           }
         }
         sse({ type: 'frame_error', frame: i, error: lastErr?.message });
       });
 
-      await runWithConcurrency(tasks, 2, 2000);
+      await runWithConcurrency(tasks, concurrency, interFrameDelay);
 
       // Step 4: Process all raw frames — use processSingleFrame (bg removal + crop-to-content)
       const processedDir = path.join(fbfDir, 'processed');

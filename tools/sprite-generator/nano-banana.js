@@ -104,25 +104,32 @@ class NanaBananaClient {
         break; // Success — exit retry loop
       } catch (err) {
         const errMsg = err.message || '';
-        const isRateLimit = err.status === 429 ||
+        const isRetryable = err.status === 429 ||
+          err.status === 503 ||
           err.code === 429 ||
+          err.code === 503 ||
           errMsg.includes('429') ||
+          errMsg.includes('503') ||
+          errMsg.includes('Service Unavailable') ||
           errMsg.includes('RESOURCE_EXHAUSTED') ||
           errMsg.includes('quota') ||
           errMsg.includes('exhausted') ||
           errMsg.includes('Too many requests') ||
-          (err.name === 'ApiError' && err.status >= 429 && err.status < 500);
+          errMsg.includes('Retryable') ||
+          errMsg.includes('UNAVAILABLE') ||
+          errMsg.includes('overloaded') ||
+          (err.name === 'ApiError' && (err.status === 429 || err.status === 503 || err.status >= 500));
 
-        if (isRateLimit && attempt < MAX_RETRIES) {
+        if (isRetryable && attempt < MAX_RETRIES) {
           // Start with longer delays: 5s, 10s, 20s, 40s, 60s, 60s
           const delay = Math.min(5000 * Math.pow(2, attempt) + Math.random() * 2000, 60000);
-          console.log(`[NanaBanana] Rate limited (attempt ${attempt + 1}/${MAX_RETRIES}), waiting ${(delay / 1000).toFixed(0)}s before retry...`);
+          console.log(`[NanaBanana] ${errMsg.includes('503') || errMsg.includes('Service Unavailable') ? 'Service unavailable' : 'Rate limited'} (attempt ${attempt + 1}/${MAX_RETRIES}), waiting ${(delay / 1000).toFixed(0)}s before retry...`);
           await new Promise(r => setTimeout(r, delay));
           continue;
         }
 
         // Add helpful context to quota errors
-        if (isRateLimit) {
+        if (isRetryable) {
           throw new Error(
             `Gemini API quota exhausted after ${MAX_RETRIES} retries. ` +
             `Try: 1) Wait a few minutes  2) Switch to a cheaper model (--model flash or --model legacy)  ` +
