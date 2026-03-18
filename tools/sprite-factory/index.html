@@ -738,6 +738,55 @@
     background: var(--surface2);
   }
 
+  /* ─── Reference Images Preview ─── */
+  .ref-images {
+    display: flex;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-bottom: 4px;
+  }
+
+  .ref-image-card {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .ref-image-card .ref-label {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 5px 6px;
+    background: var(--surface2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ref-image-card img {
+    width: 100%;
+    max-height: 120px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    background: white;
+    display: block;
+  }
+
+  .ref-image-card .ref-missing {
+    padding: 20px 8px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--danger);
+  }
+
   /* ─── Cost Tracker ─── */
   .cost-tracker {
     background: var(--surface);
@@ -1251,6 +1300,12 @@
       </div>
     </div>
 
+    <!-- Reference Images Preview -->
+    <div id="refImagesSection" style="display:none">
+      <div class="section-label">Reference Images <span style="color:var(--text-muted);font-size:8px">(sent to API)</span></div>
+      <div class="ref-images" id="refImagesContainer"></div>
+    </div>
+
     <!-- Prompt Editor — Structured Sections -->
     <div class="prompt-editor" id="promptEditorSection">
       <div class="section-label">
@@ -1491,6 +1546,55 @@ function renderAnimations() {
 async function updatePrompt() {
   if (!characters[selectedChar] || !animations[selectedAnim]) return;
   await fetchSections();
+  await fetchRefImages();
+}
+
+async function fetchRefImages() {
+  try {
+    const res = await fetch(`${API}/api/reference-images?character=${selectedChar}&animation=${selectedAnim}`);
+    const data = await res.json();
+    renderRefImages(data);
+  } catch {}
+}
+
+function renderRefImages(data) {
+  const section = document.getElementById('refImagesSection');
+  const container = document.getElementById('refImagesContainer');
+
+  section.style.display = 'block';
+  container.innerHTML = '';
+
+  // Image 1: Pose reference
+  const poseCard = document.createElement('div');
+  poseCard.className = 'ref-image-card';
+  if (data.poseRef.exists) {
+    poseCard.innerHTML = `
+      <div class="ref-label">IMG 1 — Pose Reference</div>
+      <img src="${data.poseRef.url}?t=${Date.now()}" title="${data.poseRef.label}" />
+    `;
+  } else {
+    poseCard.innerHTML = `
+      <div class="ref-label">IMG 1 — Pose Reference</div>
+      <div class="ref-missing">No Breezy ref found</div>
+    `;
+  }
+  container.appendChild(poseCard);
+
+  // Image 2: Character portrait
+  const charCard = document.createElement('div');
+  charCard.className = 'ref-image-card';
+  if (data.portrait.exists) {
+    charCard.innerHTML = `
+      <div class="ref-label">IMG 2 — Character</div>
+      <img src="${data.portrait.url}?t=${Date.now()}" title="${data.portrait.label}" />
+    `;
+  } else {
+    charCard.innerHTML = `
+      <div class="ref-label">IMG 2 — Character</div>
+      <div class="ref-missing">No portrait found</div>
+    `;
+  }
+  container.appendChild(charCard);
 }
 
 async function fetchSections() {

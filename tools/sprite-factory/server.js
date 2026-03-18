@@ -234,6 +234,30 @@ async function handleAPI(req, res, pathname) {
     }
   }
 
+  // GET /api/reference-images?character=X&animation=Y — Get the images that will be sent to the API
+  if (pathname === '/api/reference-images' && req.method === 'GET') {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const character = url.searchParams.get('character') || '99';
+    const animation = url.searchParams.get('animation') || 'static-dribble';
+
+    const anim = ANIMATIONS[animation];
+    const portraitPath = path.join(ASSETS_DIR, `${character}full.png`);
+    const poseRefPath = anim?.breezyFile ? path.join(ASSETS_DIR, anim.breezyFile) : null;
+
+    return json(res, {
+      portrait: {
+        exists: fs.existsSync(portraitPath),
+        url: `/assets/${character}full.png`,
+        label: `Image 2: ${character} portrait`,
+      },
+      poseRef: {
+        exists: poseRefPath ? fs.existsSync(poseRefPath) : false,
+        url: anim?.breezyFile ? `/assets/${anim.breezyFile}` : null,
+        label: `Image 1: ${anim?.action || animation} (Breezy ref)`,
+      },
+    });
+  }
+
   // GET /api/sprites/:char
   if (pathname.startsWith('/api/sprites/') && req.method === 'GET') {
     const charName = pathname.split('/')[3];
