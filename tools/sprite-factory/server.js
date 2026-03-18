@@ -499,9 +499,9 @@ async function handleAPI(req, res, pathname) {
       // Flash models → concurrency 2, shorter delays
       const isPro = modelId.includes('pro');
       const concurrency = isPro ? 1 : 2;
-      const interFrameDelay = isPro ? 8000 : 2000;
-      const maxRetries = isPro ? 4 : 2;
-      const retryDelay = isPro ? 15000 : 3000;
+      const interFrameDelay = isPro ? 15000 : 2000;  // Pro: 15s between frames (5 RPM limit)
+      const maxRetries = isPro ? 5 : 3;
+      const retryBaseDelay = isPro ? 20000 : 5000;   // Pro: 20s base, escalates
 
       const rawOutputPaths = [];
 
@@ -537,7 +537,7 @@ async function handleAPI(req, res, pathname) {
           } catch (err) {
             lastErr = err;
             if (attempt < maxRetries - 1) {
-              const wait = retryDelay * (attempt + 1);
+              const wait = retryBaseDelay * Math.pow(1.5, attempt) + Math.random() * 3000;
               sse({ type: 'frame_retry', frame: i, error: err.message, attempt: attempt + 1, maxRetries, waitSec: Math.round(wait / 1000) });
               await new Promise(r => setTimeout(r, wait));
             }

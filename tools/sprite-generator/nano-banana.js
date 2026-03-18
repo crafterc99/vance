@@ -15,6 +15,18 @@ const { GoogleGenAI } = require('@google/genai');
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Race a promise against a timeout. Rejects with an error if the timeout fires first.
+ * The original promise is left dangling (not cancelled) but we move on.
+ */
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message || `Timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 const MODELS = {
   pro: 'gemini-3-pro-image-preview',
   flash: 'gemini-3.1-flash-image-preview',
@@ -32,9 +44,6 @@ class NanaBananaClient {
     }
     this.ai = new GoogleGenAI({
       apiKey: this.apiKey,
-      httpOptions: {
-        retryOptions: { attempts: 3 },
-      },
     });
     this.model = opts.model || MODELS.pro;
   }
@@ -85,22 +94,27 @@ class NanaBananaClient {
     // Add text prompt
     parts.push({ text: prompt });
 
-    // Make API call with retry for rate limits (429 / RESOURCE_EXHAUSTED)
-    const MAX_RETRIES = 6;
+    // Make API call with retry for rate limits and transient errors
+    const MAX_RETRIES = opts.maxRetries ?? 6;
+    const TIMEOUT_MS = opts.timeoutMs || 90000; // 90s per attempt
     let response;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        response = await this.ai.models.generateContent({
-          model,
-          contents: [{ role: 'user', parts }],
-          config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-            imageConfig: {
-              aspectRatio,
-              imageSize: resolution,
+        response = await withTimeout(
+          this.ai.models.generateContent({
+            model,
+            contents: [{ role: 'user', parts }],
+            config: {
+              responseModalities: ['TEXT', 'IMAGE'],
+              imageConfig: {
+                aspectRatio,
+                imageSize: resolution,
+              },
             },
-          },
-        });
+          }),
+          TIMEOUT_MS,
+          `API call timed out after ${TIMEOUT_MS / 1000}s (attempt ${attempt + 1})`
+        );
         break; // Success — exit retry loop
       } catch (err) {
         const errMsg = err.message || '';
@@ -118,6 +132,7 @@ class NanaBananaClient {
           errMsg.includes('Retryable') ||
           errMsg.includes('UNAVAILABLE') ||
           errMsg.includes('overloaded') ||
+          errMsg.includes('timed out') ||
           (err.name === 'ApiError' && (err.status === 429 || err.status === 503 || err.status >= 500));
 
         if (isRetryable && attempt < MAX_RETRIES) {
@@ -243,6 +258,8 @@ class NanaBananaClient {
       aspectRatio: opts.aspectRatio || '1:1',
       resolution: opts.resolution || '1K',
       model: opts.model,
+      maxRetries: opts.maxRetries ?? 1, // Fail fast — let caller (FBF server) handle retries
+      timeoutMs: opts.timeoutMs || 60000, // 60s timeout for single frames
     });
 
     // Save output
