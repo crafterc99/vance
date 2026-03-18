@@ -738,6 +738,186 @@
     background: var(--surface2);
   }
 
+  /* ─── Prompt Sections Editor ─── */
+  .prompt-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .prompt-section {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.15s;
+  }
+  .prompt-section.disabled {
+    opacity: 0.4;
+  }
+  .prompt-section.disabled textarea {
+    pointer-events: none;
+    color: var(--text-muted);
+  }
+
+  .prompt-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    cursor: pointer;
+    user-select: none;
+  }
+  .prompt-section-header:hover { background: var(--surface3); }
+
+  .prompt-section-header input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+
+  .prompt-section-header .section-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .prompt-section-header .section-reset {
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--accent3);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+  .prompt-section-header .section-reset:hover { background: rgba(68,136,255,0.15); }
+
+  .prompt-section textarea {
+    width: 100%;
+    min-height: 50px;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    border-top: 1px solid var(--border);
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 9px;
+    line-height: 1.6;
+    resize: vertical;
+  }
+  .prompt-section textarea:focus { outline: none; background: rgba(68,136,255,0.03); }
+
+  /* ─── Generation Mode Toggle ─── */
+  .gen-mode-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .gen-mode-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+    flex: 1;
+    text-align: center;
+  }
+  .gen-mode-btn:hover { color: var(--text); }
+  .gen-mode-btn.active { background: var(--accent3); color: white; }
+
+  /* ─── FBF Progress UI ─── */
+  .fbf-progress {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .fbf-progress.visible { display: block; }
+
+  .fbf-progress-bar {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .fbf-progress-bar .fill {
+    height: 100%;
+    background: var(--accent3);
+    border-radius: 3px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  .fbf-status {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .fbf-frame-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .fbf-frame-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .fbf-frame-card.generating { border-color: var(--accent3); }
+  .fbf-frame-card.done { border-color: var(--accent2); }
+  .fbf-frame-card.error { border-color: var(--danger); }
+
+  .fbf-frame-card .frame-num {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 4px;
+    background: var(--surface2);
+    color: var(--text-dim);
+  }
+  .fbf-frame-card.generating .frame-num { background: rgba(68,136,255,0.15); color: var(--accent3); }
+  .fbf-frame-card.done .frame-num { background: rgba(0,255,136,0.1); color: var(--accent2); }
+  .fbf-frame-card.error .frame-num { background: rgba(255,34,68,0.1); color: var(--danger); }
+
+  .fbf-frame-card .frame-preview {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    image-rendering: pixelated;
+    background: var(--surface2);
+    display: block;
+  }
+
+  .fbf-frame-card .frame-status {
+    font-family: var(--mono);
+    font-size: 8px;
+    padding: 3px;
+    color: var(--text-muted);
+  }
+
   /* Responsive */
   @media (max-width: 1100px) {
     .main { grid-template-columns: 1fr; }
@@ -796,12 +976,26 @@
       <img id="previewImg" style="display:none" />
     </div>
 
-    <!-- Actions -->
-    <div class="actions" id="replicateActions">
-      <button class="btn btn-primary" id="generateBtn" onclick="generate()">
-        <span class="spinner" id="genSpinner"></span>
-        Generate
-      </button>
+    <!-- Generation Mode Toggle + Actions -->
+    <div id="replicateActions">
+      <div class="gen-mode-toggle">
+        <button class="gen-mode-btn" onclick="setGenMode('strip')">Strip (batch)</button>
+        <button class="gen-mode-btn active" onclick="setGenMode('fbf')">Frame-by-Frame</button>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+          <span class="spinner" id="genSpinner"></span>
+          Generate
+        </button>
+      </div>
+    </div>
+
+    <!-- FBF Progress UI -->
+    <div class="fbf-progress" id="fbfProgress">
+      <div class="section-label">Frame-by-Frame Progress</div>
+      <div class="fbf-status" id="fbfStatus">Preparing...</div>
+      <div class="fbf-progress-bar"><div class="fill" id="fbfProgressFill"></div></div>
+      <div class="fbf-frame-grid" id="fbfFrameGrid"></div>
     </div>
 
     <!-- Video Pipeline -->
@@ -920,14 +1114,16 @@
       </div>
     </div>
 
-    <!-- Prompt Editor -->
+    <!-- Prompt Editor — Structured Sections -->
     <div class="prompt-editor" id="promptEditorSection">
       <div class="section-label">
-        Prompt
-        <span style="color:var(--accent3);cursor:pointer;font-size:9px" onclick="resetPrompt()">[reset]</span>
+        Prompt Sections
+        <span style="color:var(--accent3);cursor:pointer;font-size:9px" onclick="resetAllSections()">[reset all]</span>
         <span style="color:var(--warning);cursor:pointer;font-size:9px;margin-left:4px" onclick="copyPrompt()">[copy]</span>
       </div>
-      <textarea id="promptText" placeholder="Select a character + animation to auto-fill..."></textarea>
+      <div class="prompt-sections" id="promptSections">
+        <!-- Populated dynamically -->
+      </div>
     </div>
   </div>
 
@@ -1013,10 +1209,12 @@ let selectedChar = '99';
 let selectedAnim = 'static-dribble';
 let currentRating = 0;
 let currentMode = 'replicate';
+let genMode = 'fbf'; // 'fbf' or 'strip'
 let characters = {};
 let animations = {};
 let videoSession = null;
 let previewBgDark = true;
+let promptSectionsData = {}; // { [key]: { label, text, enabled } }
 
 // ─── Init ───
 async function init() {
@@ -1049,11 +1247,13 @@ function setMode(mode) {
   const replicateActions = document.getElementById('replicateActions');
   const charCreator = document.getElementById('characterCreator');
   const promptEditor = document.getElementById('promptEditorSection');
+  const fbfProgress = document.getElementById('fbfProgress');
 
   pipeline.classList.remove('visible');
   charCreator.classList.remove('visible');
   replicateActions.style.display = 'none';
   promptEditor.style.display = 'block';
+  fbfProgress.classList.remove('visible');
 
   if (mode === 'video') {
     pipeline.classList.add('visible');
@@ -1061,7 +1261,7 @@ function setMode(mode) {
     charCreator.classList.add('visible');
     promptEditor.style.display = 'none';
   } else {
-    replicateActions.style.display = 'flex';
+    replicateActions.style.display = 'block';
   }
 }
 
@@ -1098,40 +1298,110 @@ function renderAnimations() {
   }
 }
 
-function updatePrompt() {
-  const el = document.getElementById('promptText');
+async function updatePrompt() {
   if (!characters[selectedChar] || !animations[selectedAnim]) return;
-  const char = characters[selectedChar];
-  const anim = animations[selectedAnim];
-  el.value = [
-    `REPLICATE Image 1 EXACTLY. Keep every body position, pose, limb placement, and composition identical. ONLY replace the character's identity and appearance with Image 2.`,
-    '',
-    `Image 1 is a ${anim.frames}-frame sprite sheet. Copy it frame-for-frame — same poses, same spacing, same layout — but with Image 2's character instead.`,
-    '',
-    'CRITICAL — BODY POSITION:',
-    '- The body position, pose, and composition in EVERY frame must match Image 1 EXACTLY',
-    '- Same arm positions, same leg positions, same body angle, same weight distribution',
-    '- Same ball position and hand placement in each frame',
-    '- Do NOT reinterpret the poses — treat Image 1 as motion capture data',
-    '',
-    'CHARACTER SWAP:',
-    '- Replace ONLY the character identity with Image 2 — face, skin tone, hair, outfit',
-    "- Keep Image 2's exact appearance, clothing colors, and proportions",
-    '',
-    'OUTPUT:',
-    `- Single horizontal strip, EXACTLY ${anim.frames} frames, equally-sized, no gaps, no borders`,
-    '- Characters must be LARGE and fill most of each frame — not tiny',
-    `- Style: ${char.style}, bold BLACK pixel outlines around the character`,
-    '- Background: solid bright green (#00FF00) — NO black, NO dark backgrounds',
-    '- NO green (#00FF00) on the character itself',
-    '- Same character size in every frame, feet on same baseline',
-  ].join('\n');
+  await fetchSections();
 }
 
-function resetPrompt() { updatePrompt(); toast('Prompt reset'); }
+async function fetchSections() {
+  try {
+    const res = await fetch(`${API}/api/prompt-sections?character=${selectedChar}&animation=${selectedAnim}&mode=${genMode}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    promptSectionsData = data.sections;
+    renderPromptSections();
+  } catch (err) {
+    log(`Sections error: ${err.message}`, 'error');
+  }
+}
+
+function renderPromptSections() {
+  const container = document.getElementById('promptSections');
+  container.innerHTML = '';
+  for (const [key, section] of Object.entries(promptSectionsData)) {
+    const isEnabled = section.enabled !== false;
+    const div = document.createElement('div');
+    div.className = `prompt-section ${isEnabled ? '' : 'disabled'}`;
+    div.dataset.key = key;
+    div.innerHTML = `
+      <div class="prompt-section-header" onclick="toggleSection('${key}', event)">
+        <input type="checkbox" ${isEnabled ? 'checked' : ''} onclick="event.stopPropagation(); toggleSection('${key}', event)" />
+        <span class="section-name">${section.label}</span>
+        <span class="section-reset" onclick="event.stopPropagation(); resetSection('${key}')">[reset]</span>
+      </div>
+      <textarea data-section="${key}" rows="3">${escapeHtml(section.text)}</textarea>
+    `;
+    container.appendChild(div);
+
+    // Sync text edits back to data
+    const textarea = div.querySelector('textarea');
+    textarea.addEventListener('input', () => {
+      promptSectionsData[key].text = textarea.value;
+    });
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function toggleSection(key, event) {
+  if (!promptSectionsData[key]) return;
+  // If the click came from the checkbox, read its new state; otherwise toggle
+  const checkbox = event?.target?.type === 'checkbox' ? event.target : null;
+  promptSectionsData[key].enabled = checkbox ? checkbox.checked : !promptSectionsData[key].enabled;
+  renderPromptSections();
+}
+
+async function resetSection(key) {
+  try {
+    const res = await fetch(`${API}/api/prompt-sections?character=${selectedChar}&animation=${selectedAnim}&mode=${genMode}`);
+    const data = await res.json();
+    if (data.sections[key]) {
+      promptSectionsData[key].text = data.sections[key].text;
+      promptSectionsData[key].enabled = true;
+      renderPromptSections();
+      toast(`"${promptSectionsData[key].label}" reset`);
+    }
+  } catch {}
+}
+
+async function resetAllSections() {
+  await fetchSections();
+  toast('All sections reset');
+}
+
 function copyPrompt() {
-  navigator.clipboard.writeText(document.getElementById('promptText').value);
+  const fullPrompt = buildFullPromptFromSections();
+  navigator.clipboard.writeText(fullPrompt);
   toast('Copied to clipboard');
+}
+
+function buildFullPromptFromSections() {
+  const parts = [];
+  for (const [key, section] of Object.entries(promptSectionsData)) {
+    if (section.enabled !== false) {
+      parts.push(section.text);
+    }
+  }
+  return parts.join('\n\n');
+}
+
+function getCustomSectionsPayload() {
+  const payload = {};
+  for (const [key, section] of Object.entries(promptSectionsData)) {
+    payload[key] = { enabled: section.enabled !== false, text: section.text };
+  }
+  return payload;
+}
+
+// ─── Generation Mode Toggle ───
+function setGenMode(mode) {
+  genMode = mode;
+  document.querySelectorAll('.gen-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(mode === 'fbf' ? 'frame' : 'strip'));
+  });
+  updatePrompt();
 }
 
 let _checkTimer = null;
@@ -1161,11 +1431,19 @@ async function _checkExistingNow() {
 
 // ─── Generation ───
 async function generate() {
+  if (genMode === 'fbf') {
+    await generateFBF();
+  } else {
+    await generateStrip();
+  }
+}
+
+async function generateStrip() {
   const btn = document.getElementById('generateBtn');
   const spinner = document.getElementById('genSpinner');
   btn.disabled = true;
   spinner.classList.add('active');
-  log(`Generating ${selectedChar} / ${selectedAnim}...`, 'info');
+  log(`Generating ${selectedChar} / ${selectedAnim} (strip)...`, 'info');
 
   try {
     const res = await fetch(`${API}/api/generate`, {
@@ -1175,7 +1453,7 @@ async function generate() {
         character: selectedChar,
         animation: selectedAnim,
         model: document.getElementById('modelSelect').value,
-        customPrompt: document.getElementById('promptText').value,
+        customPrompt: buildFullPromptFromSections(),
       }),
     });
     const data = await res.json();
@@ -1194,13 +1472,180 @@ async function generate() {
   spinner.classList.remove('active');
 }
 
+async function generateFBF() {
+  const btn = document.getElementById('generateBtn');
+  const spinner = document.getElementById('genSpinner');
+  btn.disabled = true;
+  spinner.classList.add('active');
+  log(`Generating ${selectedChar} / ${selectedAnim} (frame-by-frame)...`, 'info');
+
+  const anim = animations[selectedAnim];
+  if (!anim) { btn.disabled = false; spinner.classList.remove('active'); return; }
+  const totalFrames = anim.frames;
+
+  // Show FBF progress UI
+  const fbfEl = document.getElementById('fbfProgress');
+  fbfEl.classList.add('visible');
+  const statusEl = document.getElementById('fbfStatus');
+  const fillEl = document.getElementById('fbfProgressFill');
+  const gridEl = document.getElementById('fbfFrameGrid');
+
+  // Initialize frame cards
+  gridEl.innerHTML = '';
+  for (let i = 0; i < totalFrames; i++) {
+    const card = document.createElement('div');
+    card.className = 'fbf-frame-card';
+    card.id = `fbf-card-${i}`;
+    card.innerHTML = `
+      <div class="frame-num">Frame ${i + 1}</div>
+      <div style="width:100%;aspect-ratio:1;background:var(--surface2);display:flex;align-items:center;justify-content:center">
+        <span class="frame-status" id="fbf-status-${i}">pending</span>
+      </div>
+    `;
+    gridEl.appendChild(card);
+  }
+
+  statusEl.textContent = 'Preparing reference frames...';
+  fillEl.style.width = '0%';
+
+  try {
+    const response = await fetch(`${API}/api/generate-fbf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: selectedChar,
+        animation: selectedAnim,
+        model: document.getElementById('modelSelect').value,
+        customSections: getCustomSectionsPayload(),
+      }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let completedFrames = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          handleFBFEvent(data, totalFrames, statusEl, fillEl, () => { completedFrames++; });
+        } catch {}
+      }
+    }
+  } catch (err) {
+    log(`FBF error: ${err.message}`, 'error');
+    toast(err.message.substring(0, 100), true);
+  }
+
+  btn.disabled = false;
+  spinner.classList.remove('active');
+}
+
+function handleFBFEvent(data, totalFrames, statusEl, fillEl, onFrameDone) {
+  switch (data.type) {
+    case 'start':
+      statusEl.textContent = `Starting ${data.totalFrames}-frame generation...`;
+      break;
+    case 'prep_done':
+      statusEl.textContent = `Reference frames ready (${data.framesReady}). Generating...`;
+      fillEl.style.width = '5%';
+      break;
+    case 'frame_start': {
+      const card = document.getElementById(`fbf-card-${data.frame}`);
+      if (card) {
+        card.className = 'fbf-frame-card generating';
+        const st = document.getElementById(`fbf-status-${data.frame}`);
+        if (st) st.textContent = 'generating...';
+      }
+      statusEl.textContent = `Generating frame ${data.frame + 1}/${totalFrames}...`;
+      break;
+    }
+    case 'frame_done': {
+      onFrameDone();
+      const card = document.getElementById(`fbf-card-${data.frame}`);
+      if (card) {
+        card.className = 'fbf-frame-card done';
+        // Show raw preview if URL provided
+        if (data.rawUrl) {
+          const inner = card.querySelector('div:nth-child(2)');
+          if (inner) inner.innerHTML = `<img class="frame-preview" src="${data.rawUrl}?t=${Date.now()}" />`;
+        } else {
+          const st = document.getElementById(`fbf-status-${data.frame}`);
+          if (st) st.textContent = 'raw done';
+        }
+      }
+      const pct = 5 + (data.frame + 1) / totalFrames * 60;
+      fillEl.style.width = pct + '%';
+      break;
+    }
+    case 'frame_processed': {
+      const card = document.getElementById(`fbf-card-${data.frame}`);
+      if (card && data.processedUrl) {
+        const inner = card.querySelector('div:nth-child(2)');
+        if (inner) inner.innerHTML = `<img class="frame-preview" src="${data.processedUrl}?t=${Date.now()}" />`;
+      }
+      const pct2 = 65 + (data.frame + 1) / totalFrames * 25;
+      fillEl.style.width = pct2 + '%';
+      statusEl.textContent = `Processing frame ${data.frame + 1}/${totalFrames}...`;
+      break;
+    }
+    case 'frame_retry': {
+      const card = document.getElementById(`fbf-card-${data.frame}`);
+      if (card) {
+        const st = document.getElementById(`fbf-status-${data.frame}`);
+        if (st) st.textContent = 'retrying...';
+      }
+      log(`Frame ${data.frame + 1} retry: ${data.error}`, 'warn');
+      break;
+    }
+    case 'frame_error': {
+      const card = document.getElementById(`fbf-card-${data.frame}`);
+      if (card) {
+        card.className = 'fbf-frame-card error';
+        const st = document.getElementById(`fbf-status-${data.frame}`);
+        if (st) st.textContent = 'failed';
+      }
+      log(`Frame ${data.frame + 1} failed: ${data.error}`, 'error');
+      break;
+    }
+    case 'process_skip':
+      log(`Frame ${data.frame + 1} skipped (no raw)`, 'warn');
+      break;
+    case 'normalized':
+      statusEl.textContent = `Normalized ${data.frames} frames. Building strip...`;
+      fillEl.style.width = '92%';
+      break;
+    case 'complete':
+      statusEl.textContent = `Done! ${data.frames}/${data.totalFrames} frames (${data.failed} failed)`;
+      fillEl.style.width = '100%';
+      showPreview(data.url + '');
+      log(`FBF complete: ${data.frames} frames`, 'success');
+      toast('Frame-by-frame sprite generated!');
+      checkExisting();
+      break;
+    case 'error':
+      statusEl.textContent = `Error: ${data.message}`;
+      log(`FBF error: ${data.message}`, 'error');
+      break;
+  }
+}
+
 async function generateAll() {
   const anims = Object.keys(animations);
-  log(`Generating all ${anims.length} for ${selectedChar}...`, 'warn');
+  log(`Generating all ${anims.length} for ${selectedChar} (${genMode})...`, 'warn');
   for (const anim of anims) {
     selectedAnim = anim;
     renderAnimations();
-    updatePrompt();
+    await updatePrompt();
     await generate();
     await new Promise(r => setTimeout(r, 2000));
   }

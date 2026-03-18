@@ -75,6 +75,163 @@ const ANIMATIONS = {
   },
 };
 
+// ─── Structured Prompt Sections ──────────────────────────────────────────
+
+/**
+ * Each section defines a toggleable prompt block with a buildDefault function.
+ * When frameIndex is provided, builds for single-frame mode (FBF).
+ * Otherwise builds for strip mode.
+ */
+const PROMPT_SECTIONS = [
+  {
+    key: 'poseReplication',
+    label: 'Pose Replication',
+    buildDefault(char, anim, frameIndex, totalFrames) {
+      if (frameIndex !== undefined) {
+        return `REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame ${frameIndex + 1} of ${totalFrames} in a ${anim.action} animation.`;
+      }
+      return `REPLICATE Image 1 EXACTLY. Keep every body position, pose, limb placement, and composition identical. ONLY replace the character's identity and appearance with Image 2.\n\nImage 1 is a ${anim.frames}-frame sprite sheet. Copy it frame-for-frame — same poses, same spacing, same layout — but with Image 2's character instead.`;
+    },
+  },
+  {
+    key: 'imageDescription',
+    label: 'Image Description',
+    buildDefault(char, anim, frameIndex, totalFrames) {
+      const descriptions = parseFrameDescriptions(anim.frameBreakdown);
+      if (frameIndex !== undefined) {
+        const desc = descriptions[frameIndex] || `frame ${frameIndex + 1} of ${anim.action}`;
+        return `Image 1 shows: ${desc}`;
+      }
+      return `Animation: ${anim.action}\nFrame breakdown: ${anim.frameBreakdown || 'N/A'}`;
+    },
+  },
+  {
+    key: 'bodyPosition',
+    label: 'Body Position Rules',
+    buildDefault(char, anim, frameIndex) {
+      if (frameIndex !== undefined) {
+        return [
+          'POSE RULES:',
+          "- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution",
+          '- Treat Image 1 as motion capture — do NOT reinterpret',
+          '- Copy the exact body angle, lean, and center of gravity',
+        ].join('\n');
+      }
+      return [
+        'CRITICAL — BODY POSITION:',
+        '- The body position, pose, and composition in EVERY frame must match Image 1 EXACTLY',
+        '- Same arm positions, same leg positions, same body angle, same weight distribution',
+        '- Same ball position and hand placement in each frame',
+        '- Do NOT reinterpret the poses — treat Image 1 as motion capture data',
+      ].join('\n');
+    },
+  },
+  {
+    key: 'characterSwap',
+    label: 'Character Swap',
+    buildDefault(char, anim, frameIndex) {
+      if (frameIndex !== undefined) {
+        return [
+          'CHARACTER:',
+          "- Use Image 2's face, skin tone, hairstyle, outfit",
+          "- Maintain Image 2's exact proportions and clothing colors",
+        ].join('\n');
+      }
+      return [
+        'CHARACTER SWAP:',
+        '- Replace ONLY the character identity with Image 2 — face, skin tone, hair, outfit',
+        "- Keep Image 2's exact appearance, clothing colors, and proportions",
+      ].join('\n');
+    },
+  },
+  {
+    key: 'outputStyle',
+    label: 'Output / Style',
+    buildDefault(char, anim, frameIndex) {
+      if (frameIndex !== undefined) {
+        return [
+          `STYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines`,
+          `OUTPUT: Single character, ONE frame only (NOT a strip)`,
+          `Background: solid green (#00FF00), NO green on character`,
+        ].join('\n');
+      }
+      return [
+        'OUTPUT:',
+        `- Single horizontal strip, EXACTLY ${anim.frames} frames, equally-sized, no gaps, no borders`,
+        '- Characters must be LARGE and fill most of each frame — not tiny',
+        `- Style: ${char.style || '16-bit pixel art, GBA style'}, bold BLACK pixel outlines around the character`,
+        '- Background: solid bright green (#00FF00) — NO black, NO dark backgrounds',
+        '- NO green (#00FF00) on the character itself',
+      ].join('\n');
+    },
+  },
+  {
+    key: 'sizeAnchoring',
+    label: 'Size Consistency',
+    buildDefault(char, anim, frameIndex) {
+      if (frameIndex !== undefined) {
+        return [
+          'SIZE ANCHORING:',
+          '- Character should fill ~85% of frame height',
+          '- Lock proportions — do NOT stretch or squash',
+          '- Feet on the baseline, consistent ground plane',
+        ].join('\n');
+      }
+      return '- Same character size in every frame, feet on same baseline\n- Characters should fill ~85% of frame height, locked proportions';
+    },
+  },
+];
+
+/**
+ * Build a prompt by merging default sections with custom overrides.
+ * customSections: { [key]: { enabled: bool, text: string } }
+ */
+function buildSectionedPrompt(characterName, animationName, opts = {}) {
+  const char = CHARACTERS[characterName];
+  if (!char) throw new Error(`Unknown character: ${characterName}. Available: ${Object.keys(CHARACTERS).join(', ')}`);
+  const anim = ANIMATIONS[animationName];
+  if (!anim) throw new Error(`Unknown animation: ${animationName}. Available: ${Object.keys(ANIMATIONS).join(', ')}`);
+
+  const { frameIndex, totalFrames, customSections } = opts;
+  const parts = [];
+
+  for (const section of PROMPT_SECTIONS) {
+    const custom = customSections?.[section.key];
+    const enabled = custom ? custom.enabled !== false : true;
+    if (!enabled) continue;
+
+    const text = (custom && custom.text != null && custom.text !== '')
+      ? custom.text
+      : section.buildDefault(char, anim, frameIndex, totalFrames || anim.frames);
+    parts.push(text);
+  }
+
+  return parts.join('\n\n');
+}
+
+/**
+ * Return all sections with their default text for the UI to populate.
+ */
+function getDefaultSections(characterName, animationName, opts = {}) {
+  const char = CHARACTERS[characterName];
+  if (!char) throw new Error(`Unknown character: ${characterName}`);
+  const anim = ANIMATIONS[animationName];
+  if (!anim) throw new Error(`Unknown animation: ${animationName}`);
+
+  const { frameIndex, totalFrames } = opts;
+  const sections = {};
+
+  for (const section of PROMPT_SECTIONS) {
+    sections[section.key] = {
+      label: section.label,
+      text: section.buildDefault(char, anim, frameIndex, totalFrames || anim.frames),
+      enabled: true,
+    };
+  }
+
+  return sections;
+}
+
 // ─── Frame Description Parser ────────────────────────────────────────────
 
 /**
@@ -305,11 +462,14 @@ function listAnimations() {
 module.exports = {
   CHARACTERS,
   ANIMATIONS,
+  PROMPT_SECTIONS,
   buildPrompt,
   buildPoseTransferPrompt,
   buildFilmToSpritePrompt,
   buildCustomPrompt,
   buildSingleFramePrompt,
+  buildSectionedPrompt,
+  getDefaultSections,
   parseFrameDescriptions,
   listAnimations,
   trainPrompt,

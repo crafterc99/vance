@@ -20,8 +20,8 @@ const TMP_DIR = path.resolve(__dirname, '../../.video-tmp');
 
 // Import tools
 const { NanaBananaClient } = require('../sprite-generator/nano-banana');
-const { CHARACTERS, ANIMATIONS, buildPoseTransferPrompt, buildFilmToSpritePrompt, buildSingleFramePrompt, trainPrompt, loadTraining } = require('../sprite-generator/prompts');
-const { processSprite, buildGrid, cutFrames, upscaleNN, removeBackground, resizeFrame, buildStrip, SOUL_JAM_ASSETS } = require('../sprite-processor/index');
+const { CHARACTERS, ANIMATIONS, buildPoseTransferPrompt, buildFilmToSpritePrompt, buildSingleFramePrompt, buildSectionedPrompt, getDefaultSections, trainPrompt, loadTraining } = require('../sprite-generator/prompts');
+const { processSprite, buildGrid, cutFrames, upscaleNN, removeBackground, resizeFrame, buildStrip, processSingleFrame, normalizeFrameSizes, SOUL_JAM_ASSETS } = require('../sprite-processor/index');
 const { smartSelect, detectBall, loadFeedback, recordFeedback } = require('../sprite-generator/smart-selector');
 const { extract } = require('../sprite-generator/video-extractor');
 const { buildRefStrip } = require('../sprite-generator/strip-builder');
@@ -119,6 +119,34 @@ async function handleAPI(req, res, pathname) {
       }
     }
     return json(res, { characters: CHARACTERS, animations: ANIMATIONS });
+  }
+
+  // GET /api/prompt-sections?character=X&animation=Y&mode=fbf|strip
+  if (pathname === '/api/prompt-sections' && req.method === 'GET') {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const character = url.searchParams.get('character') || '99';
+    const animation = url.searchParams.get('animation') || 'static-dribble';
+    const mode = url.searchParams.get('mode') || 'fbf';
+
+    try {
+      // Auto-register character if portrait exists
+      const portraitPath = path.join(ASSETS_DIR, `${character}full.png`);
+      if (!CHARACTERS[character] && fs.existsSync(portraitPath)) {
+        CHARACTERS[character] = {
+          description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
+          style: '16-bit pixel art, GBA style',
+        };
+      }
+
+      const anim = ANIMATIONS[animation];
+      if (!anim) return json(res, { error: `Unknown animation: ${animation}` }, 400);
+
+      const opts = mode === 'fbf' ? { frameIndex: 0, totalFrames: anim.frames } : {};
+      const sections = getDefaultSections(character, animation, opts);
+      return json(res, { sections, totalFrames: anim.frames, mode });
+    } catch (err) {
+      return json(res, { error: err.message }, 400);
+    }
   }
 
   // GET /api/sprites/:char
@@ -295,7 +323,7 @@ async function handleAPI(req, res, pathname) {
   // POST /api/generate-fbf — Frame-by-frame generation with SSE progress
   if (pathname === '/api/generate-fbf' && req.method === 'POST') {
     const body = await parseBody(req);
-    const { character, animation, model } = body;
+    const { character, animation, model, customSections } = body;
 
     // Setup SSE
     res.writeHead(200, {
@@ -350,24 +378,36 @@ async function handleAPI(req, res, pathname) {
 
       sse({ type: 'prep_done', framesReady: upscaledPaths.length });
 
-      // Step 3: Generate each frame (concurrency = 2, ~2s delay)
+      // Step 3: Generate each frame with sectioned prompts (concurrency = 2, ~2s delay)
       const rawOutputPaths = [];
 
       const tasks = upscaledPaths.map((upPath, i) => async () => {
         sse({ type: 'frame_start', frame: i, total: totalFrames });
 
-        const promptData = buildSingleFramePrompt(character, animation, i, totalFrames);
+        // Use sectioned prompt if customSections provided, else fall back to legacy
+        let prompt;
+        if (customSections) {
+          prompt = buildSectionedPrompt(character, animation, {
+            frameIndex: i,
+            totalFrames,
+            customSections,
+          });
+        } else {
+          const promptData = buildSingleFramePrompt(character, animation, i, totalFrames);
+          prompt = promptData.prompt;
+        }
+
         const outPath = path.join(fbfDir, `raw-frame-${String(i).padStart(3, '0')}.png`);
 
         let lastErr;
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            await client.generateSingleFrame(promptData.prompt, upPath, portraitPath, {
+            await client.generateSingleFrame(prompt, upPath, portraitPath, {
               model: modelId,
               outputPath: outPath,
             });
             rawOutputPaths[i] = outPath;
-            sse({ type: 'frame_done', frame: i });
+            sse({ type: 'frame_done', frame: i, rawUrl: `/fbf-working/${character}-${animation}-fbf/raw-frame-${String(i).padStart(3, '0')}.png` });
             return;
           } catch (err) {
             lastErr = err;
@@ -382,7 +422,7 @@ async function handleAPI(req, res, pathname) {
 
       await runWithConcurrency(tasks, 2, 2000);
 
-      // Step 4: Process all raw frames — remove green BG, resize to 180x180
+      // Step 4: Process all raw frames — use processSingleFrame (bg removal + crop-to-content)
       const processedDir = path.join(fbfDir, 'processed');
       fs.mkdirSync(processedDir, { recursive: true });
       const processedPaths = [];
@@ -394,12 +434,16 @@ async function handleAPI(req, res, pathname) {
           continue;
         }
 
-        const cleanPath = path.join(processedDir, `clean-${String(i).padStart(3, '0')}.png`);
-        await removeBackground(rawPath, cleanPath);
+        const processedPath = path.join(processedDir, `frame-${String(i).padStart(3, '0')}.png`);
+        await processSingleFrame(rawPath, processedPath, { width: 180, height: 180 });
+        processedPaths.push(processedPath);
+        sse({ type: 'frame_processed', frame: i, processedUrl: `/fbf-working/${character}-${animation}-fbf/processed/frame-${String(i).padStart(3, '0')}.png` });
+      }
 
-        const resizedPath = path.join(processedDir, `frame-${String(i).padStart(3, '0')}.png`);
-        await resizeFrame(cleanPath, resizedPath, { width: 180, height: 180 });
-        processedPaths.push(resizedPath);
+      // Step 4.5: Normalize frame sizes (fix inconsistent character heights)
+      if (processedPaths.length > 1) {
+        await normalizeFrameSizes(processedPaths, { targetWidth: 180, targetHeight: 180 });
+        sse({ type: 'normalized', frames: processedPaths.length });
       }
 
       // Step 5: Assemble horizontal strip
@@ -910,6 +954,12 @@ const server = http.createServer(async (req, res) => {
   // Serve raw sprites
   if (pathname.startsWith('/raw/')) {
     const file = pathname.replace('/raw/', '');
+    return serveImage(res, path.join(RAW_DIR, file));
+  }
+
+  // Serve FBF working directory files (for live preview of individual frames)
+  if (pathname.startsWith('/fbf-working/')) {
+    const file = pathname.replace('/fbf-working/', '');
     return serveImage(res, path.join(RAW_DIR, file));
   }
 

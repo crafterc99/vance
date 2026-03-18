@@ -320,6 +320,169 @@ async function processSprite(inputImage, outputName, opts = {}) {
   };
 }
 
+// ─── Crop to Content ────────────────────────────────────────────────────
+
+/**
+ * Scan raw pixel alpha to find bounding box of non-transparent content,
+ * crop to that box + padding, then resize to target dimensions.
+ * Eliminates letterboxing from `fit: contain` on full images.
+ */
+async function cropToContent(imagePath, outputPath, opts = {}) {
+  const targetW = opts.width || DEFAULT_FRAME_SIZE;
+  const targetH = opts.height || DEFAULT_FRAME_SIZE;
+  const padding = opts.padding || 4;
+
+  const image = sharp(imagePath).ensureAlpha();
+  const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+
+  let minX = info.width, minY = info.height, maxX = 0, maxY = 0;
+  let hasContent = false;
+
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const alpha = data[(y * info.width + x) * 4 + 3];
+      if (alpha > 10) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        hasContent = true;
+      }
+    }
+  }
+
+  if (!hasContent) {
+    // No content found — just resize
+    await sharp(imagePath)
+      .resize(targetW, targetH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toFile(outputPath);
+    return outputPath;
+  }
+
+  // Add padding
+  minX = Math.max(0, minX - padding);
+  minY = Math.max(0, minY - padding);
+  maxX = Math.min(info.width - 1, maxX + padding);
+  maxY = Math.min(info.height - 1, maxY + padding);
+
+  const cropW = maxX - minX + 1;
+  const cropH = maxY - minY + 1;
+
+  await sharp(imagePath)
+    .extract({ left: minX, top: minY, width: cropW, height: cropH })
+    .resize(targetW, targetH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toFile(outputPath);
+
+  return outputPath;
+}
+
+/**
+ * Process a single frame image (NOT a strip).
+ * Pipeline: removeBackground → cropToContent → done.
+ * No cutFrames — input IS a single frame.
+ */
+async function processSingleFrame(inputPath, outputPath, opts = {}) {
+  const targetW = opts.width || DEFAULT_FRAME_SIZE;
+  const targetH = opts.height || DEFAULT_FRAME_SIZE;
+
+  // Temp file for bg-removed intermediate
+  const cleanPath = outputPath.replace('.png', '-clean.png');
+
+  // Step 1: Remove green background
+  await removeBackground(inputPath, cleanPath, {
+    hueMin: opts.hueMin ?? 80,
+    hueMax: opts.hueMax ?? 160,
+    satMin: opts.satMin ?? 0.25,
+    valMin: opts.valMin ?? 0.25,
+  });
+
+  // Step 2: Crop to content and resize
+  await cropToContent(cleanPath, outputPath, { width: targetW, height: targetH });
+
+  // Clean up temp
+  try { fs.unlinkSync(cleanPath); } catch {}
+
+  return outputPath;
+}
+
+/**
+ * Measure content height ratio in a processed frame.
+ * Returns the fraction of frame height occupied by non-transparent content.
+ */
+async function measureContentHeight(framePath) {
+  const image = sharp(framePath).ensureAlpha();
+  const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+
+  let minY = info.height, maxY = 0;
+  let hasContent = false;
+
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const alpha = data[(y * info.width + x) * 4 + 3];
+      if (alpha > 10) {
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        hasContent = true;
+      }
+    }
+  }
+
+  if (!hasContent) return 0;
+  return (maxY - minY + 1) / info.height;
+}
+
+/**
+ * Normalize frame sizes across all processed frames.
+ * Measures content height in each frame, finds median,
+ * and re-crops frames that deviate >tolerance from median.
+ */
+async function normalizeFrameSizes(framePaths, opts = {}) {
+  const targetW = opts.targetWidth || DEFAULT_FRAME_SIZE;
+  const targetH = opts.targetHeight || DEFAULT_FRAME_SIZE;
+  const tolerance = opts.tolerance || 0.15;
+
+  // Measure all frames
+  const ratios = await Promise.all(framePaths.map(measureContentHeight));
+
+  // Find median
+  const sorted = [...ratios].filter(r => r > 0).sort((a, b) => a - b);
+  if (sorted.length === 0) return framePaths;
+  const median = sorted[Math.floor(sorted.length / 2)];
+
+  let adjustedCount = 0;
+  for (let i = 0; i < framePaths.length; i++) {
+    if (ratios[i] === 0) continue;
+    const deviation = Math.abs(ratios[i] - median) / median;
+    if (deviation > tolerance) {
+      // Re-crop this frame to match median scale
+      // Scale factor: if current is 20% taller than median, shrink by that factor
+      const scale = median / ratios[i];
+      const meta = await sharp(framePaths[i]).metadata();
+
+      // Resize proportionally then re-fit to target
+      const scaledW = Math.round(meta.width * scale);
+      const scaledH = Math.round(meta.height * scale);
+
+      await sharp(framePaths[i])
+        .resize(scaledW, scaledH, { kernel: sharp.kernel.nearest })
+        .resize(targetW, targetH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png()
+        .toFile(framePaths[i] + '.tmp.png');
+
+      fs.renameSync(framePaths[i] + '.tmp.png', framePaths[i]);
+      adjustedCount++;
+    }
+  }
+
+  if (adjustedCount > 0) {
+    console.log(`  Normalized ${adjustedCount} frame(s) to median height ratio ${(median * 100).toFixed(0)}%`);
+  }
+
+  return framePaths;
+}
+
 // ─── Grid Sheet Assembler ───────────────────────────────────────────────
 
 /**
@@ -455,6 +618,9 @@ module.exports = {
   buildStrip,
   processSprite,
   buildGrid,
+  cropToContent,
+  processSingleFrame,
+  normalizeFrameSizes,
   rgbToHsv,
   SOUL_JAM_ASSETS,
   DEFAULT_FRAME_SIZE,
