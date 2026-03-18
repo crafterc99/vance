@@ -55,9 +55,8 @@
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
-    background: rgba(10,10,15,0.92);
+    background: rgba(10,10,15,0.97);
     z-index: 100;
-    backdrop-filter: blur(20px);
   }
 
   .logo {
@@ -1135,13 +1134,18 @@ function copyPrompt() {
   toast('Copied to clipboard');
 }
 
-async function checkExisting() {
+let _checkTimer = null;
+function checkExisting() {
+  clearTimeout(_checkTimer);
+  _checkTimer = setTimeout(_checkExistingNow, 150);
+}
+async function _checkExistingNow() {
   try {
     const res = await fetch(`${API}/api/sprites/${selectedChar}`);
     const data = await res.json();
     const sprite = data.sprites[selectedAnim];
     if (sprite?.exists) {
-      showPreview(sprite.url + '?t=' + Date.now());
+      showPreview(sprite.url + '');
     } else {
       hidePreview();
     }
@@ -1177,7 +1181,7 @@ async function generate() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    showPreview(data.processed + '?t=' + Date.now());
+    showPreview(data.processed + '');
     log(`Done: ${data.frames} frames`, 'success');
     toast('Sprite generated!');
     checkExisting();
@@ -1324,7 +1328,7 @@ async function buildStrip() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    document.getElementById('stripImg').src = data.stripUrl + '?t=' + Date.now();
+    document.getElementById('stripImg').src = data.stripUrl + '';
     document.getElementById('stripSection').style.display = 'block';
     log(`Strip: ${data.frameCount} frames`, 'success');
     setStep('strip', true);
@@ -1360,7 +1364,7 @@ async function generateFromVideo() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    showPreview(data.processed + '?t=' + Date.now());
+    showPreview(data.processed + '');
     log(`Film-to-sprite: ${data.frames} frames`, 'success');
     toast('Sprite from video!');
     setStep('generate', true);
@@ -1512,7 +1516,7 @@ function togglePreviewBg() {
 function log(msg, type = '') {
   const el = document.getElementById('logArea');
   const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  el.innerHTML += `\n<span class="${type}">[${time}] ${msg}</span>`;
+  el.insertAdjacentHTML('beforeend', `\n<span class="${type}">[${time}] ${msg}</span>`);
   el.scrollTop = el.scrollHeight;
 }
 
@@ -1557,7 +1561,7 @@ function renderRoster(roster) {
     card.className = 'roster-card';
     card.innerHTML = `
       <div class="roster-card-top">
-        <img class="roster-portrait" src="${char.portrait}?t=${Date.now()}" onerror="this.style.display='none'" />
+        <img class="roster-portrait" src="${char.portrait}" loading="lazy" onerror="this.style.display='none'" />
         <div class="roster-info">
           <h3>${displayName}</h3>
           <p class="stat">${char.completedAnims}/${char.totalAnims} animations</p>
@@ -1568,7 +1572,7 @@ function renderRoster(roster) {
           </div>
         </div>
       </div>
-      ${char.hasGrid ? `<div class="roster-grid-preview"><img src="${char.gridUrl}?t=${Date.now()}" /></div>` : ''}
+      ${char.hasGrid ? `<div class="roster-grid-preview"><img src="${char.gridUrl}" loading="lazy" /></div>` : ''}
       <div class="roster-card-actions">
         <button class="btn btn-secondary btn-sm" onclick="selectCharFromRoster('${char.name}')">Select</button>
         ${char.hasGrid ? `<a class="btn btn-success btn-sm" href="${char.gridUrl}" download="${char.name}-spritesheet.png">Grid Sheet</a>` : `<button class="btn btn-secondary btn-sm" onclick="buildGridFromRoster('${char.name}')">Build Grid</button>`}
@@ -1736,7 +1740,7 @@ async function createCharacter() {
       div.id = `charOpt${i}`;
       div.innerHTML = `
         <span class="option-label">${i + 1}</span>
-        <img src="${opt.url}?t=${Date.now()}" />
+        <img src="${opt.url}" />
       `;
       grid.appendChild(div);
     });

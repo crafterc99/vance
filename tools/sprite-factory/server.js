@@ -26,15 +26,22 @@ const { smartSelect, detectBall, loadFeedback, recordFeedback } = require('../sp
 const { extract } = require('../sprite-generator/video-extractor');
 const { buildRefStrip } = require('../sprite-generator/strip-builder');
 
-// Serve static files
+// Serve static files — streamed with cache headers
 function serveStatic(res, filePath, contentType) {
-  if (!fs.existsSync(filePath)) {
+  try {
+    const stat = fs.statSync(filePath);
+    const etag = `"${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}"`;
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Content-Length': stat.size,
+      'Cache-Control': 'public, max-age=300',
+      'ETag': etag,
+    });
+    fs.createReadStream(filePath).pipe(res);
+  } catch {
     res.writeHead(404);
     res.end('Not found');
-    return;
   }
-  res.writeHead(200, { 'Content-Type': contentType });
-  res.end(fs.readFileSync(filePath));
 }
 
 // JSON response helper
@@ -55,17 +62,23 @@ function parseBody(req) {
   });
 }
 
-// Serve image as base64
+// Serve image — streamed with cache headers
 function serveImage(res, imagePath) {
-  if (!fs.existsSync(imagePath)) {
+  try {
+    const stat = fs.statSync(imagePath);
+    const ext = path.extname(imagePath).toLowerCase();
+    const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'image/png';
+    const etag = `"${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}"`;
+    res.writeHead(200, {
+      'Content-Type': mime,
+      'Content-Length': stat.size,
+      'Cache-Control': 'public, max-age=60',
+      'ETag': etag,
+    });
+    fs.createReadStream(imagePath).pipe(res);
+  } catch {
     json(res, { error: 'Image not found' }, 404);
-    return;
   }
-  const data = fs.readFileSync(imagePath);
-  const ext = path.extname(imagePath).toLowerCase();
-  const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'image/png';
-  res.writeHead(200, { 'Content-Type': mime });
-  res.end(data);
 }
 
 // ─── Concurrency Helper ─────────────────────────────────────────────────
