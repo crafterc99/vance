@@ -10,8 +10,43 @@
  * - Resume support
  */
 const { spawn, execSync } = require('child_process');
+const os = require('os');
 const path = require('path');
+const fs = require('fs');
 const costs = require('./costs');
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+/** Expand ~ to actual home directory */
+function expandHome(dir) {
+  if (!dir) return dir;
+  if (dir.startsWith('~/')) return path.join(os.homedir(), dir.slice(2));
+  if (dir === '~') return os.homedir();
+  return dir;
+}
+
+/** Find the absolute path to the claude binary */
+let _claudeBin = null;
+function getClaudeBin() {
+  if (_claudeBin) return _claudeBin;
+  // Try common locations
+  const candidates = [
+    '/usr/local/bin/claude',
+    path.join(os.homedir(), '.local/bin/claude'),
+    path.join(os.homedir(), '.npm-global/bin/claude'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) { _claudeBin = c; return c; }
+  }
+  // Fallback: try which
+  try {
+    _claudeBin = execSync('which claude', { encoding: 'utf8' }).trim();
+    return _claudeBin;
+  } catch {}
+  // Last resort
+  _claudeBin = 'claude';
+  return _claudeBin;
+}
 
 // ─── Model Selection ──────────────────────────────────────────────────────
 
@@ -104,7 +139,7 @@ function slugify(text) {
  * Returns { branch, stashed } or null if not a git repo.
  */
 function prepareGitBranch(task) {
-  const cwd = task.projectDir;
+  const cwd = expandHome(task.projectDir);
   if (!cwd) return null;
 
   // Never switch branches in the vance-app directory itself
@@ -174,7 +209,7 @@ function prepareGitBranch(task) {
  * Post-task git cleanup. Commits remaining changes, returns to default branch.
  */
 function postTaskGit(task) {
-  const cwd = task.projectDir;
+  const cwd = expandHome(task.projectDir);
   if (!cwd || !task.branch) return;
 
   try {
@@ -261,17 +296,27 @@ function buildArgs(task) {
  */
 function run(task, callbacks = {}) {
   const args = buildArgs(task);
-  const cwd = task.projectDir || process.env.HOME;
-  console.log(`[ClaudeRunner] Spawning: claude ${args.slice(0, 4).join(' ')}...`);
+  const cwd = expandHome(task.projectDir) || process.env.HOME;
+  const claudeBin = getClaudeBin();
+  console.log(`[ClaudeRunner] Spawning: ${claudeBin} ${args.slice(0, 4).join(' ')}...`);
   console.log(`[ClaudeRunner]   cwd: ${cwd}, model: ${task.model}`);
+
+  // Ensure cwd exists
+  if (!fs.existsSync(cwd)) {
+    try { fs.mkdirSync(cwd, { recursive: true }); } catch {}
+  }
 
   // Remove Claude Code env vars to prevent "nested session" blocking
   const cleanEnv = { ...process.env, FORCE_COLOR: '0' };
   delete cleanEnv.CLAUDECODE;
   delete cleanEnv.CLAUDE_CODE_SSE_PORT;
   delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
+  // Ensure /usr/local/bin is in PATH
+  if (cleanEnv.PATH && !cleanEnv.PATH.includes('/usr/local/bin')) {
+    cleanEnv.PATH = '/usr/local/bin:' + cleanEnv.PATH;
+  }
 
-  const proc = spawn('claude', args, {
+  const proc = spawn(claudeBin, args, {
     cwd,
     env: cleanEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -369,6 +414,8 @@ module.exports = {
   postTaskGit,
   buildArgs,
   run,
+  expandHome,
+  getClaudeBin,
   MODEL_TIERS,
   ALLOWED_TOOLS,
 };

@@ -85,7 +85,7 @@ function getOrCreate(projectId, projectDir) {
   const session = {
     id: key,
     projectId: projectId || null,
-    projectDir: projectDir || process.env.HOME,
+    projectDir: claudeRunner.expandHome(projectDir) || process.env.HOME,
     claudeSessionId: null, // Set after first prompt
     model: 'claude-sonnet-4-6',
     status: 'idle', // idle | running | error
@@ -206,16 +206,25 @@ function prompt(sessionId, message, opts = {}) {
     ].filter(Boolean).join('\n');
     args.push('--append-system-prompt', systemAppend);
 
-    const cwd = session.projectDir || process.env.HOME;
+    const cwd = claudeRunner.expandHome(session.projectDir) || process.env.HOME;
+    const claudeBin = claudeRunner.getClaudeBin();
+
+    // Ensure cwd exists
+    if (!fs.existsSync(cwd)) {
+      try { fs.mkdirSync(cwd, { recursive: true }); } catch {}
+    }
 
     // Remove Claude Code env vars to prevent "nested session" blocking
     const cleanEnv = { ...process.env, FORCE_COLOR: '0' };
     delete cleanEnv.CLAUDECODE;
     delete cleanEnv.CLAUDE_CODE_SSE_PORT;
     delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
+    if (cleanEnv.PATH && !cleanEnv.PATH.includes('/usr/local/bin')) {
+      cleanEnv.PATH = '/usr/local/bin:' + cleanEnv.PATH;
+    }
 
     // Spawn
-    const proc = spawn('claude', args, {
+    const proc = spawn(claudeBin, args, {
       cwd,
       env: cleanEnv,
       stdio: ['pipe', 'pipe', 'pipe'],
