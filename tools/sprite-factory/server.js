@@ -26,6 +26,91 @@ const { smartSelect, detectBall, loadFeedback, recordFeedback } = require('../sp
 const { extract } = require('../sprite-generator/video-extractor');
 const { buildRefStrip } = require('../sprite-generator/strip-builder');
 
+// ─── Cost Tracking ──────────────────────────────────────────────────────
+
+const COST_FILE = path.resolve(__dirname, '../../.cost-tracking.json');
+
+// Per-image cost by model and resolution (USD)
+const COST_PER_IMAGE = {
+  'gemini-2.5-flash-image':        { '1K': 0.039, '2K': 0.039, '4K': 0.039 },  // single tier
+  'gemini-3.1-flash-image-preview': { '0.5K': 0.045, '1K': 0.067, '2K': 0.101, '4K': 0.151 },
+  'gemini-3-pro-image-preview':     { '1K': 0.134, '2K': 0.134, '4K': 0.240 },
+};
+
+// Input image token cost (per image uploaded as reference)
+const INPUT_IMAGE_TOKENS = {
+  'gemini-2.5-flash-image':         { tokens: 560, costPer1M: 0.30 },
+  'gemini-3.1-flash-image-preview': { tokens: 560, costPer1M: 0.50 },
+  'gemini-3-pro-image-preview':     { tokens: 560, costPer1M: 2.00 },
+};
+
+function getImageCost(modelId, resolution = '2K') {
+  const modelCosts = COST_PER_IMAGE[modelId] || COST_PER_IMAGE['gemini-2.5-flash-image'];
+  return modelCosts[resolution] || modelCosts['2K'] || 0.039;
+}
+
+function getInputCost(modelId, numRefImages = 2) {
+  const info = INPUT_IMAGE_TOKENS[modelId] || INPUT_IMAGE_TOKENS['gemini-2.5-flash-image'];
+  return (info.tokens * numRefImages / 1_000_000) * info.costPer1M;
+}
+
+function loadCostData() {
+  try {
+    if (fs.existsSync(COST_FILE)) return JSON.parse(fs.readFileSync(COST_FILE, 'utf8'));
+  } catch {}
+  return { totalSpend: 0, totalGenerations: 0, byModel: {}, byType: {}, history: [] };
+}
+
+function saveCostData(data) {
+  const dir = path.dirname(COST_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(COST_FILE, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Record a generation cost.
+ * @param {string} model - Model ID used
+ * @param {string} type - 'strip' | 'fbf_frame' | 'character' | 'video'
+ * @param {string} resolution - '1K' | '2K' | '4K'
+ * @param {number} numRefImages - Number of reference images sent
+ * @param {object} meta - { character, animation, frame }
+ */
+function recordCost(model, type, resolution = '2K', numRefImages = 2, meta = {}) {
+  const data = loadCostData();
+  const imageCost = getImageCost(model, resolution);
+  const inputCost = getInputCost(model, numRefImages);
+  const totalCost = imageCost + inputCost;
+
+  data.totalSpend += totalCost;
+  data.totalGenerations++;
+
+  // By model
+  if (!data.byModel[model]) data.byModel[model] = { spend: 0, count: 0 };
+  data.byModel[model].spend += totalCost;
+  data.byModel[model].count++;
+
+  // By type
+  if (!data.byType[type]) data.byType[type] = { spend: 0, count: 0 };
+  data.byType[type].spend += totalCost;
+  data.byType[type].count++;
+
+  // History (keep last 200)
+  data.history.push({
+    model,
+    type,
+    resolution,
+    imageCost,
+    inputCost,
+    totalCost,
+    ...meta,
+    timestamp: new Date().toISOString(),
+  });
+  if (data.history.length > 200) data.history = data.history.slice(-200);
+
+  saveCostData(data);
+  return { totalCost, imageCost, inputCost, runningTotal: data.totalSpend };
+}
+
 // Serve static files — streamed with cache headers
 function serveStatic(res, filePath, contentType) {
   try {
@@ -213,6 +298,8 @@ async function handleAPI(req, res, pathname) {
           outputPath,
         });
 
+        const costInfo = recordCost(modelId, 'strip', '2K', (poseRef ? 1 : 0) + (charRef ? 1 : 0), { character, animation });
+
         const processed = await processSprite(outputPath, `${character}-${animation}`, {
           frameCount: totalFrames,
           targetSize: 180,
@@ -225,6 +312,7 @@ async function handleAPI(req, res, pathname) {
           processed: `/assets/${character}-${animation}.png`,
           frames: processed.frameCount,
           batched: false,
+          cost: costInfo,
         });
       }
 
@@ -283,6 +371,8 @@ async function handleAPI(req, res, pathname) {
           outputPath: batchOutputPath,
         });
 
+        recordCost(modelId, 'strip_batch', '2K', (charRef ? 2 : 1), { character, animation, batch: b });
+
         // Process this batch
         const batchProcessed = await processSprite(batchOutputPath, `${character}-${animation}-batch${b}`, {
           frameCount: batch.count,
@@ -307,6 +397,7 @@ async function handleAPI(req, res, pathname) {
       const finalStripPath = path.join(ASSETS_DIR, `${character}-${animation}.png`);
       await buildRefStrip(allFramePaths, finalStripPath, { targetHeight: 180 });
 
+      const costData = loadCostData();
       return json(res, {
         success: true,
         processed: `/assets/${character}-${animation}.png`,
@@ -314,6 +405,7 @@ async function handleAPI(req, res, pathname) {
         batched: true,
         batchCount: batches.length,
         batchSizes: batches.map(b => b.count),
+        cost: { totalCost: batches.length * getImageCost(modelId, '2K'), runningTotal: costData.totalSpend },
       });
     } catch (err) {
       return json(res, { error: err.message }, 500);
@@ -407,7 +499,8 @@ async function handleAPI(req, res, pathname) {
               outputPath: outPath,
             });
             rawOutputPaths[i] = outPath;
-            sse({ type: 'frame_done', frame: i, rawUrl: `/fbf-working/${character}-${animation}-fbf/raw-frame-${String(i).padStart(3, '0')}.png` });
+            const frameCost = recordCost(modelId, 'fbf_frame', '1K', 2, { character, animation, frame: i });
+            sse({ type: 'frame_done', frame: i, rawUrl: `/fbf-working/${character}-${animation}-fbf/raw-frame-${String(i).padStart(3, '0')}.png`, cost: frameCost });
             return;
           } catch (err) {
             lastErr = err;
@@ -457,12 +550,14 @@ async function handleAPI(req, res, pathname) {
         fs.copyFileSync(p, path.join(framesOutDir, `frame-${i}.png`));
       });
 
+      const finalCostData = loadCostData();
       sse({
         type: 'complete',
         url: `/assets/${character}-${animation}.png`,
         frames: processedPaths.length,
         totalFrames,
         failed: totalFrames - processedPaths.length,
+        cost: { totalCost: processedPaths.length * getImageCost(modelId, '1K'), runningTotal: finalCostData.totalSpend },
       });
     } catch (err) {
       sse({ type: 'error', message: err.message });
@@ -484,6 +579,43 @@ async function handleAPI(req, res, pathname) {
     const training = loadTraining();
     const frameFeedback = loadFeedback();
     return json(res, { prompts: training, frames: frameFeedback });
+  }
+
+  // GET /api/costs — Get cost tracking data + scale projections
+  if (pathname === '/api/costs' && req.method === 'GET') {
+    const data = loadCostData();
+
+    // Compute scale projections
+    const avgCostPerAnim = data.totalGenerations > 0
+      ? data.totalSpend / data.totalGenerations
+      : 0.067; // default estimate (flash 2K)
+    const animsPerChar = Object.keys(ANIMATIONS).length;
+
+    // Discover current roster size
+    const rosterCount = fs.existsSync(ASSETS_DIR)
+      ? fs.readdirSync(ASSETS_DIR).filter(f => f.endsWith('full.png')).length
+      : 0;
+
+    const projections = {
+      avgCostPerGeneration: avgCostPerAnim,
+      costPerCharacter: avgCostPerAnim * animsPerChar * 1.5, // assume 1.5 tries avg
+      animsPerCharacter: animsPerChar,
+      currentRoster: rosterCount,
+      scale: {
+        '5_characters':  { gens: 5 * animsPerChar * 1.5,  cost: 5  * animsPerChar * 1.5 * avgCostPerAnim },
+        '10_characters': { gens: 10 * animsPerChar * 1.5, cost: 10 * animsPerChar * 1.5 * avgCostPerAnim },
+        '25_characters': { gens: 25 * animsPerChar * 1.5, cost: 25 * animsPerChar * 1.5 * avgCostPerAnim },
+        '50_characters': { gens: 50 * animsPerChar * 1.5, cost: 50 * animsPerChar * 1.5 * avgCostPerAnim },
+      },
+    };
+
+    return json(res, { ...data, projections });
+  }
+
+  // DELETE /api/costs — Reset cost tracking
+  if (pathname === '/api/costs' && req.method === 'DELETE') {
+    saveCostData({ totalSpend: 0, totalGenerations: 0, byModel: {}, byType: {}, history: [] });
+    return json(res, { success: true, message: 'Cost tracking reset' });
   }
 
   // GET /api/grid/:char — Build grid sheet
@@ -653,6 +785,8 @@ async function handleAPI(req, res, pathname) {
         outputPath,
       });
 
+      const vidCost = recordCost(model || 'gemini-2.5-flash-image', 'video', '2K', charRef ? 2 : 1, { character, animation: animName });
+
       const processed = await processSprite(outputPath, `${character}-${animName || 'custom'}`, {
         frameCount: count,
         targetSize: 180,
@@ -664,6 +798,7 @@ async function handleAPI(req, res, pathname) {
         raw: `/raw/${character}-${animName || 'custom'}-raw.png`,
         processed: `/assets/${character}-${animName || 'custom'}.png`,
         frames: processed.frameCount,
+        cost: vidCost,
       });
     } catch (err) {
       return json(res, { error: err.message }, 500);
@@ -761,7 +896,8 @@ async function handleAPI(req, res, pathname) {
             });
             const optPath = path.join(charDir, `option-${idx}.png`);
             fs.writeFileSync(optPath, result.imageBuffer);
-            return { index: idx, url: `/api/character/image/${name}/option-${idx}.png` };
+            const charCost = recordCost(model || 'gemini-2.5-flash-image', 'character', '2K', referenceImages.length, { character: name, option: idx });
+            return { index: idx, url: `/api/character/image/${name}/option-${idx}.png`, cost: charCost };
           } catch (err) {
             return { index: idx, error: err.message };
           }

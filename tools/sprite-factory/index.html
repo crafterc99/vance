@@ -738,6 +738,138 @@
     background: var(--surface2);
   }
 
+  /* ─── Cost Tracker ─── */
+  .cost-tracker {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+
+  .cost-hero {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 6px 0 10px;
+  }
+  .cost-hero .amount {
+    font-family: var(--mono);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+  .cost-hero .label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .cost-session {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--warning);
+    margin-bottom: 8px;
+  }
+
+  .cost-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 8px 0;
+  }
+
+  .cost-stat {
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .cost-stat .val {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .cost-stat .lbl {
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .cost-model-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    font-family: var(--mono);
+    font-size: 9px;
+  }
+  .cost-model-row .model-name {
+    width: 60px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cost-model-row .model-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .cost-model-row .model-bar .fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .cost-model-row .model-val {
+    width: 50px;
+    text-align: right;
+    color: var(--text-dim);
+  }
+
+  .cost-scale-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 9px;
+    margin-top: 6px;
+  }
+  .cost-scale-table th {
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 400;
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .cost-scale-table td {
+    padding: 3px 6px;
+    color: var(--text);
+  }
+  .cost-scale-table tr:hover td { color: var(--accent2); }
+
+  .cost-history {
+    max-height: 100px;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+  .cost-history-item {
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+
   /* ─── Prompt Sections Editor ─── */
   .prompt-sections {
     display: flex;
@@ -941,8 +1073,9 @@
       <span id="apiStatus">Connecting...</span>
     </div>
     <select class="model-select" id="modelSelect">
-      <option value="gemini-2.5-flash-image">Flash</option>
-      <option value="gemini-3-pro-image-preview">Pro</option>
+      <option value="gemini-2.5-flash-image">Flash 2.5</option>
+      <option value="gemini-3.1-flash-image-preview">Flash 3.1</option>
+      <option value="gemini-3-pro-image-preview">Pro 3</option>
     </select>
   </div>
 </div>
@@ -1129,6 +1262,58 @@
 
   <!-- RIGHT PANEL -->
   <div class="panel-right">
+    <!-- Cost Tracker -->
+    <div class="cost-tracker">
+      <div class="section-label">
+        Cost Tracker
+        <span style="color:var(--text-muted);cursor:pointer;font-size:8px;margin-left:auto" onclick="resetCosts()">[reset]</span>
+      </div>
+      <div class="cost-hero">
+        <span class="amount" id="costTotal">$0.000</span>
+        <span class="label">all-time</span>
+      </div>
+      <div class="cost-session" id="costSession">Session: $0.000 (0 gens)</div>
+      <div class="cost-grid">
+        <div class="cost-stat">
+          <div class="val" id="costGens">0</div>
+          <div class="lbl">Generations</div>
+        </div>
+        <div class="cost-stat">
+          <div class="val" id="costAvg">$0.000</div>
+          <div class="lbl">Avg / gen</div>
+        </div>
+        <div class="cost-stat">
+          <div class="val" id="costPerChar">$0.00</div>
+          <div class="lbl">Est / character</div>
+        </div>
+        <div class="cost-stat">
+          <div class="val" id="costLastGen">--</div>
+          <div class="lbl">Last gen</div>
+        </div>
+      </div>
+
+      <!-- Per-model breakdown -->
+      <div style="margin-top:8px">
+        <div class="section-label" style="margin-bottom:4px">By Model</div>
+        <div id="costModelBreakdown"></div>
+      </div>
+
+      <!-- Scale projections -->
+      <div style="margin-top:8px">
+        <div class="section-label" style="margin-bottom:4px">Scale Projections</div>
+        <table class="cost-scale-table">
+          <thead><tr><th>Roster</th><th>Gens</th><th>Cost</th></tr></thead>
+          <tbody id="costScaleBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Recent history -->
+      <div style="margin-top:8px">
+        <div class="section-label" style="margin-bottom:4px">Recent</div>
+        <div class="cost-history" id="costHistory">No generations yet.</div>
+      </div>
+    </div>
+
     <!-- Feedback -->
     <div class="feedback-section">
       <div class="section-label">Rate Output</div>
@@ -1227,6 +1412,7 @@ async function init() {
     renderAnimations();
     updatePrompt();
     loadTrainingWeights();
+    loadCosts();
     checkExisting();
     document.getElementById('apiStatus').textContent = 'Connected';
     log('Sprite Factory online', 'success');
@@ -1460,7 +1646,8 @@ async function generateStrip() {
     if (data.error) throw new Error(data.error);
 
     showPreview(data.processed + '');
-    log(`Done: ${data.frames} frames`, 'success');
+    log(`Done: ${data.frames} frames` + (data.cost ? ` — $${data.cost.totalCost.toFixed(3)}` : ''), 'success');
+    if (data.cost) trackSessionCost(data.cost);
     toast('Sprite generated!');
     checkExisting();
   } catch (err) {
@@ -1571,6 +1758,7 @@ function handleFBFEvent(data, totalFrames, statusEl, fillEl, onFrameDone) {
     }
     case 'frame_done': {
       onFrameDone();
+      if (data.cost) trackSessionCost(data.cost);
       const card = document.getElementById(`fbf-card-${data.frame}`);
       if (card) {
         card.className = 'fbf-frame-card done';
@@ -1625,12 +1813,13 @@ function handleFBFEvent(data, totalFrames, statusEl, fillEl, onFrameDone) {
       fillEl.style.width = '92%';
       break;
     case 'complete':
-      statusEl.textContent = `Done! ${data.frames}/${data.totalFrames} frames (${data.failed} failed)`;
+      statusEl.textContent = `Done! ${data.frames}/${data.totalFrames} frames` + (data.cost ? ` — $${data.cost.totalCost.toFixed(3)}` : '');
       fillEl.style.width = '100%';
       showPreview(data.url + '');
-      log(`FBF complete: ${data.frames} frames`, 'success');
+      log(`FBF complete: ${data.frames} frames` + (data.cost ? ` — $${data.cost.totalCost.toFixed(3)} (total: $${data.cost.runningTotal.toFixed(3)})` : ''), 'success');
       toast('Frame-by-frame sprite generated!');
       checkExisting();
+      loadCosts();
       break;
     case 'error':
       statusEl.textContent = `Error: ${data.message}`;
@@ -1932,6 +2121,108 @@ function setWeight(name, val) {
   const valEl = document.getElementById('w' + name + 'Val');
   if (fill) fill.style.width = pct + '%';
   if (valEl) valEl.textContent = pct + '%';
+}
+
+// ─── Cost Tracking ───
+let sessionCost = 0;
+let sessionGens = 0;
+
+async function loadCosts() {
+  try {
+    const res = await fetch(`${API}/api/costs`);
+    const data = await res.json();
+    renderCosts(data);
+  } catch {}
+}
+
+function renderCosts(data) {
+  document.getElementById('costTotal').textContent = '$' + data.totalSpend.toFixed(3);
+  document.getElementById('costGens').textContent = data.totalGenerations;
+  document.getElementById('costAvg').textContent = data.totalGenerations > 0
+    ? '$' + (data.totalSpend / data.totalGenerations).toFixed(3)
+    : '$0.000';
+  document.getElementById('costSession').textContent =
+    `Session: $${sessionCost.toFixed(3)} (${sessionGens} gens)`;
+
+  // Per-character estimate
+  const proj = data.projections || {};
+  document.getElementById('costPerChar').textContent = '$' + (proj.costPerCharacter || 0).toFixed(2);
+
+  // Last gen
+  const last = data.history?.length ? data.history[data.history.length - 1] : null;
+  document.getElementById('costLastGen').textContent = last
+    ? '$' + last.totalCost.toFixed(3)
+    : '--';
+
+  // Model breakdown
+  const modelEl = document.getElementById('costModelBreakdown');
+  const maxSpend = Math.max(...Object.values(data.byModel || {}).map(m => m.spend), 0.001);
+  const modelColors = {
+    'gemini-2.5-flash-image': 'var(--accent2)',
+    'gemini-3.1-flash-image-preview': 'var(--accent3)',
+    'gemini-3-pro-image-preview': 'var(--accent)',
+  };
+  const shortNames = {
+    'gemini-2.5-flash-image': 'Flash 2.5',
+    'gemini-3.1-flash-image-preview': 'Flash 3.1',
+    'gemini-3-pro-image-preview': 'Pro 3',
+  };
+  modelEl.innerHTML = '';
+  for (const [model, info] of Object.entries(data.byModel || {})) {
+    const pct = Math.round((info.spend / maxSpend) * 100);
+    const color = modelColors[model] || 'var(--text-dim)';
+    modelEl.innerHTML += `
+      <div class="cost-model-row">
+        <span class="model-name">${shortNames[model] || model.split('-')[1]}</span>
+        <div class="model-bar"><div class="fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="model-val">$${info.spend.toFixed(3)} (${info.count})</span>
+      </div>`;
+  }
+  if (!Object.keys(data.byModel || {}).length) {
+    modelEl.innerHTML = '<span style="font-family:var(--mono);font-size:9px;color:var(--text-muted)">No data yet</span>';
+  }
+
+  // Scale projections
+  const scaleBody = document.getElementById('costScaleBody');
+  const scale = proj.scale || {};
+  scaleBody.innerHTML = '';
+  for (const [label, info] of Object.entries(scale)) {
+    const display = label.replace('_', ' ');
+    scaleBody.innerHTML += `<tr><td>${display}</td><td>${Math.round(info.gens)}</td><td>$${info.cost.toFixed(2)}</td></tr>`;
+  }
+
+  // Recent history
+  const histEl = document.getElementById('costHistory');
+  const hist = (data.history || []).slice(-15).reverse();
+  if (hist.length) {
+    histEl.innerHTML = hist.map(h => {
+      const time = new Date(h.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      const name = (h.character || '') + (h.animation ? '/' + h.animation : '') + (h.frame !== undefined ? ' f' + h.frame : '');
+      return `<div class="cost-history-item"><span>${time} ${h.type} ${name}</span><span>$${h.totalCost.toFixed(3)}</span></div>`;
+    }).join('');
+  } else {
+    histEl.innerHTML = 'No generations yet.';
+  }
+}
+
+function trackSessionCost(costInfo) {
+  if (!costInfo) return;
+  sessionCost += costInfo.totalCost || 0;
+  sessionGens++;
+  loadCosts();
+}
+
+async function resetCosts() {
+  if (!confirm('Reset all cost tracking data?')) return;
+  try {
+    await fetch(`${API}/api/costs`, { method: 'DELETE' });
+    sessionCost = 0;
+    sessionGens = 0;
+    loadCosts();
+    toast('Cost tracking reset');
+  } catch (err) {
+    toast('Reset failed', true);
+  }
 }
 
 // ─── Preview ───
