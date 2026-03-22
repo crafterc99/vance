@@ -1,0 +1,56 @@
+[
+  {
+    "id": "soul-jam",
+    "name": "Soul Jam",
+    "description": "2D arcade basketball game built with Phaser 3, TypeScript and Vite",
+    "directory": "/Users/crafterc/Claude Test/soul-jam",
+    "createdAt": "2025-03-09T12:00:00Z",
+    "layer": 2,
+    "projectType": "venture"
+  },
+  {
+    "id": "athletes-blender",
+    "name": "Athletes Blender",
+    "description": "Subscription smoothie box builder with React, Vite, Tailwind v4 and Zustand",
+    "directory": "/Users/crafterc/Claude Test/athletes-blender",
+    "createdAt": "2025-03-10T12:00:00Z",
+    "layer": 2,
+    "projectType": "venture"
+  },
+  {
+    "id": "sos-train",
+    "name": "SOS Train",
+    "description": "Fitness coaching platform with React 18, Vite, TypeScript, Supabase and Stripe",
+    "directory": "/Users/crafterc/Claude Test/sos-train",
+    "createdAt": "2025-03-11T12:00:00Z",
+    "layer": 2,
+    "projectType": "venture"
+  },
+  {
+    "id": "vance",
+    "name": "Blair",
+    "description": "JARVIS-style personal AI assistant with spatial UI and voice control",
+    "directory": "/Users/crafterc/Claude Test/vance",
+    "createdAt": "2025-03-08T12:00:00Z",
+    "layer": 2,
+    "projectType": "venture"
+  },
+  {
+    "id": "vantheah",
+    "name": "Vantheah",
+    "description": "Core venture platform",
+    "directory": "/Users/crafterc/Claude Test/vantheah",
+    "createdAt": "2025-03-07T12:00:00Z",
+    "layer": 2,
+    "projectType": "venture"
+  },
+  {
+    "id": "promotifyy",
+    "name": "Promotifyy",
+    "description": "Creator outreach and promotion platform",
+    "directory": "/Users/crafterc/Claude Test/promotifyy",
+    "createdAt": "2025-03-07T12:00:00Z",
+    "layer": 2,
+    "projectType": "venture"
+  }
+]

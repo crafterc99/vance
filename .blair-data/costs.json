@@ -1,0 +1,2330 @@
+{
+  "entries": [
+    {
+      "id": "mmmcl1g5vc",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.007678,
+      "inputTokens": 3023,
+      "outputTokens": 12,
+      "timestamp": "2026-03-11T18:03:34.421Z",
+      "meta": null
+    },
+    {
+      "id": "mmmcmhucv5",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.008085,
+      "inputTokens": 3046,
+      "outputTokens": 47,
+      "timestamp": "2026-03-11T18:04:42.324Z",
+      "meta": null
+    },
+    {
+      "id": "mmmcn5h9pr",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.008125,
+      "inputTokens": 3114,
+      "outputTokens": 34,
+      "timestamp": "2026-03-11T18:05:12.957Z",
+      "meta": null
+    },
+    {
+      "id": "mmmezqms9m",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.008113,
+      "inputTokens": 3161,
+      "outputTokens": 21,
+      "timestamp": "2026-03-11T19:10:59.476Z",
+      "meta": null
+    },
+    {
+      "id": "mmmf00c3d4",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.008347,
+      "inputTokens": 3199,
+      "outputTokens": 35,
+      "timestamp": "2026-03-11T19:11:12.051Z",
+      "meta": null
+    },
+    {
+      "id": "mmmf0virdy",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.008493,
+      "inputTokens": 3209,
+      "outputTokens": 47,
+      "timestamp": "2026-03-11T19:11:52.467Z",
+      "meta": null
+    },
+    {
+      "id": "mmmmdoiep1",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.00829,
+      "inputTokens": 3268,
+      "outputTokens": 12,
+      "timestamp": "2026-03-11T22:37:47.222Z",
+      "meta": null
+    },
+    {
+      "id": "mmmmgvi6ps",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.00837,
+      "inputTokens": 3292,
+      "outputTokens": 14,
+      "timestamp": "2026-03-11T22:40:16.254Z",
+      "meta": null
+    },
+    {
+      "id": "mmmmmcv2te",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.008425,
+      "inputTokens": 3318,
+      "outputTokens": 13,
+      "timestamp": "2026-03-11T22:44:32.030Z",
+      "meta": null
+    },
+    {
+      "id": "mmo81i38ld",
+      "component": "gpt",
+      "model": "gpt-4o",
+      "cost": 0.008478,
+      "inputTokens": 3339,
+      "outputTokens": 13,
+      "timestamp": "2026-03-13T01:31:56.756Z",
+      "meta": null
+    },
+    {
+      "id": "mmp92ljbk0",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.003909,
+      "inputTokens": 4476,
+      "outputTokens": 82,
+      "timestamp": "2026-03-13T18:48:33.671Z",
+      "meta": null
+    },
+    {
+      "id": "mmp92m4sun",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.003887,
+      "inputTokens": 4709,
+      "outputTokens": 30,
+      "timestamp": "2026-03-13T18:48:34.444Z",
+      "meta": null
+    },
+    {
+      "id": "mmpg8zriui",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.003642,
+      "inputTokens": 4492,
+      "outputTokens": 12,
+      "timestamp": "2026-03-13T22:09:29.359Z",
+      "meta": null
+    },
+    {
+      "id": "mmpg9brbia",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.004089,
+      "inputTokens": 4456,
+      "outputTokens": 131,
+      "timestamp": "2026-03-13T22:09:44.903Z",
+      "meta": null
+    },
+    {
+      "id": "mmpg9w2b5u",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.003784,
+      "inputTokens": 4540,
+      "outputTokens": 38,
+      "timestamp": "2026-03-13T22:10:11.219Z",
+      "meta": null
+    },
+    {
+      "id": "mmpga81khm",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.003725,
+      "inputTokens": 4536,
+      "outputTokens": 24,
+      "timestamp": "2026-03-13T22:10:26.744Z",
+      "meta": null
+    },
+    {
+      "id": "mmph23kuxe",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005948,
+      "inputTokens": 6170,
+      "outputTokens": 253,
+      "timestamp": "2026-03-13T22:32:07.326Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk6v3qbc",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005643,
+      "inputTokens": 6754,
+      "outputTokens": 60,
+      "timestamp": "2026-03-13T23:59:48.470Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk6vw18i",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005745,
+      "inputTokens": 6841,
+      "outputTokens": 68,
+      "timestamp": "2026-03-13T23:59:49.489Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk6y1bvd",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006239,
+      "inputTokens": 7119,
+      "outputTokens": 136,
+      "timestamp": "2026-03-13T23:59:52.271Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk7wlu7u",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00597,
+      "inputTokens": 6883,
+      "outputTokens": 116,
+      "timestamp": "2026-03-14T00:00:37.074Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk7xgmqf",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006135,
+      "inputTokens": 7269,
+      "outputTokens": 80,
+      "timestamp": "2026-03-14T00:00:38.182Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk80h997",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00875,
+      "inputTokens": 7883,
+      "outputTokens": 611,
+      "timestamp": "2026-03-14T00:00:42.093Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk81okt6",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007037,
+      "inputTokens": 8536,
+      "outputTokens": 52,
+      "timestamp": "2026-03-14T00:00:43.652Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk8jjt8o",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006248,
+      "inputTokens": 6915,
+      "outputTokens": 179,
+      "timestamp": "2026-03-14T00:01:06.809Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk8oqqfz",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006393,
+      "inputTokens": 7876,
+      "outputTokens": 23,
+      "timestamp": "2026-03-14T00:01:13.538Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk8wwi3d",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005614,
+      "inputTokens": 6928,
+      "outputTokens": 18,
+      "timestamp": "2026-03-14T00:01:24.114Z",
+      "meta": null
+    },
+    {
+      "id": "mmpk9krjby",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005577,
+      "inputTokens": 6926,
+      "outputTokens": 9,
+      "timestamp": "2026-03-14T00:01:55.039Z",
+      "meta": null
+    },
+    {
+      "id": "mmpka10wul",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00561,
+      "inputTokens": 6927,
+      "outputTokens": 17,
+      "timestamp": "2026-03-14T00:02:16.112Z",
+      "meta": null
+    },
+    {
+      "id": "mmpka8z3nn",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005766,
+      "inputTokens": 6807,
+      "outputTokens": 80,
+      "timestamp": "2026-03-14T00:02:26.415Z",
+      "meta": null
+    },
+    {
+      "id": "mmpka9k7e2",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005706,
+      "inputTokens": 7063,
+      "outputTokens": 14,
+      "timestamp": "2026-03-14T00:02:27.175Z",
+      "meta": null
+    },
+    {
+      "id": "mmpl2znj8w",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006119,
+      "inputTokens": 7349,
+      "outputTokens": 60,
+      "timestamp": "2026-03-14T00:24:47.359Z",
+      "meta": null
+    },
+    {
+      "id": "mmpl30tmid",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006326,
+      "inputTokens": 7428,
+      "outputTokens": 96,
+      "timestamp": "2026-03-14T00:24:48.874Z",
+      "meta": null
+    },
+    {
+      "id": "mmpl3lwd1h",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006086,
+      "inputTokens": 7422,
+      "outputTokens": 37,
+      "timestamp": "2026-03-14T00:25:16.189Z",
+      "meta": null
+    },
+    {
+      "id": "mmpl3nh7xl",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006863,
+      "inputTokens": 7474,
+      "outputTokens": 221,
+      "timestamp": "2026-03-14T00:25:18.235Z",
+      "meta": null
+    },
+    {
+      "id": "mmpl4jfobr",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006158,
+      "inputTokens": 7377,
+      "outputTokens": 64,
+      "timestamp": "2026-03-14T00:25:59.652Z",
+      "meta": null
+    },
+    {
+      "id": "mmpl4ke01l",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006014,
+      "inputTokens": 7468,
+      "outputTokens": 10,
+      "timestamp": "2026-03-14T00:26:00.888Z",
+      "meta": null
+    },
+    {
+      "id": "mmpl4u8055",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006113,
+      "inputTokens": 7241,
+      "outputTokens": 80,
+      "timestamp": "2026-03-14T00:26:13.632Z",
+      "meta": null
+    },
+    {
+      "id": "mmpm1c658m",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005875,
+      "inputTokens": 7249,
+      "outputTokens": 19,
+      "timestamp": "2026-03-14T00:51:29.885Z",
+      "meta": null
+    },
+    {
+      "id": "mmpm1goa9z",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006078,
+      "inputTokens": 7202,
+      "outputTokens": 79,
+      "timestamp": "2026-03-14T00:51:35.722Z",
+      "meta": null
+    },
+    {
+      "id": "mmpm6vmn83",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006148,
+      "inputTokens": 7260,
+      "outputTokens": 85,
+      "timestamp": "2026-03-14T00:55:48.383Z",
+      "meta": null
+    },
+    {
+      "id": "mmpm773l6y",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006046,
+      "inputTokens": 7372,
+      "outputTokens": 37,
+      "timestamp": "2026-03-14T00:56:03.249Z",
+      "meta": null
+    },
+    {
+      "id": "mmpm7xf75a",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006141,
+      "inputTokens": 7281,
+      "outputTokens": 79,
+      "timestamp": "2026-03-14T00:56:37.363Z",
+      "meta": null
+    },
+    {
+      "id": "mmpm87qv02",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006094,
+      "inputTokens": 7387,
+      "outputTokens": 46,
+      "timestamp": "2026-03-14T00:56:50.743Z",
+      "meta": null
+    },
+    {
+      "id": "mmpmyllqri",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006294,
+      "inputTokens": 7313,
+      "outputTokens": 111,
+      "timestamp": "2026-03-14T01:17:21.758Z",
+      "meta": null
+    },
+    {
+      "id": "mmpmywl5by",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006308,
+      "inputTokens": 7720,
+      "outputTokens": 33,
+      "timestamp": "2026-03-14T01:17:35.993Z",
+      "meta": null
+    },
+    {
+      "id": "mmsasl00v9",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00588,
+      "inputTokens": 7325,
+      "outputTokens": 5,
+      "timestamp": "2026-03-15T22:00:04.176Z",
+      "meta": null
+    },
+    {
+      "id": "mmsat4v6d4",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005969,
+      "inputTokens": 7316,
+      "outputTokens": 29,
+      "timestamp": "2026-03-15T22:00:29.922Z",
+      "meta": null
+    },
+    {
+      "id": "mmspi5gafo",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00585,
+      "inputTokens": 7242,
+      "outputTokens": 14,
+      "timestamp": "2026-03-16T04:51:51.706Z",
+      "meta": null
+    },
+    {
+      "id": "mmspkn1nyw",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005763,
+      "inputTokens": 7039,
+      "outputTokens": 33,
+      "timestamp": "2026-03-16T04:53:47.819Z",
+      "meta": null
+    },
+    {
+      "id": "mmspku5201",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005922,
+      "inputTokens": 7062,
+      "outputTokens": 68,
+      "timestamp": "2026-03-16T04:53:57.014Z",
+      "meta": null
+    },
+    {
+      "id": "mmspkuwhdn",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005826,
+      "inputTokens": 7148,
+      "outputTokens": 27,
+      "timestamp": "2026-03-16T04:53:58.001Z",
+      "meta": null
+    },
+    {
+      "id": "mmspl30x5s",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006024,
+      "inputTokens": 7060,
+      "outputTokens": 94,
+      "timestamp": "2026-03-16T04:54:08.529Z",
+      "meta": null
+    },
+    {
+      "id": "mmsqmrwxp9",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005729,
+      "inputTokens": 7136,
+      "outputTokens": 5,
+      "timestamp": "2026-03-16T05:23:27.057Z",
+      "meta": null
+    },
+    {
+      "id": "mmsqn3rx7k",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005926,
+      "inputTokens": 7107,
+      "outputTokens": 60,
+      "timestamp": "2026-03-16T05:23:42.429Z",
+      "meta": null
+    },
+    {
+      "id": "mmsqni3dzd",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006023,
+      "inputTokens": 7129,
+      "outputTokens": 80,
+      "timestamp": "2026-03-16T05:24:00.985Z",
+      "meta": null
+    },
+    {
+      "id": "mmsqocfytv",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006429,
+      "inputTokens": 7216,
+      "outputTokens": 164,
+      "timestamp": "2026-03-16T05:24:40.318Z",
+      "meta": null
+    },
+    {
+      "id": "mmsqozki34",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006465,
+      "inputTokens": 7376,
+      "outputTokens": 141,
+      "timestamp": "2026-03-16T05:25:10.290Z",
+      "meta": null
+    },
+    {
+      "id": "mmsqzay9j2",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006306,
+      "inputTokens": 7427,
+      "outputTokens": 91,
+      "timestamp": "2026-03-16T05:33:11.601Z",
+      "meta": null
+    },
+    {
+      "id": "mmsqzrcrlp",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006742,
+      "inputTokens": 7518,
+      "outputTokens": 182,
+      "timestamp": "2026-03-16T05:33:32.859Z",
+      "meta": null
+    },
+    {
+      "id": "mmsr1amn9k",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006852,
+      "inputTokens": 7690,
+      "outputTokens": 175,
+      "timestamp": "2026-03-16T05:34:44.495Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrhxf8w6",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006829,
+      "inputTokens": 7736,
+      "outputTokens": 160,
+      "timestamp": "2026-03-16T05:47:40.532Z",
+      "meta": null
+    },
+    {
+      "id": "mmsridz2qh",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00681,
+      "inputTokens": 7802,
+      "outputTokens": 142,
+      "timestamp": "2026-03-16T05:48:01.982Z",
+      "meta": null
+    },
+    {
+      "id": "mmsriepqg0",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006722,
+      "inputTokens": 7968,
+      "outputTokens": 87,
+      "timestamp": "2026-03-16T05:48:02.942Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrigzfk4",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.026327,
+      "inputTokens": 32454,
+      "outputTokens": 91,
+      "timestamp": "2026-03-16T05:48:05.883Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrire1r7",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.027234,
+      "inputTokens": 33398,
+      "outputTokens": 129,
+      "timestamp": "2026-03-16T05:48:19.369Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrjhrqbp",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006856,
+      "inputTokens": 8000,
+      "outputTokens": 114,
+      "timestamp": "2026-03-16T05:48:53.558Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrjtkmaf",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006732,
+      "inputTokens": 8055,
+      "outputTokens": 72,
+      "timestamp": "2026-03-16T05:49:08.854Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrkaq9dq",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006801,
+      "inputTokens": 8036,
+      "outputTokens": 93,
+      "timestamp": "2026-03-16T05:49:31.089Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrkq8bqv",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006491,
+      "inputTokens": 7924,
+      "outputTokens": 38,
+      "timestamp": "2026-03-16T05:49:51.179Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrl1t41h",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006946,
+      "inputTokens": 7887,
+      "outputTokens": 159,
+      "timestamp": "2026-03-16T05:50:06.184Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrl39y2z",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006964,
+      "inputTokens": 8070,
+      "outputTokens": 127,
+      "timestamp": "2026-03-16T05:50:08.086Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrl58k9z",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006911,
+      "inputTokens": 8299,
+      "outputTokens": 68,
+      "timestamp": "2026-03-16T05:50:10.628Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrl612w9",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007181,
+      "inputTokens": 8521,
+      "outputTokens": 91,
+      "timestamp": "2026-03-16T05:50:11.654Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrl88ter",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.026766,
+      "inputTokens": 32752,
+      "outputTokens": 141,
+      "timestamp": "2026-03-16T05:50:14.525Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrm2vbtu",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007106,
+      "inputTokens": 8018,
+      "outputTokens": 173,
+      "timestamp": "2026-03-16T05:50:54.215Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrmkvyv0",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007394,
+      "inputTokens": 8098,
+      "outputTokens": 229,
+      "timestamp": "2026-03-16T05:51:17.566Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrnny67s",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008152,
+      "inputTokens": 8165,
+      "outputTokens": 405,
+      "timestamp": "2026-03-16T05:52:08.190Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrnpbjhd",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007123,
+      "inputTokens": 8614,
+      "outputTokens": 58,
+      "timestamp": "2026-03-16T05:52:09.967Z",
+      "meta": null
+    },
+    {
+      "id": "mmsroxqsx2",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00669,
+      "inputTokens": 8058,
+      "outputTokens": 61,
+      "timestamp": "2026-03-16T05:53:07.540Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrps1fou",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006883,
+      "inputTokens": 8039,
+      "outputTokens": 113,
+      "timestamp": "2026-03-16T05:53:46.803Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrqwni0a",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006949,
+      "inputTokens": 8086,
+      "outputTokens": 120,
+      "timestamp": "2026-03-16T05:54:39.438Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrr85xvb",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006957,
+      "inputTokens": 8116,
+      "outputTokens": 116,
+      "timestamp": "2026-03-16T05:54:54.357Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrrn1j2m",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006735,
+      "inputTokens": 8194,
+      "outputTokens": 45,
+      "timestamp": "2026-03-16T05:55:13.639Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrs553xe",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006912,
+      "inputTokens": 8070,
+      "outputTokens": 114,
+      "timestamp": "2026-03-16T05:55:37.095Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrsmwrip",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006847,
+      "inputTokens": 8019,
+      "outputTokens": 108,
+      "timestamp": "2026-03-16T05:56:00.123Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrt8bsjx",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006982,
+      "inputTokens": 7942,
+      "outputTokens": 157,
+      "timestamp": "2026-03-16T05:56:27.880Z",
+      "meta": null
+    },
+    {
+      "id": "mmsruok4ya",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006826,
+      "inputTokens": 7902,
+      "outputTokens": 126,
+      "timestamp": "2026-03-16T05:57:35.572Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrv5yb06",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006675,
+      "inputTokens": 7974,
+      "outputTokens": 74,
+      "timestamp": "2026-03-16T05:57:58.115Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrxdtqzs",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006753,
+      "inputTokens": 7991,
+      "outputTokens": 90,
+      "timestamp": "2026-03-16T05:59:41.630Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrxvu4wi",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006784,
+      "inputTokens": 7960,
+      "outputTokens": 104,
+      "timestamp": "2026-03-16T06:00:04.972Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrygag50",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006566,
+      "inputTokens": 7942,
+      "outputTokens": 53,
+      "timestamp": "2026-03-16T06:00:31.480Z",
+      "meta": null
+    },
+    {
+      "id": "mmsryq57ki",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006879,
+      "inputTokens": 7884,
+      "outputTokens": 143,
+      "timestamp": "2026-03-16T06:00:44.251Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrz7vyn3",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006883,
+      "inputTokens": 7994,
+      "outputTokens": 122,
+      "timestamp": "2026-03-16T06:01:07.246Z",
+      "meta": null
+    },
+    {
+      "id": "mmsrzut2iu",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007494,
+      "inputTokens": 7992,
+      "outputTokens": 275,
+      "timestamp": "2026-03-16T06:01:36.950Z",
+      "meta": null
+    },
+    {
+      "id": "mmss0e9qkd",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.009005,
+      "inputTokens": 8131,
+      "outputTokens": 625,
+      "timestamp": "2026-03-16T06:02:02.174Z",
+      "meta": null
+    },
+    {
+      "id": "mmss0g2wh3",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007474,
+      "inputTokens": 8797,
+      "outputTokens": 109,
+      "timestamp": "2026-03-16T06:02:04.520Z",
+      "meta": null
+    },
+    {
+      "id": "mmss1qwyii",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008411,
+      "inputTokens": 8109,
+      "outputTokens": 481,
+      "timestamp": "2026-03-16T06:03:05.218Z",
+      "meta": null
+    },
+    {
+      "id": "mmss1s3hf7",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007204,
+      "inputTokens": 8635,
+      "outputTokens": 74,
+      "timestamp": "2026-03-16T06:03:06.749Z",
+      "meta": null
+    },
+    {
+      "id": "mmss25xgm8",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007178,
+      "inputTokens": 8017,
+      "outputTokens": 191,
+      "timestamp": "2026-03-16T06:03:24.676Z",
+      "meta": null
+    },
+    {
+      "id": "mmss2vh7d2",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006997,
+      "inputTokens": 8166,
+      "outputTokens": 116,
+      "timestamp": "2026-03-16T06:03:57.787Z",
+      "meta": null
+    },
+    {
+      "id": "mmss3dn800",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006769,
+      "inputTokens": 8156,
+      "outputTokens": 61,
+      "timestamp": "2026-03-16T06:04:21.332Z",
+      "meta": null
+    },
+    {
+      "id": "mmss3f1c4o",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007035,
+      "inputTokens": 8274,
+      "outputTokens": 104,
+      "timestamp": "2026-03-16T06:04:23.136Z",
+      "meta": null
+    },
+    {
+      "id": "mmss3fue5y",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006988,
+      "inputTokens": 8415,
+      "outputTokens": 64,
+      "timestamp": "2026-03-16T06:04:24.182Z",
+      "meta": null
+    },
+    {
+      "id": "mmss3kcbd0",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008368,
+      "inputTokens": 8620,
+      "outputTokens": 368,
+      "timestamp": "2026-03-16T06:04:30.011Z",
+      "meta": null
+    },
+    {
+      "id": "mmss3lksuu",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007506,
+      "inputTokens": 9033,
+      "outputTokens": 70,
+      "timestamp": "2026-03-16T06:04:31.612Z",
+      "meta": null
+    },
+    {
+      "id": "mmss3yjx53",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006548,
+      "inputTokens": 8095,
+      "outputTokens": 18,
+      "timestamp": "2026-03-16T06:04:48.429Z",
+      "meta": null
+    },
+    {
+      "id": "mmss45ffex",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006614,
+      "inputTokens": 8047,
+      "outputTokens": 44,
+      "timestamp": "2026-03-16T06:04:57.339Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6dswgrj",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006525,
+      "inputTokens": 7941,
+      "outputTokens": 43,
+      "timestamp": "2026-03-16T12:44:22.288Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6fibf72",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006686,
+      "inputTokens": 7852,
+      "outputTokens": 101,
+      "timestamp": "2026-03-16T12:45:41.883Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6fjzs39",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006674,
+      "inputTokens": 7968,
+      "outputTokens": 75,
+      "timestamp": "2026-03-16T12:45:44.056Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6haxuta",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008499,
+      "inputTokens": 7664,
+      "outputTokens": 592,
+      "timestamp": "2026-03-16T12:47:05.634Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6hcbi36",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006969,
+      "inputTokens": 8296,
+      "outputTokens": 83,
+      "timestamp": "2026-03-16T12:47:07.422Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6i6hkzi",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008115,
+      "inputTokens": 7639,
+      "outputTokens": 501,
+      "timestamp": "2026-03-16T12:47:46.520Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6i7fm61",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006699,
+      "inputTokens": 8184,
+      "outputTokens": 38,
+      "timestamp": "2026-03-16T12:47:47.746Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6isflcl",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006294,
+      "inputTokens": 7577,
+      "outputTokens": 58,
+      "timestamp": "2026-03-16T12:48:14.961Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6itgc8l",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006445,
+      "inputTokens": 7651,
+      "outputTokens": 81,
+      "timestamp": "2026-03-16T12:48:16.284Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6ixq4xs",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006508,
+      "inputTokens": 7750,
+      "outputTokens": 77,
+      "timestamp": "2026-03-16T12:48:21.820Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6iyq6l4",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006754,
+      "inputTokens": 7968,
+      "outputTokens": 95,
+      "timestamp": "2026-03-16T12:48:23.118Z",
+      "meta": null
+    },
+    {
+      "id": "mmt6izro6b",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006688,
+      "inputTokens": 8085,
+      "outputTokens": 55,
+      "timestamp": "2026-03-16T12:48:24.468Z",
+      "meta": null
+    },
+    {
+      "id": "mmt75f4mss",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00597,
+      "inputTokens": 7438,
+      "outputTokens": 5,
+      "timestamp": "2026-03-16T13:05:50.806Z",
+      "meta": null
+    },
+    {
+      "id": "mmt75xbu4y",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00613,
+      "inputTokens": 7302,
+      "outputTokens": 72,
+      "timestamp": "2026-03-16T13:06:14.394Z",
+      "meta": null
+    },
+    {
+      "id": "mmt76d0sgj",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00593,
+      "inputTokens": 7307,
+      "outputTokens": 21,
+      "timestamp": "2026-03-16T13:06:34.732Z",
+      "meta": null
+    },
+    {
+      "id": "mmt76w82pp",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007485,
+      "inputTokens": 7326,
+      "outputTokens": 406,
+      "timestamp": "2026-03-16T13:06:59.618Z",
+      "meta": null
+    },
+    {
+      "id": "mmt76x9dv1",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006406,
+      "inputTokens": 7778,
+      "outputTokens": 46,
+      "timestamp": "2026-03-16T13:07:00.961Z",
+      "meta": null
+    },
+    {
+      "id": "mmt77vkf17",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007144,
+      "inputTokens": 7365,
+      "outputTokens": 313,
+      "timestamp": "2026-03-16T13:07:45.423Z",
+      "meta": null
+    },
+    {
+      "id": "mmt77wha8o",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006338,
+      "inputTokens": 7712,
+      "outputTokens": 42,
+      "timestamp": "2026-03-16T13:07:46.606Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7h6d7wc",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006186,
+      "inputTokens": 7447,
+      "outputTokens": 57,
+      "timestamp": "2026-03-16T13:14:59.323Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7hwanhf",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007039,
+      "inputTokens": 7434,
+      "outputTokens": 273,
+      "timestamp": "2026-03-16T13:15:32.927Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7hx8a0n",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006352,
+      "inputTokens": 7750,
+      "outputTokens": 38,
+      "timestamp": "2026-03-16T13:15:34.138Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7ivv5n3",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006129,
+      "inputTokens": 7386,
+      "outputTokens": 55,
+      "timestamp": "2026-03-16T13:16:19.025Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7ke9xyi",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006259,
+      "inputTokens": 7499,
+      "outputTokens": 65,
+      "timestamp": "2026-03-16T13:17:29.541Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7l3x54w",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006178,
+      "inputTokens": 7508,
+      "outputTokens": 43,
+      "timestamp": "2026-03-16T13:18:02.777Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7lmymgu",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00629,
+      "inputTokens": 7557,
+      "outputTokens": 61,
+      "timestamp": "2026-03-16T13:18:27.454Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7m00zjv",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006542,
+      "inputTokens": 7538,
+      "outputTokens": 128,
+      "timestamp": "2026-03-16T13:18:44.387Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7mmu9sr",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006974,
+      "inputTokens": 7647,
+      "outputTokens": 214,
+      "timestamp": "2026-03-16T13:19:13.953Z",
+      "meta": null
+    },
+    {
+      "id": "mmt7mo4ozj",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00655,
+      "inputTokens": 7908,
+      "outputTokens": 56,
+      "timestamp": "2026-03-16T13:19:15.624Z",
+      "meta": null
+    },
+    {
+      "id": "mmt8qs9ktg",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006333,
+      "inputTokens": 7641,
+      "outputTokens": 55,
+      "timestamp": "2026-03-16T13:50:27.224Z",
+      "meta": null
+    },
+    {
+      "id": "mmt8r0mlml",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006535,
+      "inputTokens": 7619,
+      "outputTokens": 110,
+      "timestamp": "2026-03-16T13:50:38.061Z",
+      "meta": null
+    },
+    {
+      "id": "mmtg9lqkp3",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006369,
+      "inputTokens": 7596,
+      "outputTokens": 73,
+      "timestamp": "2026-03-16T17:21:02.540Z",
+      "meta": null
+    },
+    {
+      "id": "mmtg9rjrwp",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006254,
+      "inputTokens": 7622,
+      "outputTokens": 39,
+      "timestamp": "2026-03-16T17:21:10.071Z",
+      "meta": null
+    },
+    {
+      "id": "mmtga1wo5x",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006528,
+      "inputTokens": 7585,
+      "outputTokens": 115,
+      "timestamp": "2026-03-16T17:21:23.496Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgaekq8s",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00635,
+      "inputTokens": 7532,
+      "outputTokens": 81,
+      "timestamp": "2026-03-16T17:21:39.914Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgafjo3q",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006228,
+      "inputTokens": 7630,
+      "outputTokens": 31,
+      "timestamp": "2026-03-16T17:21:41.172Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgeskmpn",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00641,
+      "inputTokens": 6822,
+      "outputTokens": 238,
+      "timestamp": "2026-03-16T17:25:04.678Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgeu1x7z",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.005939,
+      "inputTokens": 7084,
+      "outputTokens": 68,
+      "timestamp": "2026-03-16T17:25:06.597Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgev1usv",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00629,
+      "inputTokens": 7362,
+      "outputTokens": 100,
+      "timestamp": "2026-03-16T17:25:07.890Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgevv3xq",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006226,
+      "inputTokens": 7477,
+      "outputTokens": 61,
+      "timestamp": "2026-03-16T17:25:08.943Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgex25wp",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006569,
+      "inputTokens": 7721,
+      "outputTokens": 98,
+      "timestamp": "2026-03-16T17:25:10.493Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgeyw3xp",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007131,
+      "inputTokens": 8494,
+      "outputTokens": 84,
+      "timestamp": "2026-03-16T17:25:12.867Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgfe7l36",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.022009,
+      "inputTokens": 11841,
+      "outputTokens": 3134,
+      "timestamp": "2026-03-16T17:25:32.721Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgffqmk0",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.012382,
+      "inputTokens": 15018,
+      "outputTokens": 92,
+      "timestamp": "2026-03-16T17:25:34.702Z",
+      "meta": null
+    },
+    {
+      "id": "mmtgt0ymix",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006222,
+      "inputTokens": 7513,
+      "outputTokens": 53,
+      "timestamp": "2026-03-16T17:36:08.734Z",
+      "meta": null
+    },
+    {
+      "id": "mmtokg82zt",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006192,
+      "inputTokens": 7500,
+      "outputTokens": 48,
+      "timestamp": "2026-03-16T21:13:25.538Z",
+      "meta": null
+    },
+    {
+      "id": "mmtokrctl0",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006064,
+      "inputTokens": 7425,
+      "outputTokens": 31,
+      "timestamp": "2026-03-16T21:13:39.965Z",
+      "meta": null
+    },
+    {
+      "id": "mmuoidqvht",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007324,
+      "inputTokens": 7435,
+      "outputTokens": 344,
+      "timestamp": "2026-03-17T13:59:35.191Z",
+      "meta": null
+    },
+    {
+      "id": "mmuoif036s",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00659,
+      "inputTokens": 7823,
+      "outputTokens": 83,
+      "timestamp": "2026-03-17T13:59:36.819Z",
+      "meta": null
+    },
+    {
+      "id": "mmuoix5o4x",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006153,
+      "inputTokens": 7466,
+      "outputTokens": 45,
+      "timestamp": "2026-03-17T14:00:00.348Z",
+      "meta": null
+    },
+    {
+      "id": "mmuoizz23f",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006234,
+      "inputTokens": 7527,
+      "outputTokens": 53,
+      "timestamp": "2026-03-17T14:00:03.998Z",
+      "meta": null
+    },
+    {
+      "id": "mmuojc9v52",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007514,
+      "inputTokens": 7407,
+      "outputTokens": 397,
+      "timestamp": "2026-03-17T14:00:19.939Z",
+      "meta": null
+    },
+    {
+      "id": "mmuojdfgwz",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006405,
+      "inputTokens": 7851,
+      "outputTokens": 31,
+      "timestamp": "2026-03-17T14:00:21.436Z",
+      "meta": null
+    },
+    {
+      "id": "mmuojp2uu9",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006099,
+      "inputTokens": 7359,
+      "outputTokens": 53,
+      "timestamp": "2026-03-17T14:00:36.534Z",
+      "meta": null
+    },
+    {
+      "id": "mmuojs7taq",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00695,
+      "inputTokens": 7428,
+      "outputTokens": 252,
+      "timestamp": "2026-03-17T14:00:40.601Z",
+      "meta": null
+    },
+    {
+      "id": "mmuojtq0q7",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006266,
+      "inputTokens": 7727,
+      "outputTokens": 21,
+      "timestamp": "2026-03-17T14:00:42.552Z",
+      "meta": null
+    },
+    {
+      "id": "mmuok68w62",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006058,
+      "inputTokens": 7342,
+      "outputTokens": 46,
+      "timestamp": "2026-03-17T14:00:58.784Z",
+      "meta": null
+    },
+    {
+      "id": "mmuok96gnw",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007031,
+      "inputTokens": 7404,
+      "outputTokens": 277,
+      "timestamp": "2026-03-17T14:01:02.584Z",
+      "meta": null
+    },
+    {
+      "id": "mmuoka4ipl",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006282,
+      "inputTokens": 7728,
+      "outputTokens": 25,
+      "timestamp": "2026-03-17T14:01:03.810Z",
+      "meta": null
+    },
+    {
+      "id": "mmv56j9go2",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007074,
+      "inputTokens": 8447,
+      "outputTokens": 79,
+      "timestamp": "2026-03-17T21:46:15.940Z",
+      "meta": null
+    },
+    {
+      "id": "mmv56vyrwh",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007544,
+      "inputTokens": 8820,
+      "outputTokens": 122,
+      "timestamp": "2026-03-17T21:46:32.403Z",
+      "meta": null
+    },
+    {
+      "id": "mmv5787qlr",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.0072,
+      "inputTokens": 8540,
+      "outputTokens": 92,
+      "timestamp": "2026-03-17T21:46:48.278Z",
+      "meta": null
+    },
+    {
+      "id": "mmv57gs9ha",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007422,
+      "inputTokens": 8987,
+      "outputTokens": 58,
+      "timestamp": "2026-03-17T21:46:59.385Z",
+      "meta": null
+    },
+    {
+      "id": "mmv57prmyj",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006958,
+      "inputTokens": 8538,
+      "outputTokens": 32,
+      "timestamp": "2026-03-17T21:47:11.026Z",
+      "meta": null
+    },
+    {
+      "id": "mmv58d8iky",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007168,
+      "inputTokens": 8520,
+      "outputTokens": 88,
+      "timestamp": "2026-03-17T21:47:41.442Z",
+      "meta": null
+    },
+    {
+      "id": "mmv58j6a6b",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007838,
+      "inputTokens": 8963,
+      "outputTokens": 167,
+      "timestamp": "2026-03-17T21:47:49.138Z",
+      "meta": null
+    },
+    {
+      "id": "mmv6rd2l0i",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007622,
+      "inputTokens": 8802,
+      "outputTokens": 145,
+      "timestamp": "2026-03-17T22:30:27.309Z",
+      "meta": null
+    },
+    {
+      "id": "mmv6rdwtsa",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007348,
+      "inputTokens": 9035,
+      "outputTokens": 30,
+      "timestamp": "2026-03-17T22:30:28.397Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8bjedne",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007623,
+      "inputTokens": 8684,
+      "outputTokens": 169,
+      "timestamp": "2026-03-17T23:14:08.245Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8bkbf2c",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007213,
+      "inputTokens": 8906,
+      "outputTokens": 22,
+      "timestamp": "2026-03-17T23:14:09.435Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8tip1ht",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007475,
+      "inputTokens": 8684,
+      "outputTokens": 132,
+      "timestamp": "2026-03-17T23:28:07.141Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8u65dox",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00743,
+      "inputTokens": 8793,
+      "outputTokens": 99,
+      "timestamp": "2026-03-17T23:28:37.537Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8u7vp8i",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.034392,
+      "inputTokens": 11169,
+      "outputTokens": 59,
+      "timestamp": "2026-03-17T23:28:39.781Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8u9gq2d",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.03486,
+      "inputTokens": 11300,
+      "outputTokens": 64,
+      "timestamp": "2026-03-17T23:28:41.834Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8udlg7f",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.038604,
+      "inputTokens": 11518,
+      "outputTokens": 270,
+      "timestamp": "2026-03-17T23:28:47.188Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8wqwpoe",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.043419,
+      "inputTokens": 12893,
+      "outputTokens": 316,
+      "timestamp": "2026-03-17T23:30:37.753Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8y3u4zn",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.009158,
+      "inputTokens": 9082,
+      "outputTokens": 473,
+      "timestamp": "2026-03-17T23:31:41.164Z",
+      "meta": null
+    },
+    {
+      "id": "mmv8y4y4xb",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007829,
+      "inputTokens": 9616,
+      "outputTokens": 34,
+      "timestamp": "2026-03-17T23:31:42.604Z",
+      "meta": null
+    },
+    {
+      "id": "mmv90kbtkk",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007317,
+      "inputTokens": 9091,
+      "outputTokens": 11,
+      "timestamp": "2026-03-17T23:33:35.849Z",
+      "meta": null
+    },
+    {
+      "id": "mmv92dqf5s",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007385,
+      "inputTokens": 8976,
+      "outputTokens": 51,
+      "timestamp": "2026-03-17T23:35:00.615Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9e45t0f",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007402,
+      "inputTokens": 8968,
+      "outputTokens": 57,
+      "timestamp": "2026-03-17T23:44:08.081Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9e5c4ib",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007489,
+      "inputTokens": 9041,
+      "outputTokens": 64,
+      "timestamp": "2026-03-17T23:44:09.604Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9e9awks",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007646,
+      "inputTokens": 9177,
+      "outputTokens": 76,
+      "timestamp": "2026-03-17T23:44:14.744Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9eamum2",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007674,
+      "inputTokens": 9327,
+      "outputTokens": 53,
+      "timestamp": "2026-03-17T23:44:16.470Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9g64lc8",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00735,
+      "inputTokens": 8992,
+      "outputTokens": 39,
+      "timestamp": "2026-03-17T23:45:43.941Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9g708qc",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007482,
+      "inputTokens": 9047,
+      "outputTokens": 61,
+      "timestamp": "2026-03-17T23:45:45.080Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9g8235e",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007566,
+      "inputTokens": 9158,
+      "outputTokens": 60,
+      "timestamp": "2026-03-17T23:45:46.443Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9gb48yz",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008642,
+      "inputTokens": 9292,
+      "outputTokens": 302,
+      "timestamp": "2026-03-17T23:45:50.408Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9gc2iu9",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007794,
+      "inputTokens": 9653,
+      "outputTokens": 18,
+      "timestamp": "2026-03-17T23:45:51.642Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9qc93bp",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007126,
+      "inputTokens": 8843,
+      "outputTokens": 13,
+      "timestamp": "2026-03-17T23:53:38.439Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9qtm26x",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007283,
+      "inputTokens": 8769,
+      "outputTokens": 67,
+      "timestamp": "2026-03-17T23:54:00.938Z",
+      "meta": null
+    },
+    {
+      "id": "mmv9qubt34",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00717,
+      "inputTokens": 8867,
+      "outputTokens": 19,
+      "timestamp": "2026-03-17T23:54:01.865Z",
+      "meta": null
+    },
+    {
+      "id": "mmvbpa0ptc",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007675,
+      "inputTokens": 8764,
+      "outputTokens": 166,
+      "timestamp": "2026-03-18T00:48:48.121Z",
+      "meta": null
+    },
+    {
+      "id": "mmvbpaq7g7",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007277,
+      "inputTokens": 8986,
+      "outputTokens": 22,
+      "timestamp": "2026-03-18T00:48:49.039Z",
+      "meta": null
+    },
+    {
+      "id": "mmvbxgvdex",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007162,
+      "inputTokens": 8627,
+      "outputTokens": 65,
+      "timestamp": "2026-03-18T00:55:10.249Z",
+      "meta": null
+    },
+    {
+      "id": "mmvbxska8p",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006843,
+      "inputTokens": 8379,
+      "outputTokens": 35,
+      "timestamp": "2026-03-18T00:55:25.402Z",
+      "meta": null
+    },
+    {
+      "id": "mmvby1ewsv",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006945,
+      "inputTokens": 8381,
+      "outputTokens": 60,
+      "timestamp": "2026-03-18T00:55:36.872Z",
+      "meta": null
+    },
+    {
+      "id": "mmvby4q1t3",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008605,
+      "inputTokens": 8516,
+      "outputTokens": 448,
+      "timestamp": "2026-03-18T00:55:41.161Z",
+      "meta": null
+    },
+    {
+      "id": "mmvc5cydtg",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.010376,
+      "inputTokens": 12185,
+      "outputTokens": 157,
+      "timestamp": "2026-03-18T01:01:18.421Z",
+      "meta": null
+    },
+    {
+      "id": "mmvcc2o6re",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00709,
+      "inputTokens": 8528,
+      "outputTokens": 67,
+      "timestamp": "2026-03-18T01:06:31.686Z",
+      "meta": null
+    },
+    {
+      "id": "mmvcd9g93z",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007328,
+      "inputTokens": 8565,
+      "outputTokens": 119,
+      "timestamp": "2026-03-18T01:07:27.129Z",
+      "meta": null
+    },
+    {
+      "id": "mmvcdhd4ul",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.037623,
+      "inputTokens": 10941,
+      "outputTokens": 320,
+      "timestamp": "2026-03-18T01:07:37.384Z",
+      "meta": null
+    },
+    {
+      "id": "mmvceclllq",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007514,
+      "inputTokens": 8838,
+      "outputTokens": 111,
+      "timestamp": "2026-03-18T01:08:17.865Z",
+      "meta": null
+    },
+    {
+      "id": "mmvceg62ro",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.035397,
+      "inputTokens": 11214,
+      "outputTokens": 117,
+      "timestamp": "2026-03-18T01:08:22.490Z",
+      "meta": null
+    },
+    {
+      "id": "mmvcehrbyh",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.035358,
+      "inputTokens": 11461,
+      "outputTokens": 65,
+      "timestamp": "2026-03-18T01:08:24.551Z",
+      "meta": null
+    },
+    {
+      "id": "mmvcej6c7z",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.036468,
+      "inputTokens": 11736,
+      "outputTokens": 84,
+      "timestamp": "2026-03-18T01:08:26.388Z",
+      "meta": null
+    },
+    {
+      "id": "mmvd929dv4",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007396,
+      "inputTokens": 9010,
+      "outputTokens": 47,
+      "timestamp": "2026-03-18T01:32:10.801Z",
+      "meta": null
+    },
+    {
+      "id": "mmvd930exe",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007386,
+      "inputTokens": 9128,
+      "outputTokens": 21,
+      "timestamp": "2026-03-18T01:32:11.774Z",
+      "meta": null
+    },
+    {
+      "id": "mmvdplfa2x",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00724,
+      "inputTokens": 9015,
+      "outputTokens": 7,
+      "timestamp": "2026-03-18T01:45:02.134Z",
+      "meta": null
+    },
+    {
+      "id": "mn21k56qze",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007218,
+      "inputTokens": 8998,
+      "outputTokens": 5,
+      "timestamp": "2026-03-22T17:39:15.650Z",
+      "meta": null
+    },
+    {
+      "id": "mn21ktnbsu",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007627,
+      "inputTokens": 8954,
+      "outputTokens": 116,
+      "timestamp": "2026-03-22T17:39:47.351Z",
+      "meta": null
+    },
+    {
+      "id": "mn21lesztu",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.00777,
+      "inputTokens": 9002,
+      "outputTokens": 142,
+      "timestamp": "2026-03-22T17:40:14.771Z",
+      "meta": null
+    },
+    {
+      "id": "mn21lhgg79",
+      "component": "claude-chat",
+      "model": "claude-sonnet-4-6",
+      "cost": 0.035319,
+      "inputTokens": 11378,
+      "outputTokens": 79,
+      "timestamp": "2026-03-22T17:40:18.208Z",
+      "meta": null
+    },
+    {
+      "id": "mn21lvcekf",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008045,
+      "inputTokens": 9046,
+      "outputTokens": 202,
+      "timestamp": "2026-03-22T17:40:36.207Z",
+      "meta": null
+    },
+    {
+      "id": "mn21mhjyt6",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007351,
+      "inputTokens": 9094,
+      "outputTokens": 19,
+      "timestamp": "2026-03-22T17:41:04.990Z",
+      "meta": null
+    },
+    {
+      "id": "mn26xwq2hg",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007254,
+      "inputTokens": 9042,
+      "outputTokens": 5,
+      "timestamp": "2026-03-22T20:09:55.946Z",
+      "meta": null
+    },
+    {
+      "id": "mn26y6pnja",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007157,
+      "inputTokens": 8706,
+      "outputTokens": 48,
+      "timestamp": "2026-03-22T20:10:08.892Z",
+      "meta": null
+    },
+    {
+      "id": "mn26y7lzli",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007144,
+      "inputTokens": 8825,
+      "outputTokens": 21,
+      "timestamp": "2026-03-22T20:10:10.055Z",
+      "meta": null
+    },
+    {
+      "id": "mn26yjkkhh",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007695,
+      "inputTokens": 8574,
+      "outputTokens": 209,
+      "timestamp": "2026-03-22T20:10:25.556Z",
+      "meta": null
+    },
+    {
+      "id": "mn26zbucs0",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.007557,
+      "inputTokens": 8786,
+      "outputTokens": 132,
+      "timestamp": "2026-03-22T20:11:02.196Z",
+      "meta": null
+    },
+    {
+      "id": "mn26zfck0m",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.009278,
+      "inputTokens": 9482,
+      "outputTokens": 423,
+      "timestamp": "2026-03-22T20:11:06.740Z",
+      "meta": null
+    },
+    {
+      "id": "mn26zgc0m4",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.008214,
+      "inputTokens": 9967,
+      "outputTokens": 60,
+      "timestamp": "2026-03-22T20:11:08.016Z",
+      "meta": null
+    },
+    {
+      "id": "mn270zwusd",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006723,
+      "inputTokens": 8079,
+      "outputTokens": 65,
+      "timestamp": "2026-03-22T20:12:20.046Z",
+      "meta": null
+    },
+    {
+      "id": "mn2710tz7d",
+      "component": "claude-chat",
+      "model": "claude-haiku-4-5",
+      "cost": 0.006546,
+      "inputTokens": 8173,
+      "outputTokens": 2,
+      "timestamp": "2026-03-22T20:12:21.239Z",
+      "meta": null
+    }
+  ],
+  "budgets": {
+    "claude": {
+      "daily": 5,
+      "monthly": 50
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "id": "dfa64334-ceab-46bb-aaa8-92cef7a86a9e",
+  "character": "joaquin",
+  "animation": "dribble",
+  "mode": "fbf",
+  "model": "gemini-3-pro-image-preview",
+  "status": "complete",
+  "totalFrames": 8,
+  "completedFrames": 8,
+  "rawPaths": [],
+  "processedPaths": [
+    "frame-000.png",
+    "frame-001.png",
+    "frame-002.png",
+    "frame-003.png",
+    "frame-004.png",
+    "frame-005.png",
+    "frame-006.png",
+    "frame-007.png"
+  ],
+  "stripPath": "/Users/crafterc/Claude Test/soul-jam/public/assets/images/joaquin-dribble.png",
+  "qualityScore": null,
+  "promptSections": {
+    "poseReplication": {
+      "enabled": true,
+      "text": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation."
+    },
+    "imageDescription": {
+      "enabled": true,
+      "text": "Image 1 shows: right foot forward ball high"
+    },
+    "bodyPosition": {
+      "enabled": true,
+      "text": "POSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity"
+    },
+    "characterSwap": {
+      "enabled": true,
+      "text": "CHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors"
+    },
+    "outputStyle": {
+      "enabled": true,
+      "text": "STYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character"
+    },
+    "sizeAnchoring": {
+      "enabled": true,
+      "text": "SIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character"
+    }
+  },
+  "promptText": null,
+  "totalCost": 0,
+  "attempts": [
+    {
+      "frameIndex": 0,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-000.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:20:46.787Z"
+    },
+    {
+      "frameIndex": 1,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-001.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:21:23.045Z"
+    },
+    {
+      "frameIndex": 2,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-002.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:21:58.833Z"
+    },
+    {
+      "frameIndex": 3,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-003.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:22:34.808Z"
+    },
+    {
+      "frameIndex": 4,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-004.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:23:12.944Z"
+    },
+    {
+      "frameIndex": 5,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-005.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:23:50.041Z"
+    },
+    {
+      "frameIndex": 6,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-006.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:24:27.053Z"
+    },
+    {
+      "frameIndex": 7,
+      "attemptNum": 1,
+      "rawPath": "/Users/crafterc/Claude Test/vance/raw-sprites/joaquin-dribble-fbf/raw-frame-007.png",
+      "processedPath": null,
+      "score": null,
+      "promptText": "REPLICATE the exact pose from Image 1. Copy the body position, limb placement, and composition EXACTLY. ONLY change the character's identity to match Image 2.\n\nThis is frame 1 of 8 in a running dribble, full run cycle with basketball animation.\n\nImage 1 shows: right foot forward ball high\n\nPOSE RULES:\n- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution\n- Treat Image 1 as motion capture — do NOT reinterpret\n- Copy the exact body angle, lean, and center of gravity\n\nCHARACTER:\n- Use Image 2's face, skin tone, hairstyle, outfit\n- Maintain Image 2's exact proportions and clothing colors\n\nSTYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines\nOUTPUT: Single character, ONE frame only (NOT a strip)\nBackground: solid green (#00FF00), NO green on character\n\nSIZE ANCHORING:\n- Character should fill ~62% of frame height\n- Lock proportions — do NOT stretch or squash\n- Feet on the baseline, consistent ground plane\n- Basketball should be ~12px diameter relative to character",
+      "timestamp": "2026-03-22T02:25:01.806Z"
+    }
+  ],
+  "startedAt": "2026-03-22T02:20:25.243Z",
+  "completedAt": "2026-03-22T02:25:02.739Z"
+}

@@ -1,0 +1,696 @@
+{
+  "patterns": [
+    {
+      "pattern": "hi",
+      "category": "general",
+      "timestamp": "2026-03-11T18:03:34.422Z"
+    },
+    {
+      "pattern": "hi who are you",
+      "category": "general",
+      "timestamp": "2026-03-11T18:04:42.326Z"
+    },
+    {
+      "pattern": "I want to see the 3d ui tried to build in you",
+      "category": "general",
+      "timestamp": "2026-03-11T18:05:12.959Z"
+    },
+    {
+      "pattern": "can you search Bree robinson",
+      "category": "general",
+      "timestamp": "2026-03-11T19:11:12.074Z"
+    },
+    {
+      "pattern": "search Bree Robinson on the web",
+      "category": "general",
+      "timestamp": "2026-03-11T19:11:52.475Z"
+    },
+    {
+      "pattern": "Hello, Blair!",
+      "category": "general",
+      "timestamp": "2026-03-11T22:37:47.235Z"
+    },
+    {
+      "pattern": "Hello, Blair!",
+      "category": "general",
+      "timestamp": "2026-03-11T22:40:16.257Z"
+    },
+    {
+      "pattern": "Hello, Blair!",
+      "category": "general",
+      "timestamp": "2026-03-11T22:44:32.032Z"
+    },
+    {
+      "pattern": "hi",
+      "category": "general",
+      "timestamp": "2026-03-13T01:31:56.759Z"
+    },
+    {
+      "pattern": "status",
+      "category": "general",
+      "timestamp": "2026-03-13T18:48:34.446Z"
+    },
+    {
+      "pattern": "hi",
+      "category": "general",
+      "timestamp": "2026-03-13T22:09:29.362Z"
+    },
+    {
+      "pattern": "how much does it cost per message I send",
+      "category": "general",
+      "timestamp": "2026-03-13T22:09:44.905Z"
+    },
+    {
+      "pattern": "what about now",
+      "category": "general",
+      "timestamp": "2026-03-13T22:10:11.228Z"
+    },
+    {
+      "pattern": "with what model",
+      "category": "general",
+      "timestamp": "2026-03-13T22:10:26.746Z"
+    },
+    {
+      "pattern": "what do you know about my projects? also tell me what memory layers you have access to",
+      "category": "general",
+      "timestamp": "2026-03-13T22:32:07.330Z"
+    },
+    {
+      "pattern": "can you quickly check where we're at with the soul jam project",
+      "category": "general",
+      "timestamp": "2026-03-13T23:59:52.274Z"
+    },
+    {
+      "pattern": "could you add text to the loading screen that says you are agenius",
+      "category": "general",
+      "timestamp": "2026-03-14T00:00:43.653Z"
+    },
+    {
+      "pattern": "yes",
+      "category": "general",
+      "timestamp": "2026-03-14T00:01:13.540Z"
+    },
+    {
+      "pattern": "give me the link to test",
+      "category": "general",
+      "timestamp": "2026-03-14T00:01:24.116Z"
+    },
+    {
+      "pattern": "no  the link to open in locally in my browser",
+      "category": "general",
+      "timestamp": "2026-03-14T00:01:55.040Z"
+    },
+    {
+      "pattern": "that's the wrong one",
+      "category": "general",
+      "timestamp": "2026-03-14T00:02:16.114Z"
+    },
+    {
+      "pattern": "you tell me",
+      "category": "general",
+      "timestamp": "2026-03-14T00:02:27.179Z"
+    },
+    {
+      "pattern": "hi what's the state of soul jam",
+      "category": "general",
+      "timestamp": "2026-03-14T00:24:48.876Z"
+    },
+    {
+      "pattern": "list all my projects",
+      "category": "general",
+      "timestamp": "2026-03-14T00:25:18.237Z"
+    },
+    {
+      "pattern": "let me test soul jam",
+      "category": "general",
+      "timestamp": "2026-03-14T00:26:00.950Z"
+    },
+    {
+      "pattern": "hey can you tell me who Bree Robinson is",
+      "category": "general",
+      "timestamp": "2026-03-14T00:51:29.888Z"
+    },
+    {
+      "pattern": "who is Bree robinson",
+      "category": "general",
+      "timestamp": "2026-03-14T00:56:03.274Z"
+    },
+    {
+      "pattern": "there's people named that so find them",
+      "category": "general",
+      "timestamp": "2026-03-14T00:56:50.760Z"
+    },
+    {
+      "pattern": "who's Bree Robinson",
+      "category": "general",
+      "timestamp": "2026-03-14T01:17:35.999Z"
+    },
+    {
+      "pattern": "hi",
+      "category": "general",
+      "timestamp": "2026-03-15T22:00:04.181Z"
+    },
+    {
+      "pattern": "who are you",
+      "category": "general",
+      "timestamp": "2026-03-15T22:00:29.925Z"
+    },
+    {
+      "pattern": "Hello",
+      "category": "general",
+      "timestamp": "2026-03-16T04:51:51.734Z"
+    },
+    {
+      "pattern": "Can you update me on Soulja",
+      "category": "general",
+      "timestamp": "2026-03-16T04:53:47.822Z"
+    },
+    {
+      "pattern": "Soulja my project",
+      "category": "general",
+      "timestamp": "2026-03-16T04:53:58.006Z"
+    },
+    {
+      "pattern": "Yes",
+      "category": "general",
+      "timestamp": "2026-03-16T04:54:08.531Z"
+    },
+    {
+      "pattern": "Oh",
+      "category": "general",
+      "timestamp": "2026-03-16T05:23:27.060Z"
+    },
+    {
+      "pattern": "Can you check the progress of Soulja",
+      "category": "general",
+      "timestamp": "2026-03-16T05:23:42.445Z"
+    },
+    {
+      "pattern": "Can we alter the soul overall goal you know seven milestones with whole project",
+      "category": "general",
+      "timestamp": "2026-03-16T05:24:00.988Z"
+    },
+    {
+      "pattern": "Switch the mode that you always talk in from haiku to sonic and make it intelligent and go edit your own code in card code using in the Blair project you know making whatever is needed whether you have to research or whatever",
+      "category": "general",
+      "timestamp": "2026-03-16T05:24:40.322Z"
+    },
+    {
+      "pattern": "All right what model are you using",
+      "category": "general",
+      "timestamp": "2026-03-16T05:33:11.603Z"
+    },
+    {
+      "pattern": "How do I make your reasoning way better like Clyde or GPT",
+      "category": "general",
+      "timestamp": "2026-03-16T05:33:32.861Z"
+    },
+    {
+      "pattern": "I can hear you",
+      "category": "general",
+      "timestamp": "2026-03-16T05:47:40.536Z"
+    },
+    {
+      "pattern": "Wait so what do I do",
+      "category": "general",
+      "timestamp": "2026-03-16T05:48:53.581Z"
+    },
+    {
+      "pattern": "Can you tell me how long I have to wait",
+      "category": "general",
+      "timestamp": "2026-03-16T05:49:08.858Z"
+    },
+    {
+      "pattern": "Can you change your voice",
+      "category": "general",
+      "timestamp": "2026-03-16T05:49:31.093Z"
+    },
+    {
+      "pattern": "I think the rate limits",
+      "category": "general",
+      "timestamp": "2026-03-16T05:49:51.184Z"
+    },
+    {
+      "pattern": "The rate reset in about 3 1/2 hours so that time can you try and run the claw coat again autonomously",
+      "category": "general",
+      "timestamp": "2026-03-16T05:50:54.219Z"
+    },
+    {
+      "pattern": "How can we get it so you can schedule a task directly",
+      "category": "general",
+      "timestamp": "2026-03-16T05:51:17.568Z"
+    },
+    {
+      "pattern": "Option one",
+      "category": "general",
+      "timestamp": "2026-03-16T05:52:09.971Z"
+    },
+    {
+      "pattern": "Can you also schedule someone in the 3 1/2 hours the rate limit restarts can you continue all of the four different vents improvements I had open",
+      "category": "general",
+      "timestamp": "2026-03-16T05:53:07.544Z"
+    },
+    {
+      "pattern": "I'm not sure but can't you just ask clock code once it opens over and my limit recess can you just ask all the things that I was in that continue those for Blair only",
+      "category": "general",
+      "timestamp": "2026-03-16T05:53:46.808Z"
+    },
+    {
+      "pattern": "OK well if they're not there then continue working on the reasoning of this model",
+      "category": "general",
+      "timestamp": "2026-03-16T05:54:39.440Z"
+    },
+    {
+      "pattern": "No prove it by switching it to son",
+      "category": "general",
+      "timestamp": "2026-03-16T05:54:54.361Z"
+    },
+    {
+      "pattern": "OK well also queue working",
+      "category": "general",
+      "timestamp": "2026-03-16T05:55:13.641Z"
+    },
+    {
+      "pattern": "Queue continuation of working on layer two panels and graphics I submitted an image and it started reading it but I am already in the L2 dashboard overlay",
+      "category": "general",
+      "timestamp": "2026-03-16T05:55:37.097Z"
+    },
+    {
+      "pattern": "I don't know that's what I was working on and then the rate limit just make sure you attempt to restart the clock code to continue working on that once by rate limit you know",
+      "category": "general",
+      "timestamp": "2026-03-16T05:56:00.127Z"
+    },
+    {
+      "pattern": "Tell me everything I have queued up to go when the rate limit resets",
+      "category": "general",
+      "timestamp": "2026-03-16T05:56:27.895Z"
+    },
+    {
+      "pattern": "Also queue a notification system however that will be to my phone or what for when you're finished the scheduled test ever and also make sure they're current priorities in the queue or something like that and give an option for that",
+      "category": "general",
+      "timestamp": "2026-03-16T05:57:35.579Z"
+    },
+    {
+      "pattern": "I'd say phone push iOS",
+      "category": "general",
+      "timestamp": "2026-03-16T05:57:58.120Z"
+    },
+    {
+      "pattern": "Hey when my rate limit resets make sure you also queue something so the bottom widget in this facial you are hugged the bottom of the screen and don't have too much bedding in",
+      "category": "general",
+      "timestamp": "2026-03-16T05:59:41.635Z"
+    },
+    {
+      "pattern": "You just do what I asked you in terms of what I want you to tell vodka but you just have to understand what I mean in reasoning and interpreted it",
+      "category": "general",
+      "timestamp": "2026-03-16T06:00:04.974Z"
+    },
+    {
+      "pattern": "Yes that but only the bottom with it everything else keeps his exact position",
+      "category": "general",
+      "timestamp": "2026-03-16T06:00:31.484Z"
+    },
+    {
+      "pattern": "How will you execute these cute task automatically without me reminding you",
+      "category": "general",
+      "timestamp": "2026-03-16T06:00:44.253Z"
+    },
+    {
+      "pattern": "Think creatively and find a way where you could do it autonomously even right now",
+      "category": "general",
+      "timestamp": "2026-03-16T06:01:07.256Z"
+    },
+    {
+      "pattern": "Yes but think about it again before make sure there's no fault or it won't mess anything up",
+      "category": "general",
+      "timestamp": "2026-03-16T06:01:36.953Z"
+    },
+    {
+      "pattern": "No do whatever you need to make it autonomous",
+      "category": "general",
+      "timestamp": "2026-03-16T06:02:04.523Z"
+    },
+    {
+      "pattern": "Remember that the rate limit resets in about three hours so I'm gonna turn my computer I'm gonna turn my screen off right now and I want it to automatically be started to win the rate limit is up",
+      "category": "general",
+      "timestamp": "2026-03-16T06:03:06.752Z"
+    },
+    {
+      "pattern": "How will this work",
+      "category": "general",
+      "timestamp": "2026-03-16T06:03:24.681Z"
+    },
+    {
+      "pattern": "Is there can you give me food for it so I can usually write I'm gonna so never sleep I just wanna get to cry just checking 10 seconds and initiate medically",
+      "category": "general",
+      "timestamp": "2026-03-16T06:03:57.789Z"
+    },
+    {
+      "pattern": "Disable",
+      "category": "general",
+      "timestamp": "2026-03-16T06:04:31.614Z"
+    },
+    {
+      "pattern": "Didn't the password",
+      "category": "general",
+      "timestamp": "2026-03-16T06:04:48.443Z"
+    },
+    {
+      "pattern": "Already",
+      "category": "general",
+      "timestamp": "2026-03-16T06:04:57.342Z"
+    },
+    {
+      "pattern": "did the quad tasks begin?",
+      "category": "general",
+      "timestamp": "2026-03-16T12:44:22.313Z"
+    },
+    {
+      "pattern": "what are all the qued tasks",
+      "category": "general",
+      "timestamp": "2026-03-16T12:45:44.059Z"
+    },
+    {
+      "pattern": "can you implement the system in your vance project in Claude Code to be able to sue tasks if the rate limit is reached so you work autonomously for real",
+      "category": "general",
+      "timestamp": "2026-03-16T12:47:07.426Z"
+    },
+    {
+      "pattern": "make sure its done using sonnet in Claude code",
+      "category": "general",
+      "timestamp": "2026-03-16T12:47:47.750Z"
+    },
+    {
+      "pattern": "its all ready reset you should have a way to know if it is or not",
+      "category": "general",
+      "timestamp": "2026-03-16T12:48:24.496Z"
+    },
+    {
+      "pattern": "Hello",
+      "category": "general",
+      "timestamp": "2026-03-16T13:05:50.810Z"
+    },
+    {
+      "pattern": "Can you change the voice that to some more by Jarvis",
+      "category": "general",
+      "timestamp": "2026-03-16T13:06:14.398Z"
+    },
+    {
+      "pattern": "Change your text communication style",
+      "category": "general",
+      "timestamp": "2026-03-16T13:06:34.779Z"
+    },
+    {
+      "pattern": "No I mean can you change your accent through and whenever I ask only gotta do it through Claude code",
+      "category": "general",
+      "timestamp": "2026-03-16T13:07:00.971Z"
+    },
+    {
+      "pattern": "I don't wanna be able to change it in any UI aspects I just want you to change it to sound more like a calm old British man slightly like Jarvis from Iron Man",
+      "category": "general",
+      "timestamp": "2026-03-16T13:07:46.608Z"
+    },
+    {
+      "pattern": "when my rate limit resets ask Claude Code to continue this build task intelligence system for auto…           \n  ✔ Upgrade task manager with categories an…           \n  ✔ Update brain guidelines for proactive t…  \n  ◼ Wire task intelligence into server chat…  \n  ◻Commit and push task intelligence    › blocked by   \n   upgra…                              #14",
+      "category": "general",
+      "timestamp": "2026-03-16T13:14:59.326Z"
+    },
+    {
+      "pattern": "I should see this in the current priorities in the spatial ui",
+      "category": "general",
+      "timestamp": "2026-03-16T13:15:34.140Z"
+    },
+    {
+      "pattern": "that was a task I was already working on but just got cut off when I hit my limit make sure it continues it not just start from scratch",
+      "category": "general",
+      "timestamp": "2026-03-16T13:16:19.028Z"
+    },
+    {
+      "pattern": "uild task intelligence system for auto…           \n  ✔ Upgrade task manager with categories an…           \n  ✔ Update brain guidelines for proactive t…  \n  ◼ Wire task intelligence into server chat…  \n  ◻Commit and push task intelligence    › blocked by   \n   upgra…                              #14             \n                           use this maybe as the signifier, that's the list it was showing and how complete it was before getting cut off",
+      "category": "general",
+      "timestamp": "2026-03-16T13:17:29.547Z"
+    },
+    {
+      "pattern": "ir resets in 4 hours make Sur eat automatically executes then",
+      "category": "general",
+      "timestamp": "2026-03-16T13:18:02.780Z"
+    },
+    {
+      "pattern": "what are you going to do when my rate limit resets",
+      "category": "general",
+      "timestamp": "2026-03-16T13:18:27.457Z"
+    },
+    {
+      "pattern": "how will you do this",
+      "category": "general",
+      "timestamp": "2026-03-16T13:18:44.391Z"
+    },
+    {
+      "pattern": "do a delayed start so its autonomous",
+      "category": "general",
+      "timestamp": "2026-03-16T13:19:15.628Z"
+    },
+    {
+      "pattern": "Progress of Soulja",
+      "category": "general",
+      "timestamp": "2026-03-16T13:50:27.228Z"
+    },
+    {
+      "pattern": "Yes soul jam",
+      "category": "general",
+      "timestamp": "2026-03-16T13:50:38.064Z"
+    },
+    {
+      "pattern": "Do you remember the cute task and why didn't you run them",
+      "category": "general",
+      "timestamp": "2026-03-16T17:21:02.543Z"
+    },
+    {
+      "pattern": "Queued",
+      "category": "general",
+      "timestamp": "2026-03-16T17:21:10.074Z"
+    },
+    {
+      "pattern": "What is a task 14 at",
+      "category": "general",
+      "timestamp": "2026-03-16T17:21:23.504Z"
+    },
+    {
+      "pattern": "Cancel that last",
+      "category": "general",
+      "timestamp": "2026-03-16T17:21:41.174Z"
+    },
+    {
+      "pattern": "for soul jam lets change top the shot meter for the shooting animation, make it more rectangle like and better",
+      "category": "project-work",
+      "timestamp": "2026-03-16T17:25:34.737Z"
+    },
+    {
+      "pattern": "how's the update on soul jam going",
+      "category": "general",
+      "timestamp": "2026-03-16T17:36:08.736Z"
+    },
+    {
+      "pattern": "What's the update on the task",
+      "category": "general",
+      "timestamp": "2026-03-16T21:13:25.541Z"
+    },
+    {
+      "pattern": "Are you working on anything in the background right now",
+      "category": "general",
+      "timestamp": "2026-03-16T21:13:39.968Z"
+    },
+    {
+      "pattern": "can you work on the vance project so I can have the vocal communication in the spatial ui to with no changes to how it looks, also improve the gesture control so it doesn't leg and functionally works",
+      "category": "general",
+      "timestamp": "2026-03-17T13:59:36.822Z"
+    },
+    {
+      "pattern": "is it working on it in Claude code",
+      "category": "general",
+      "timestamp": "2026-03-17T14:00:03.999Z"
+    },
+    {
+      "pattern": "yes",
+      "category": "general",
+      "timestamp": "2026-03-17T14:00:21.440Z"
+    },
+    {
+      "pattern": "is it running in Claude Code?",
+      "category": "general",
+      "timestamp": "2026-03-17T14:00:42.558Z"
+    },
+    {
+      "pattern": "is it running now",
+      "category": "general",
+      "timestamp": "2026-03-17T14:01:03.813Z"
+    },
+    {
+      "pattern": "Hey find out who Patrick Shelley is",
+      "category": "general",
+      "timestamp": "2026-03-17T21:46:32.418Z"
+    },
+    {
+      "pattern": "I think he plays basketball",
+      "category": "general",
+      "timestamp": "2026-03-17T21:46:59.387Z"
+    },
+    {
+      "pattern": "yes",
+      "category": "general",
+      "timestamp": "2026-03-17T21:47:11.027Z"
+    },
+    {
+      "pattern": "figure out what you can",
+      "category": "general",
+      "timestamp": "2026-03-17T21:47:49.141Z"
+    },
+    {
+      "pattern": "Use start_coding_task to run a test task. Title: \"Hello world test\". Prompt: \"Create /tmp/blair-test/hello.txt with the text hello world. Then list the contents.\". Project directory: /tmp/blair-test. Use haiku model.",
+      "category": "general",
+      "timestamp": "2026-03-17T22:30:28.403Z"
+    },
+    {
+      "pattern": "Use start_coding_task with title \"Hello test\", prompt \"Create /tmp/blair-test/hello.txt with text Hello from Blair. Then read it back to verify.\", project_directory \"/tmp/blair-test\", model \"claude-haiku-4-5\", max_budget 0.20",
+      "category": "general",
+      "timestamp": "2026-03-17T23:14:09.437Z"
+    },
+    {
+      "pattern": "Can you make the spatial UI of Blair the orb in it way better in like like like a real plasma or reactive spatial design versus reactive to the voice of Blair and yeah",
+      "category": "general",
+      "timestamp": "2026-03-17T23:28:07.148Z"
+    },
+    {
+      "pattern": "I don't know talk to Claude about it",
+      "category": "general",
+      "timestamp": "2026-03-17T23:30:37.758Z"
+    },
+    {
+      "pattern": "yes",
+      "category": "general",
+      "timestamp": "2026-03-17T23:31:42.608Z"
+    },
+    {
+      "pattern": "are you worling",
+      "category": "general",
+      "timestamp": "2026-03-17T23:33:35.852Z"
+    },
+    {
+      "pattern": "What are you working on",
+      "category": "general",
+      "timestamp": "2026-03-17T23:35:00.621Z"
+    },
+    {
+      "pattern": "did you do it",
+      "category": "general",
+      "timestamp": "2026-03-17T23:44:16.473Z"
+    },
+    {
+      "pattern": "check what went wrong",
+      "category": "general",
+      "timestamp": "2026-03-17T23:45:51.646Z"
+    },
+    {
+      "pattern": "is it wworking",
+      "category": "general",
+      "timestamp": "2026-03-17T23:53:38.442Z"
+    },
+    {
+      "pattern": "is Claude Code runnning",
+      "category": "general",
+      "timestamp": "2026-03-17T23:54:01.867Z"
+    },
+    {
+      "pattern": "Use start_coding_task with title \"Tilde path test\", prompt \"Create /tmp/blair-tilde-test.txt with text Success. Then read it back.\", project_directory \"~/Claude Test/vance\", model \"claude-haiku-4-5\", max_budget 0.20",
+      "category": "general",
+      "timestamp": "2026-03-18T00:48:49.043Z"
+    },
+    {
+      "pattern": "Go open Clark code and get a full functionality audit of soldier",
+      "category": "general",
+      "timestamp": "2026-03-18T00:55:10.251Z"
+    },
+    {
+      "pattern": "Get a full audit of where the functionalities are at for",
+      "category": "general",
+      "timestamp": "2026-03-18T00:55:25.405Z"
+    },
+    {
+      "pattern": "Soul jam",
+      "category": "general",
+      "timestamp": "2026-03-18T01:01:18.425Z"
+    },
+    {
+      "pattern": "explain 6 more",
+      "category": "general",
+      "timestamp": "2026-03-18T01:06:31.794Z"
+    },
+    {
+      "pattern": "make it 2p online accessible so someone else can could play online against me and that a a gME MODE OPTION",
+      "category": "general",
+      "timestamp": "2026-03-18T01:07:37.387Z"
+    },
+    {
+      "pattern": "Working on anything",
+      "category": "general",
+      "timestamp": "2026-03-18T01:32:11.778Z"
+    },
+    {
+      "pattern": "Accurate",
+      "category": "general",
+      "timestamp": "2026-03-18T01:45:02.138Z"
+    },
+    {
+      "pattern": "Hello",
+      "category": "general",
+      "timestamp": "2026-03-22T17:39:15.659Z"
+    },
+    {
+      "pattern": "Can you integrate stitch into my quad code and then in the athletes blender product fix CUI using stitch and may be a go on Pinterest and find a good aesthetic smoothie website and follow there",
+      "category": "general",
+      "timestamp": "2026-03-22T17:39:47.356Z"
+    },
+    {
+      "pattern": "I meant in Grace stitch into Claude code",
+      "category": "general",
+      "timestamp": "2026-03-22T17:40:18.212Z"
+    },
+    {
+      "pattern": "I'm talking about Google stitch their website UI design thing",
+      "category": "general",
+      "timestamp": "2026-03-22T17:40:36.216Z"
+    },
+    {
+      "pattern": "Never mind forget it all",
+      "category": "general",
+      "timestamp": "2026-03-22T17:41:04.993Z"
+    },
+    {
+      "pattern": "Hello",
+      "category": "general",
+      "timestamp": "2026-03-22T20:09:55.953Z"
+    },
+    {
+      "pattern": "What should I do next",
+      "category": "general",
+      "timestamp": "2026-03-22T20:10:10.062Z"
+    },
+    {
+      "pattern": "I don't know what do you think I should do next",
+      "category": "general",
+      "timestamp": "2026-03-22T20:10:25.559Z"
+    },
+    {
+      "pattern": "Can you change Blair to the name of Blair and yeah just change all documents all things stating that the name is advance to Blair",
+      "category": "general",
+      "timestamp": "2026-03-22T20:11:08.019Z"
+    },
+    {
+      "pattern": "/complete-user-task fb03189f",
+      "category": "general",
+      "timestamp": "2026-03-22T20:12:21.246Z"
+    }
+  ],
+  "preferences": {},
+  "corrections": []
+}

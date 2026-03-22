@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLAIR — Brain</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#06060a; --bg2:#0c0c14; --surface:#10101c; --surface2:#181828; --surface3:#1e1e32;
+    --border:#1e1e30; --text:#e4e4f0; --text-dim:#6a6a88; --text-muted:#3a3a55;
+    --accent:#3882ff; --accent2:#00e5a0; --warn:#ff9940; --danger:#ff3355;
+    --mono:'Space Mono',monospace; --sans:'Inter',-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:24px 32px}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+  .topbar h1{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--accent)}
+  .topbar-right{display:flex;gap:8px;align-items:center}
+  .nav-btn{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;transition:all .15s;text-decoration:none}
+  .nav-btn:hover{border-color:var(--accent);color:var(--text)}
+  .nav-btn.active{background:var(--accent);border-color:var(--accent);color:white}
+
+  .brain-grid{display:grid;grid-template-columns:240px 1fr;gap:16px;height:calc(100vh - 100px)}
+
+  /* Sidebar */
+  .brain-sidebar{display:flex;flex-direction:column;gap:8px}
+  .brain-file-btn{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;transition:all .15s;text-align:left}
+  .brain-file-btn:hover{border-color:var(--accent);color:var(--text)}
+  .brain-file-btn.active{background:rgba(56,130,255,.1);border-color:var(--accent);color:var(--accent)}
+  .brain-file-btn .file-name{display:block;font-weight:700;margin-bottom:4px;color:inherit}
+  .brain-file-btn .file-meta{font-size:8px;color:var(--text-muted)}
+
+  .sidebar-section{margin-top:16px}
+  .sidebar-section-title{font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;padding:0 4px}
+
+  .pending-card{background:var(--surface);border:1px solid var(--warn);border-radius:10px;padding:12px;margin-bottom:8px}
+  .pending-card .pending-title{font-family:var(--mono);font-size:9px;color:var(--warn);font-weight:700;margin-bottom:4px}
+  .pending-card .pending-reason{font-size:11px;color:var(--text-dim);margin-bottom:8px}
+  .pending-actions{display:flex;gap:6px}
+  .pending-actions button{font-family:var(--mono);font-size:8px;letter-spacing:1px;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-weight:700;transition:all .12s}
+  .btn-approve{background:var(--accent2);color:#000}
+  .btn-approve:hover{opacity:.8}
+  .btn-reject{background:var(--surface3);color:var(--text-dim);border:1px solid var(--border) !important}
+  .btn-reject:hover{border-color:var(--danger) !important;color:var(--danger)}
+
+  /* Content viewer */
+  .brain-content{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .content-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .content-header h2{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text)}
+  .content-header .modified{font-family:var(--mono);font-size:8px;color:var(--text-muted)}
+  .content-body{flex:1;overflow-y:auto;padding:18px}
+
+  /* Markdown rendering */
+  .md-content{font-size:13px;line-height:1.7;color:var(--text-dim)}
+  .md-content h1{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);margin:24px 0 8px;letter-spacing:1px}
+  .md-content h2{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);margin:20px 0 6px;letter-spacing:1px}
+  .md-content h3{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-dim);margin:16px 0 4px;letter-spacing:1px}
+  .md-content p{margin:8px 0}
+  .md-content ul,ol{margin:6px 0 6px 20px}
+  .md-content li{margin:3px 0}
+  .md-content code{font-family:var(--mono);font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:4px;color:var(--accent2)}
+  .md-content pre{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin:8px 0;overflow-x:auto}
+  .md-content pre code{background:none;padding:0;font-size:10px;color:var(--text-dim)}
+  .md-content blockquote{border-left:3px solid var(--accent);padding:4px 12px;margin:8px 0;color:var(--text-muted);font-style:italic}
+  .md-content table{width:100%;border-collapse:collapse;margin:8px 0;font-size:11px}
+  .md-content th{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text-muted)}
+  .md-content td{padding:6px 10px;border-bottom:1px solid rgba(30,30,48,.5);color:var(--text-dim)}
+  .md-content strong{color:var(--text);font-weight:600}
+  .md-content em{color:var(--accent2)}
+  .md-content hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+
+  .no-pending{font-family:var(--mono);font-size:9px;color:var(--text-muted);padding:8px 4px}
+
+  @media(max-width:768px){.brain-grid{grid-template-columns:1fr;height:auto}.brain-sidebar{flex-direction:row;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Blair — Brain</h1>
+  <div class="topbar-right">
+    <a class="nav-btn" href="/">Chat</a>
+    <a class="nav-btn" href="/costs">Costs</a>
+    <a class="nav-btn active" href="/brain">Brain</a>
+    <a class="nav-btn" href="/spatial">Spatial</a>
+  </div>
+</div>
+
+<div class="brain-grid">
+  <div class="brain-sidebar">
+    <div id="fileButtons"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Pending Updates</div>
+      <div id="pendingUpdates">
+        <div class="no-pending">No pending updates</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="brain-content">
+    <div class="content-header">
+      <h2 id="contentTitle">Select a brain file</h2>
+      <span class="modified" id="contentMeta"></span>
+    </div>
+    <div class="content-body">
+      <div class="md-content" id="contentBody">
+        <p>Select a brain file from the sidebar to view its contents.</p>
+        <p>Brain files define Blair's personality, understanding of you, operational guidelines, and self-improvement protocols.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FILE_LABELS = {
+  personality: { name: 'Personality', desc: 'Voice, tone, humor, emotional intelligence' },
+  userProfile: { name: 'User Profile', desc: 'Your preferences, patterns, projects' },
+  guidelines: { name: 'Guidelines', desc: 'Operational rules and protocols' },
+  selfImprovement: { name: 'Self-Improvement', desc: 'Learning and adaptation protocols' },
+};
+
+let brainData = null;
+let activeFile = null;
+
+async function load() {
+  try {
+    const res = await fetch('/api/brain');
+    brainData = await res.json();
+    renderSidebar();
+    renderPending();
+  } catch (err) {
+    console.error('Failed to load brain:', err);
+  }
+}
+
+function renderSidebar() {
+  const el = document.getElementById('fileButtons');
+  el.innerHTML = '';
+  for (const [key, info] of Object.entries(FILE_LABELS)) {
+    const file = brainData.files[key];
+    const btn = document.createElement('button');
+    btn.className = 'brain-file-btn' + (activeFile === key ? ' active' : '');
+    const size = file?.size ? (file.size > 1024 ? (file.size / 1024).toFixed(1) + 'kb' : file.size + 'b') : '—';
+    btn.innerHTML = `<span class="file-name">${info.name}</span><span class="file-meta">${info.desc} · ${size}</span>`;
+    btn.onclick = () => loadFile(key);
+    el.appendChild(btn);
+  }
+}
+
+function renderPending() {
+  const el = document.getElementById('pendingUpdates');
+  if (!brainData.pending?.length) {
+    el.innerHTML = '<div class="no-pending">No pending updates</div>';
+    return;
+  }
+  el.innerHTML = brainData.pending.map(u => `
+    <div class="pending-card">
+      <div class="pending-title">${FILE_LABELS[u.file]?.name || u.file} · ${u.section}</div>
+      <div class="pending-reason">${u.reason}</div>
+      <div class="pending-actions">
+        <button class="btn-approve" onclick="handleUpdate('${u.id}','approve')">Approve</button>
+        <button class="btn-reject" onclick="handleUpdate('${u.id}','reject')">Reject</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadFile(key) {
+  activeFile = key;
+  renderSidebar();
+  document.getElementById('contentTitle').textContent = FILE_LABELS[key]?.name || key;
+
+  try {
+    const res = await fetch(`/api/brain/${key}`);
+    const md = await res.text();
+    document.getElementById('contentBody').innerHTML = renderMarkdown(md);
+
+    const file = brainData.files[key];
+    document.getElementById('contentMeta').textContent = file?.lastModified
+      ? 'Modified: ' + new Date(file.lastModified).toLocaleString()
+      : '';
+  } catch (err) {
+    document.getElementById('contentBody').innerHTML = '<p>Failed to load file.</p>';
+  }
+}
+
+async function handleUpdate(id, action) {
+  try {
+    const ws = new WebSocket(`${location.protocol==='https:'?'wss:':'ws:'}//${location.host}/ws`);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ action: action === 'approve' ? 'approve-brain-update' : 'reject-brain-update', updateId: id }));
+    };
+    ws.onmessage = (e) => {
+      ws.close();
+      load();
+      if (activeFile) loadFile(activeFile);
+    };
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// Simple markdown renderer
+function renderMarkdown(md) {
+  return md
+    // Code blocks
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // Blockquotes
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    // Bold and italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Horizontal rules
+    .replace(/^---$/gm, '<hr>')
+    // Tables (basic)
+    .replace(/\|(.+)\|/g, (match) => {
+      if (match.includes('---')) return '';
+      const cells = match.split('|').filter(c => c.trim());
+      const tag = match.includes('**') ? 'th' : 'td';
+      return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+    })
+    // List items
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+    // Wrap consecutive <li> in <ul>
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+    .replace(/<\/ul>\s*<ul>/g, '')
+    // Paragraphs
+    .replace(/^(?!<[hupbltro])((?!<).+)$/gm, '<p>$1</p>')
+    // Clean up
+    .replace(/<p><\/p>/g, '')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

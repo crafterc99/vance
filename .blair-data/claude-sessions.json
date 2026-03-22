@@ -1,0 +1,15 @@
+{
+  "soul-jam": {
+    "id": "soul-jam",
+    "projectId": "soul-jam",
+    "projectDir": "/Users/crafterc/Claude Test/soul-jam",
+    "claudeSessionId": "344ea0fa-4911-4cfb-a16e-9eb9102054cf",
+    "model": "claude-sonnet-4-6",
+    "status": "idle",
+    "promptCount": 1,
+    "totalCost": 0,
+    "createdAt": "2026-03-18T00:55:41.163Z",
+    "lastAccessed": "2026-03-18T00:55:41.163Z",
+    "lastPrompt": "Perform a comprehensive functionality audit of this Soul Jam arcade basketball game. Analyze:\n\n1. **Game Loop & Core Mechanics**\n   - Ball physics (gravity, drag, bounciness)\n   - Player movement and shooting mechanics\n   - Collision detection (ball-hoop, ball-court, player-player)\n   - Scoring system\n\n2. **Game States**\n   - Menu/Start screen\n   - Active gameplay\n   - Game over/Results\n   - State transitions\n\n3. **UI & Visuals**\n   - HUD (score, timer, instructions)\n   - Animations (player, ball, hoop)\n   - Visual feedback (impacts, scoring)\n   - Asset loading\n\n4. **Input Handling**\n   - Keyboard controls\n   - Touch/click controls (if any)\n   - Button responsiveness\n\n5. **Audio & Sound**\n   - Background music\n   - SFX (swish, bounce, hit, miss)\n   - Volume controls\n\n6. **Levels/Difficulty**\n   - Level progression\n   - Difficulty scaling\n   - Win/loss conditions\n\n7. **Testing Coverage**\n   - Current test count\n   - What's tested vs. what's not\n   - Test quality\n\n8. **Known Issues & TODOs**\n   - Any console warnings\n   - Incomplete features\n   - Performance concerns\n\nProvide a detailed status report with percentages complete, blockers, and what still needs work."
+  }
+}

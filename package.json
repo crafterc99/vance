@@ -1,7 +1,7 @@
 {
-  "name": "vance",
+  "name": "blair",
   "version": "1.0.0",
-  "description": "Vance — Personal AI Assistant",
+  "description": "Blair — Personal AI Assistant",
   "private": true,
   "scripts": {
     "sprite:gen": "node tools/sprite-generator/cli.js generate",
@@ -33,8 +33,8 @@
     "sprite:review": "node tools/sprite-factory/viewer.js review",
     "sprite:compare": "node tools/sprite-factory/viewer.js compare",
     "sprite:train": "node tools/sprite-factory/viewer.js train",
-    "vance": "node tools/vance-app/server.js",
-    "start": "node tools/vance-app/server.js"
+    "blair": "node tools/blair-app/server.js",
+    "start": "node tools/blair-app/server.js"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.81",

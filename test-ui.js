@@ -30,7 +30,7 @@ async function test(name, fn) {
   page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
   page.on('pageerror', err => consoleErrors.push(err.message));
 
-  console.log('\n═══ VANCE Command Center UI Tests ═══\n');
+  console.log('\n═══ BLAIR Command Center UI Tests ═══\n');
 
   // ─── LOAD ───
   console.log('Phase 1: Page Load');
@@ -38,9 +38,9 @@ async function test(name, fn) {
   await page.waitForTimeout(2000);
   await page.screenshot({ path: path.join(SCREENSHOTS, '01-initial-load.png'), fullPage: true });
 
-  await test('Page title contains VANCE', async () => {
+  await test('Page title contains BLAIR', async () => {
     const title = await page.title();
-    if (!title.includes('VANCE')) throw new Error(`Title: "${title}"`);
+    if (!title.includes('BLAIR')) throw new Error(`Title: "${title}"`);
   });
 
   await test('CSS file loaded (command-center.css)', async () => {
@@ -98,7 +98,7 @@ async function test(name, fn) {
     const logo = await page.$('.logo');
     if (!logo) throw new Error('Logo not found');
     const text = await logo.textContent();
-    if (!text.includes('VANCE')) throw new Error(`Logo text: "${text}"`);
+    if (!text.includes('BLAIR')) throw new Error(`Logo text: "${text}"`);
   });
 
   await test('Status pill shows Online', async () => {
@@ -209,7 +209,7 @@ async function test(name, fn) {
 
   await test('Welcome logo text', async () => {
     const text = await page.$eval('.welcome-logo', el => el.textContent);
-    if (!text.includes('VANCE')) throw new Error(`Logo: "${text}"`);
+    if (!text.includes('BLAIR')) throw new Error(`Logo: "${text}"`);
   });
 
   await test('Typewriter subtitle animates', async () => {
@@ -396,9 +396,9 @@ async function test(name, fn) {
   console.log('\nPhase 15: Chat Flow');
   await test('Type message in input', async () => {
     await page.waitForSelector('#inputField', { timeout: 5000 });
-    await page.fill('#inputField', 'Hello, Vance!');
+    await page.fill('#inputField', 'Hello, Blair!');
     const val = await page.$eval('#inputField', el => el.value);
-    if (val !== 'Hello, Vance!') throw new Error(`Input value: "${val}"`);
+    if (val !== 'Hello, Blair!') throw new Error(`Input value: "${val}"`);
   });
 
   await test('Send message creates user bubble', async () => {

@@ -1,0 +1,20 @@
+{
+  "id": "9f649196-8063-4f08-a2ca-c1b897c9d5f5",
+  "character": "joaquin",
+  "animation": "stepback",
+  "mode": "strip",
+  "model": "gemini-3-pro-image-preview",
+  "status": "complete",
+  "totalFrames": 4,
+  "completedFrames": 4,
+  "rawPaths": [],
+  "processedPaths": [],
+  "stripPath": "/Users/crafterc/Claude Test/soul-jam/public/assets/images/joaquin-stepback.png",
+  "qualityScore": null,
+  "promptSections": null,
+  "promptText": null,
+  "totalCost": 0.13624,
+  "attempts": [],
+  "startedAt": "2026-03-22T01:56:27.374Z",
+  "completedAt": "2026-03-22T01:56:55.874Z"
+}

@@ -1,6 +1,6 @@
-# VANCE — Personal AI Assistant
+# BLAIR — Personal AI Assistant
 
-Vance is a JARVIS-style personal AI assistant that runs locally on your Mac. It combines a **GPT-4o brain** (conversation, reasoning, tool selection) with **Claude Code hands** (autonomous coding), backed by long-term memory, a learning system, and self-improving brain files.
+Blair is a JARVIS-style personal AI assistant that runs locally on your Mac. It combines a **GPT-4o brain** (conversation, reasoning, tool selection) with **Claude Code hands** (autonomous coding), backed by long-term memory, a learning system, and self-improving brain files.
 
 Architecture: GPT handles conversation and decides which tools to call. When coding tasks come in, it delegates to Claude Code running in autonomous mode with git branch isolation, budget caps, and milestone tracking.
 
@@ -24,7 +24,7 @@ The status pill in the top-left shows connection state:
 
 ## Connecting GPT
 
-Vance needs an OpenAI API key to function. The key powers the conversation brain (GPT-4o by default).
+Blair needs an OpenAI API key to function. The key powers the conversation brain (GPT-4o by default).
 
 ### Get a key
 1. Go to [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
@@ -55,8 +55,8 @@ source ~/.zshrc
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENAI_API_KEY` | — | Required. Your OpenAI API key |
-| `VANCE_PORT` | `4000` | Server port |
-| `VANCE_MODEL` | `gpt-4o` | GPT model for conversation (`gpt-4o`, `gpt-4o-mini`, etc.) |
+| `BLAIR_PORT` | `4000` | Server port |
+| `BLAIR_MODEL` | `gpt-4o` | GPT model for conversation (`gpt-4o`, `gpt-4o-mini`, etc.) |
 
 ## Capabilities
 
@@ -128,7 +128,7 @@ Brain updates require user approval via the `/brain` page before being applied.
 ## Architecture
 
 ```
-tools/vance-app/
+tools/blair-app/
 ├── server.js          HTTP + WebSocket server, GPT streaming, tool execution
 ├── brain/
 │   ├── loader.js      Dynamic system prompt builder from 4 brain files
@@ -147,7 +147,7 @@ tools/vance-app/
 
 ### Data Storage
 
-All persistent data lives in `.vance-data/` at the project root:
+All persistent data lives in `.blair-data/` at the project root:
 - `memory.json` — Long-term memories
 - `costs.json` — API call log and budget settings
 - `tasks.json` — Task queue and history

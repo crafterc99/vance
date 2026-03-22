@@ -1,5 +1,5 @@
-<!-- vance-managed -->
-# Vance
+<!-- blair-managed -->
+# Blair
 
 JARVIS-style personal AI assistant with spatial UI and voice control
 

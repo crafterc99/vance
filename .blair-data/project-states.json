@@ -1,0 +1,74 @@
+{
+  "soul-jam": {
+    "project_name": "Soul Jam",
+    "project_directory": "/Users/crafterc/Claude Test/soul-jam",
+    "dev_framework": "vite",
+    "dev_server_command": "npm run dev",
+    "dev_port": 5173,
+    "preview_url": "http://localhost:5173",
+    "last_updated_files": [],
+    "last_edit_summary": null,
+    "last_commit_time": null,
+    "lastStateUpdate": "2026-03-22T20:05:44.038Z"
+  },
+  "athletes-blender": {
+    "project_name": "Athletes Blender",
+    "project_directory": "/Users/crafterc/Claude Test/athletes-blender",
+    "dev_framework": "vite",
+    "dev_server_command": "npm run dev",
+    "dev_port": 5173,
+    "preview_url": "http://localhost:5173",
+    "last_updated_files": [],
+    "last_edit_summary": null,
+    "last_commit_time": null,
+    "lastStateUpdate": "2026-03-22T20:05:44.039Z"
+  },
+  "sos-train": {
+    "project_name": "SOS Train",
+    "project_directory": "/Users/crafterc/Claude Test/sos-train",
+    "dev_framework": "vite",
+    "dev_server_command": "npm run dev",
+    "dev_port": 5173,
+    "preview_url": "http://localhost:5173",
+    "last_updated_files": [],
+    "last_edit_summary": null,
+    "last_commit_time": null,
+    "lastStateUpdate": "2026-03-22T20:05:44.040Z"
+  },
+  "vance": {
+    "project_name": "Blair",
+    "project_directory": "/Users/crafterc/Claude Test/vance",
+    "dev_framework": "node",
+    "dev_server_command": "npm start",
+    "dev_port": 3000,
+    "preview_url": "http://localhost:3000",
+    "last_updated_files": [],
+    "last_edit_summary": null,
+    "last_commit_time": null,
+    "lastStateUpdate": "2026-03-22T20:05:44.041Z"
+  },
+  "vantheah": {
+    "project_name": "Vantheah",
+    "project_directory": "/Users/crafterc/Claude Test/vantheah",
+    "dev_framework": null,
+    "dev_server_command": null,
+    "dev_port": null,
+    "preview_url": null,
+    "last_updated_files": [],
+    "last_edit_summary": null,
+    "last_commit_time": null,
+    "lastStateUpdate": "2026-03-22T20:05:44.041Z"
+  },
+  "promotifyy": {
+    "project_name": "Promotifyy",
+    "project_directory": "/Users/crafterc/Claude Test/promotifyy",
+    "dev_framework": null,
+    "dev_server_command": null,
+    "dev_port": null,
+    "preview_url": null,
+    "last_updated_files": [],
+    "last_edit_summary": null,
+    "last_commit_time": null,
+    "lastStateUpdate": "2026-03-22T20:05:44.042Z"
+  }
+}
