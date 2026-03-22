@@ -1,0 +1,689 @@
+{
+  "assets": {},
+  "overrides": {
+    "court.floor": {
+      "assignedFile": "court.webp",
+      "status": "exported",
+      "notes": "Baked court image with floor, lines, and paint",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "ball": {
+      "assignedFile": "basketball.png",
+      "status": "exported",
+      "notes": "Standard basketball texture",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "screen.boot.bg": {
+      "assignedFile": "loading-screen.webp",
+      "status": "exported",
+      "notes": "Loading/boot screen background",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "screen.menu.bg": {
+      "assignedFile": "loading-screen.webp",
+      "status": "exported",
+      "notes": "Reuses loading screen as menu bg",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "screen.characterSelect.bg": {
+      "assignedFile": "playerselect.jpg",
+      "status": "exported",
+      "notes": "Character select background",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "screen.courtSelect.bg": {
+      "status": "placeholder",
+      "notes": "Uses solid color fallback from SkinBundle",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "screen.result.bg": {
+      "status": "placeholder",
+      "notes": "Uses solid color fallback",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "screen.leaderboard.bg": {
+      "status": "placeholder",
+      "notes": "Uses solid color fallback",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "screen.pause.bg": {
+      "status": "placeholder",
+      "notes": "Uses semi-transparent overlay from SkinBundle",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "court.paintOverlay": {
+      "status": "placeholder",
+      "notes": "Baked into court.webp — no separate overlay yet",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "court.lineOverlay": {
+      "status": "placeholder",
+      "notes": "Baked into court.webp — no separate overlay yet",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "court.centerLogo": {
+      "status": "missing",
+      "notes": "No center court logo asset exists",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "court.arenaBg": {
+      "status": "missing",
+      "notes": "No arena/crowd background layer",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "hoop.rim": {
+      "status": "placeholder",
+      "notes": "Rendered via SkinBundle color — no sprite asset",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "hoop.net": {
+      "status": "placeholder",
+      "notes": "Rendered via SkinBundle color — no sprite asset",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "hoop.backboard": {
+      "status": "placeholder",
+      "notes": "Rendered via SkinBundle color — no sprite asset",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "hoop.stanchion": {
+      "status": "placeholder",
+      "notes": "Rendered via SkinBundle color — no sprite asset",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "characterCard.frame": {
+      "status": "missing",
+      "notes": "No card frame asset — using CSS-drawn cards",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    },
+    "courtCard.frame": {
+      "status": "missing",
+      "notes": "No court card frame asset — using CSS-drawn cards",
+      "updatedAt": "2026-03-21T00:00:00.000Z"
+    }
+  },
+  "characters": {
+    "99": {
+      "source_reference": {
+        "status": "done",
+        "file": null,
+        "notes": "Original concept — no source photo",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "portrait_crop": {
+        "status": "done",
+        "file": "99full.png",
+        "notes": "Full-body pixel portrait exported",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "standing_full_body": {
+        "status": "done",
+        "file": "99full.png",
+        "notes": "Same as portrait — front-facing standing pose",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "turnaround_8angle": {
+        "status": "missing",
+        "file": null,
+        "notes": "Not yet created — needed for multi-directional sprites",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "with_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "No canonical with-ball standing reference",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "without_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "No canonical without-ball standing reference",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "in_game_spritesheet": {
+        "status": "done",
+        "file": "99-spritesheet.png",
+        "notes": "Grid sheet with static-dribble and dribble",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "select_card_portrait": {
+        "status": "done",
+        "file": "99-player-select.webp",
+        "notes": "Player select card portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "matchup_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "No matchup-specific portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "result_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "No result screen portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "breezy": {
+      "source_reference": {
+        "status": "done",
+        "file": null,
+        "notes": "Original concept — template character",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "portrait_crop": {
+        "status": "done",
+        "file": "breezyfull.png",
+        "notes": "Full-body pixel portrait exported",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "standing_full_body": {
+        "status": "done",
+        "file": "breezyfull.png",
+        "notes": "Front-facing standing pose",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "turnaround_8angle": {
+        "status": "missing",
+        "file": null,
+        "notes": "Not yet created",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "with_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "No canonical with-ball standing reference",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "without_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "No canonical without-ball standing reference",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "in_game_spritesheet": {
+        "status": "done",
+        "file": "breezy-spritesheet.png",
+        "notes": "Full 8-animation grid sheet",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "select_card_portrait": {
+        "status": "done",
+        "file": "breezy-player-select.webp",
+        "notes": "Player select card portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "matchup_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "No matchup-specific portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "result_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "No result screen portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "joaquin": {
+      "source_reference": {
+        "status": "done",
+        "file": null,
+        "notes": "Photo-based character",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "portrait_crop": {
+        "status": "done",
+        "file": "joaquinfull.png",
+        "notes": "Full-body pixel portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "standing_full_body": {
+        "status": "done",
+        "file": "joaquinfull.png",
+        "notes": "Front-facing standing pose",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "turnaround_8angle": {
+        "status": "missing",
+        "file": null,
+        "notes": "Not yet created",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "with_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "without_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "in_game_spritesheet": {
+        "status": "missing",
+        "file": null,
+        "notes": "No grid sheet yet — partial animations only",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "select_card_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "No select card portrait yet",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "matchup_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "result_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "z": {
+      "source_reference": {
+        "status": "done",
+        "file": null,
+        "notes": "Photo-based character",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "portrait_crop": {
+        "status": "done",
+        "file": "zfull.png",
+        "notes": "Full-body pixel portrait",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "standing_full_body": {
+        "status": "done",
+        "file": "zfull.png",
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "turnaround_8angle": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "with_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "without_ball_ref": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "in_game_spritesheet": {
+        "status": "done",
+        "file": "z-spritesheet.png",
+        "notes": "Grid sheet built",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "select_card_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "matchup_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "result_portrait": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    }
+  },
+  "courts": {
+    "soul-jam-arena": {
+      "floor_base": {
+        "status": "exported",
+        "file": "court.webp",
+        "notes": "Baked court image — floor, lines, and paint combined",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "paint_overlay": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Baked into court.webp — not a separate layer",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "line_overlay": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Baked into court.webp — not a separate layer",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "center_logo": {
+        "status": "missing",
+        "file": null,
+        "notes": "No center logo asset",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "rim": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Color-only via SkinBundle — no sprite",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "net": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Color-only via SkinBundle — no sprite",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "backboard": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Color-only via SkinBundle — no sprite",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "stanchion": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Color-only via SkinBundle — no sprite",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "arena_background": {
+        "status": "missing",
+        "file": null,
+        "notes": "No arena/crowd background layer",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "crowd_layer": {
+        "status": "missing",
+        "file": null,
+        "notes": "No crowd layer",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "court_thumbnail": {
+        "status": "placeholder",
+        "file": "court.webp",
+        "notes": "Reusing full court image as thumbnail",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "court_intro_overlay": {
+        "status": "missing",
+        "file": null,
+        "notes": "No court intro overlay",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "scoreboard_compat": {
+        "status": "done",
+        "file": null,
+        "notes": "Scoreboard renders correctly on this court",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "feedback_banner_compat": {
+        "status": "done",
+        "file": null,
+        "notes": "Feedback bar renders correctly on this court",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "street": {
+      "floor_base": {
+        "status": "missing",
+        "file": null,
+        "notes": "No street court floor asset — currently reuses arena court",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "paint_overlay": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "line_overlay": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "center_logo": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "rim": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "net": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "backboard": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "stanchion": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "arena_background": {
+        "status": "missing",
+        "file": null,
+        "notes": "Street court needs outdoor/urban background",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "crowd_layer": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "court_thumbnail": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "court_intro_overlay": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "scoreboard_compat": {
+        "status": "missing",
+        "file": null,
+        "notes": "Not tested — no court asset yet",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "feedback_banner_compat": {
+        "status": "missing",
+        "file": null,
+        "notes": "Not tested — no court asset yet",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    }
+  },
+  "screens": {
+    "title_screen": {
+      "bg_image": {
+        "status": "exported",
+        "file": "loading-screen.webp",
+        "notes": "Loading screen serves as title/boot BG",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "logo": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Text-rendered 'SOUL JAM' — no separate logo asset",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "title_overlay": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "CSS-rendered text overlay",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "main_menu": {
+      "bg_image": {
+        "status": "exported",
+        "file": "loading-screen.webp",
+        "notes": "Reuses loading screen",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "button_style": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Phaser text buttons — no sprite assets",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "menu_overlay": {
+        "status": "missing",
+        "file": null,
+        "notes": "",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "character_select": {
+      "bg_image": {
+        "status": "exported",
+        "file": "playerselect.jpg",
+        "notes": "Character select background",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "card_frame": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "CSS-drawn card frames via CardRenderer",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "selection_highlight": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Scale + alpha animation — no sprite asset",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "name_plate": {
+        "status": "missing",
+        "file": null,
+        "notes": "No name plate asset",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "court_select": {
+      "bg_image": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Solid color background from SkinBundle",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "card_frame": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "CSS-drawn court card frames",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "lock_overlay": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Phaser graphics-drawn lock overlay",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "gameplay_hud": {
+      "scoreboard": {
+        "status": "done",
+        "file": null,
+        "notes": "Fully skin-driven from HUDSkinDef",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "feedback_bar": {
+        "status": "done",
+        "file": null,
+        "notes": "Fully skin-driven from HUDSkinDef",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "timing_meter": {
+        "status": "done",
+        "file": null,
+        "notes": "Fully skin-driven from HUDSkinDef",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "controls_hint": {
+        "status": "done",
+        "file": null,
+        "notes": "Fully skin-driven from HUDSkinDef",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "pause_overlay": {
+        "status": "done",
+        "file": null,
+        "notes": "Skin-driven pause overlay",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "result_screen": {
+      "bg_image": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Solid color background from SkinBundle",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "result_banner": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Text-rendered banner",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "stat_panel": {
+        "status": "missing",
+        "file": null,
+        "notes": "No stat panel asset",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    },
+    "leaderboard": {
+      "bg_image": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Solid color background from SkinBundle",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "table_style": {
+        "status": "placeholder",
+        "file": null,
+        "notes": "Phaser text-rendered table",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      },
+      "rank_badge": {
+        "status": "missing",
+        "file": null,
+        "notes": "No rank badge asset",
+        "updatedAt": "2026-03-21T00:00:00.000Z"
+      }
+    }
+  }
+}

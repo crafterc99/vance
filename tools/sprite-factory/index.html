@@ -2453,13 +2453,13 @@
     <div class="po-title">PRODUCTION OVERVIEW <span>/ Asset Manager</span></div>
     <div style="display:flex;gap:12px;align-items:center">
       <div class="po-view-tabs" id="poViewTabs">
-        <button class="po-view-tab active" onclick="poSetView('characters')">Characters</button>
-        <button class="po-view-tab" onclick="poSetView('matrix')">Anim Matrix</button>
-        <button class="po-view-tab" onclick="poSetView('slots')">Skin Slots</button>
-        <button class="po-view-tab" onclick="poSetView('screens')">Screens</button>
-        <button class="po-view-tab" onclick="poSetView('courts')">Courts</button>
-        <button class="po-view-tab" onclick="poSetView('missing')">Missing</button>
-        <button class="po-view-tab" onclick="poSetView('all')">All Assets</button>
+        <button class="po-view-tab active" data-view="characters" onclick="poSetView('characters')">Characters</button>
+        <button class="po-view-tab" data-view="matrix" onclick="poSetView('matrix')">Anim Matrix</button>
+        <button class="po-view-tab" data-view="slots" onclick="poSetView('slots')">Skin Slots</button>
+        <button class="po-view-tab" data-view="courts" onclick="poSetView('courts')">Courts</button>
+        <button class="po-view-tab" data-view="screens" onclick="poSetView('screens')">Screens</button>
+        <button class="po-view-tab" data-view="missing" onclick="poSetView('missing')">Missing</button>
+        <button class="po-view-tab" data-view="all" onclick="poSetView('all')">All Assets</button>
       </div>
       <button class="btn btn-secondary btn-sm" onclick="closeProductionOverview()">Back to Studio</button>
     </div>
@@ -4828,7 +4828,6 @@ confirmCharacter = async function() {
 let poData = null;
 let poMatrixData = null;
 let poCurrentView = 'characters';
-let poActiveFilter = 'all';
 
 function openProductionOverview() {
   document.getElementById('productionOverview').classList.add('visible');
@@ -4860,50 +4859,68 @@ function poSetView(view) {
   document.querySelectorAll('.po-view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
   const el = document.getElementById('poContent');
   el.innerHTML = '';
-
   switch (view) {
     case 'characters': poRenderCharacters(el); break;
     case 'matrix': poRenderMatrix(el); break;
     case 'slots': poRenderSlots(el); break;
+    case 'courts': poRenderCourts(el); break;
+    case 'screens': poRenderScreens(el); break;
     case 'missing': poRenderMissing(el); break;
     case 'all': poRenderAllAssets(el); break;
   }
+}
+
+function poStatusBadge(status) {
+  const cls = { done: 'approved', exported: 'exported', placeholder: 'generated', missing: 'missing', partial: 'placeholder', ready: 'approved', not_started: 'missing' };
+  return `<span class="po-badge po-badge-${cls[status] || 'missing'}">${status}</span>`;
 }
 
 function poRenderSummary() {
   if (!poData) return;
   const el = document.getElementById('poSummary');
   const s = poData.summary;
+  const pct = Math.round((s.completedAssets / Math.max(s.totalAssets, 1)) * 100);
+  const p1 = s.priority1 || { done: 0, total: 0 };
   el.innerHTML = `
     <div class="po-stat-card"><div class="po-stat-value">${s.totalCharacters}</div><div class="po-stat-label">Characters</div></div>
-    <div class="po-stat-card"><div class="po-stat-value">${s.totalAnimations}</div><div class="po-stat-label">Animations</div></div>
+    <div class="po-stat-card"><div class="po-stat-value">${s.totalAnimations}</div><div class="po-stat-label">Canonical Anims</div></div>
     <div class="po-stat-card"><div class="po-stat-value">${s.completedAssets}/${s.totalAssets}</div><div class="po-stat-label">Assets Done</div></div>
-    <div class="po-stat-card"><div class="po-stat-value">${Math.round((s.completedAssets / Math.max(s.totalAssets, 1)) * 100)}%</div><div class="po-stat-label">Coverage</div></div>
+    <div class="po-stat-card"><div class="po-stat-value">${pct}%</div><div class="po-stat-label">Coverage</div></div>
+    <div class="po-stat-card" style="border-color:var(--accent)"><div class="po-stat-value" style="color:var(--accent)">${s.gameAnimCoverage?.done || 0}/${s.gameAnimCoverage?.total || 0}</div><div class="po-stat-label">Game Anims</div></div>
+    <div class="po-stat-card" style="border-color:var(--warning)"><div class="po-stat-value" style="color:var(--warning)">${p1.done}/${p1.total}</div><div class="po-stat-label">Priority 1</div></div>
   `;
 }
 
+// ─── Characters View ───
 function poRenderCharacters(el) {
-  if (!poData?.characters) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
+  if (!poData?.characters?.length) { el.innerHTML = '<p style="color:var(--text-dim)">No character data</p>'; return; }
   let html = '<div class="po-grid">';
   for (const char of poData.characters) {
-    const pct = Math.round((char.completedAnims / Math.max(char.totalAnims, 1)) * 100);
-    const statusClass = pct === 100 ? 'approved' : pct > 50 ? 'generated' : pct > 0 ? 'placeholder' : 'missing';
+    const animPct = Math.round((char.completedAnims / Math.max(char.totalAnims, 1)) * 100);
+    const prodProg = char.productionProgress || { done: 0, total: 10 };
+    const prodPct = Math.round((prodProg.done / Math.max(prodProg.total, 1)) * 100);
+    const statusClass = animPct === 100 ? 'approved' : animPct > 50 ? 'generated' : animPct > 0 ? 'placeholder' : 'missing';
     html += `
       <div class="po-char-card" onclick="poOpenCharDetail('${char.id}')">
         <div class="po-char-header">
           <img class="po-char-thumb" src="${char.portrait}" onerror="this.style.display='none'" />
           <div>
             <div class="po-char-name">${char.name}</div>
-            <span class="po-badge po-badge-${statusClass}">${pct}%</span>
+            <span class="po-badge po-badge-${statusClass}">${char.exportReadiness}</span>
           </div>
         </div>
-        <div class="po-progress"><div class="po-progress-fill" style="width:${pct}%"></div></div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:6px">
-          ${char.completedAnims}/${char.totalAnims} anims &middot; ${char.hasPortrait ? 'portrait' : 'no portrait'} &middot; ${char.hasGrid ? 'grid' : 'no grid'}
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin:6px 0 4px">Game Anims: ${char.completedAnims}/${char.totalAnims}</div>
+        <div class="po-progress"><div class="po-progress-fill" style="width:${animPct}%"></div></div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin:6px 0 4px">Production Assets: ${prodProg.done}/${prodProg.total}</div>
+        <div class="po-progress"><div class="po-progress-fill" style="width:${prodPct}%;background:var(--accent3)"></div></div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--text-dim);margin-top:6px">
+          ${char.hasPortrait ? '&#9745; portrait' : '&#9744; portrait'} &middot;
+          ${char.hasSelect ? '&#9745; select' : '&#9744; select'} &middot;
+          ${char.hasGrid ? '&#9745; grid' : '&#9744; grid'}
         </div>
-        <div class="po-char-anims">
+        <div class="po-char-anims" style="margin-top:6px">
           ${Object.entries(char.animations || {}).map(([k, v]) =>
-            `<span class="po-anim-pip ${v.exists ? 'done' : ''}" title="${k}: ${v.exists ? v.frameCount + ' frames' : 'missing'}">${k.substring(0, 3)}</span>`
+            `<span class="po-anim-pip ${v.exists ? 'done' : ''}" title="${k}: ${v.exists ? v.frameCount + 'f' : 'missing'}">${k.substring(0, 3)}</span>`
           ).join('')}
         </div>
       </div>
@@ -4913,137 +4930,146 @@ function poRenderCharacters(el) {
   el.innerHTML = html;
 }
 
+// ─── Character Detail ───
 function poOpenCharDetail(charId) {
   const char = poData?.characters?.find(c => c.id === charId);
   if (!char) return;
-
   const panel = document.getElementById('poDetailPanel');
   panel.classList.add('visible');
 
-  const pct = Math.round((char.completedAnims / Math.max(char.totalAnims, 1)) * 100);
+  const animPct = Math.round((char.completedAnims / Math.max(char.totalAnims, 1)) * 100);
   let html = `
     <div class="po-detail-header">
       <h3>${char.name}</h3>
       <button class="po-detail-close" onclick="poCloseDetail()">&times;</button>
     </div>
-    <div style="padding:16px">
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+    <div style="padding:16px;overflow-y:auto;max-height:calc(100vh - 60px)">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
         <img src="${char.portrait}" style="width:64px;height:64px;border-radius:8px;object-fit:cover" onerror="this.style.display='none'" />
         <div>
-          <div style="font-size:18px;font-weight:bold;color:var(--text)">${pct}% complete</div>
-          <div style="font-size:11px;color:var(--text-dim)">${char.completedAnims}/${char.totalAnims} animations</div>
+          <div style="font-size:16px;font-weight:bold;color:var(--text)">${animPct}% game coverage</div>
+          <div style="font-size:10px;color:var(--text-dim)">${char.completedAnims}/${char.totalAnims} game anims &middot; ${char.exportReadiness}</div>
+          ${char.heightInches ? `<div style="font-size:9px;color:var(--text-dim)">${char.heightInches}" / ${char.weightLbs || '?'}lbs / ${char.build || '?'}</div>` : ''}
         </div>
       </div>
-      <div class="po-progress" style="margin-bottom:16px"><div class="po-progress-fill" style="width:${pct}%"></div></div>
-      <h4 style="color:var(--text);margin:12px 0 8px;font-size:12px">ANIMATIONS</h4>
+
+      <h4 style="color:var(--warning);margin:16px 0 8px;font-size:11px">PRODUCTION ASSETS</h4>
   `;
 
-  for (const [animKey, animInfo] of Object.entries(char.animations || {})) {
-    const statusClass = animInfo.exists ? 'approved' : 'missing';
+  for (const [assetId, asset] of Object.entries(char.productionAssets || {})) {
     html += `
       <div class="po-detail-anim">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${animKey}</span>
-          <span class="po-badge po-badge-${statusClass}">${animInfo.exists ? animInfo.frameCount + 'f' : 'missing'}</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text)">${asset.label}</span>
+          ${poStatusBadge(asset.status)}
         </div>
-        ${animInfo.exists ? `<div style="font-size:9px;color:var(--text-dim);margin-top:2px">${animInfo.frameCount} frames &middot; strip ready</div>` : ''}
-        <div style="margin-top:4px">
-          <button class="btn btn-sm" style="font-size:9px;padding:2px 8px" onclick="selectCharFromRoster('${charId}');selectedAnim='${animKey}';renderAnimations();closeProductionOverview()">Open in Generator</button>
+        ${asset.file ? `<div style="font-size:8px;color:var(--text-dim);margin-top:2px">${asset.file}</div>` : ''}
+      </div>
+    `;
+  }
+
+  html += `<h4 style="color:var(--warning);margin:16px 0 8px;font-size:11px">GAME ANIMATIONS</h4>`;
+  for (const [animKey, animInfo] of Object.entries(char.animations || {})) {
+    html += `
+      <div class="po-detail-anim">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text)">${animKey}</span>
+          ${poStatusBadge(animInfo.status)}
+        </div>
+        ${animInfo.exists ? `<div style="font-size:8px;color:var(--text-dim);margin-top:2px">${animInfo.frameCount} frames</div>` : ''}
+        <div style="margin-top:3px">
+          <button class="btn btn-sm" style="font-size:8px;padding:2px 6px" onclick="selectCharFromRoster('${charId}');selectedAnim='${animKey}';renderAnimations();closeProductionOverview()">Open in Generator</button>
         </div>
       </div>
     `;
   }
 
   html += `
-      <h4 style="color:var(--text);margin:16px 0 8px;font-size:12px">ACTIONS</h4>
+      <h4 style="color:var(--warning);margin:16px 0 8px;font-size:11px">ACTIONS</h4>
       <div style="display:flex;flex-direction:column;gap:6px">
         <button class="btn btn-secondary btn-sm" onclick="selectCharFromRoster('${charId}');closeProductionOverview()">Select Character</button>
-        <button class="btn btn-secondary btn-sm" onclick="selectCharFromRoster('${charId}');closeProductionOverview();document.getElementById('pipelineMode').click()">Run Pipeline</button>
+        <button class="btn btn-secondary btn-sm" onclick="selectCharFromRoster('${charId}');closeProductionOverview();document.getElementById('pipelineMode')?.click()">Run Pipeline</button>
       </div>
     </div>
   `;
   panel.innerHTML = html;
 }
 
+// ─── Animation Matrix View ───
 function poRenderMatrix(el) {
-  if (!poMatrixData) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
-
+  if (!poMatrixData) { el.innerHTML = '<p style="color:var(--text-dim)">No matrix data</p>'; return; }
   const chars = poMatrixData.characters || [];
   const manifest = poMatrixData.manifest || [];
-
   const families = {};
   for (const anim of manifest) {
-    const fam = anim.family || 'other';
+    const fam = anim.familyLabel || anim.family || 'other';
     if (!families[fam]) families[fam] = [];
     families[fam].push(anim);
   }
 
   let html = '<div class="po-matrix-wrap" style="overflow-x:auto">';
-
   for (const [famName, anims] of Object.entries(families)) {
     html += `<h4 style="color:var(--warning);margin:16px 0 8px;font-size:11px;text-transform:uppercase">${famName}</h4>`;
-    html += '<table class="po-matrix"><thead><tr><th style="text-align:left;font-size:9px;color:var(--text-dim)">Animation</th>';
+    html += '<table class="po-matrix"><thead><tr><th style="text-align:left;font-size:9px;color:var(--text-dim);min-width:180px">Animation</th>';
     for (const c of chars) {
-      html += `<th style="font-size:9px;color:var(--text-dim);min-width:50px">${c.name.substring(0, 6)}</th>`;
+      html += `<th style="font-size:9px;color:var(--text-dim);min-width:45px;text-align:center">${c.name.substring(0, 5)}</th>`;
     }
     html += '</tr></thead><tbody>';
 
     for (const anim of anims) {
+      const isP1 = anim.priority === 1;
       const isGame = anim.inGame;
-      html += `<tr><td style="font-family:var(--mono);font-size:10px;color:${isGame ? 'var(--text)' : 'var(--text-dim)'};white-space:nowrap">${anim.id} ${isGame ? '<span style="color:var(--accent2);font-size:8px">GAME</span>' : ''}</td>`;
+      const rowColor = isP1 ? 'var(--text)' : 'var(--text-dim)';
+      html += `<tr><td style="font-family:var(--mono);font-size:10px;color:${rowColor};white-space:nowrap">`;
+      if (isP1) html += '<span style="color:var(--accent);font-size:7px;margin-right:3px">P1</span>';
+      html += anim.label || anim.id;
+      if (isGame) html += ' <span style="color:var(--accent2);font-size:7px">GAME</span>';
+      html += '</td>';
       for (const c of chars) {
-        const has = c.animations?.[anim.gameKey || anim.id]?.exists;
-        html += `<td style="text-align:center"><span class="po-matrix-cell ${has ? 'done' : 'empty'}">${has ? '●' : '○'}</span></td>`;
+        const st = anim.characterStatuses?.[c.id];
+        const done = st === 'exported';
+        html += `<td style="text-align:center"><span style="color:${done ? 'var(--accent2)' : 'rgba(255,255,255,0.15)'};font-size:12px">${done ? '●' : '○'}</span></td>`;
       }
       html += '</tr>';
     }
     html += '</tbody></table>';
   }
-
   html += '</div>';
   el.innerHTML = html;
 }
 
+// ─── Skin Slots View ───
 function poRenderSlots(el, filterCategory) {
   if (!poData?.slotCoverage) { el.innerHTML = '<p style="color:var(--text-dim)">No slot data</p>'; return; }
-
   const slots = poData.slotCoverage;
-  const categories = [...new Set(slots.map(s => s.category))];
+  const groups = {};
+  for (const s of slots) { if (!groups[s.groupLabel]) groups[s.groupLabel] = []; groups[s.groupLabel].push(s); }
 
-  let html = '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
-  html += `<button class="btn btn-sm ${!filterCategory ? 'active' : ''}" style="font-size:9px" onclick="poRenderSlots(document.getElementById('poContent'), null)">All</button>`;
-  for (const cat of categories) {
-    html += `<button class="btn btn-sm ${filterCategory === cat ? 'active' : ''}" style="font-size:9px" onclick="poRenderSlots(document.getElementById('poContent'), '${cat}')">${cat}</button>`;
-  }
-  html += '</div>';
-
-  const filtered = filterCategory ? slots.filter(s => s.category === filterCategory) : slots;
-  const filled = filtered.filter(s => s.status === 'filled').length;
-  const total = filtered.length;
-
-  html += `<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:12px">${filled}/${total} slots filled (${Math.round((filled / Math.max(total, 1)) * 100)}%)</div>`;
-
-  html += '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr))">';
-  for (const slot of filtered) {
-    const statusClass = slot.status === 'filled' ? 'approved' : 'missing';
-    html += `
-      <div class="po-slot-card" onclick="poOpenSlotDetail('${slot.id}')">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${slot.label}</span>
-          <span class="po-badge po-badge-${statusClass}">${slot.status}</span>
+  let html = '';
+  for (const [groupLabel, groupSlots] of Object.entries(groups)) {
+    const filled = groupSlots.filter(s => s.status !== 'missing').length;
+    html += `<h4 style="color:var(--warning);margin:16px 0 8px;font-size:11px">${groupLabel} <span style="color:var(--text-dim);font-size:9px">${filled}/${groupSlots.length}</span></h4>`;
+    html += '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">';
+    for (const slot of groupSlots) {
+      html += `
+        <div class="po-slot-card" onclick="poOpenSlotDetail('${slot.id}')" style="cursor:pointer">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text)">${slot.label}</span>
+            ${poStatusBadge(slot.status)}
+          </div>
+          <div style="font-size:8px;color:var(--text-dim);margin-top:3px">${slot.assignedFile || 'no file assigned'}</div>
+          ${slot.notes ? `<div style="font-size:8px;color:var(--text-dim);font-style:italic;margin-top:2px">${slot.notes}</div>` : ''}
         </div>
-        <div style="font-size:9px;color:var(--text-dim);margin-top:4px">${slot.category} &middot; key: ${slot.key || 'none'}</div>
-      </div>
-    `;
+      `;
+    }
+    html += '</div>';
   }
-  html += '</div>';
   el.innerHTML = html;
 }
 
 function poOpenSlotDetail(slotId) {
   const slot = poData?.slotCoverage?.find(s => s.id === slotId);
   if (!slot) return;
-
   const panel = document.getElementById('poDetailPanel');
   panel.classList.add('visible');
   panel.innerHTML = `
@@ -5052,72 +5078,243 @@ function poOpenSlotDetail(slotId) {
       <button class="po-detail-close" onclick="poCloseDetail()">&times;</button>
     </div>
     <div style="padding:16px">
-      <div style="margin-bottom:12px">
-        <span class="po-badge po-badge-${slot.status === 'filled' ? 'approved' : 'missing'}">${slot.status}</span>
-      </div>
+      <div style="margin-bottom:12px">${poStatusBadge(slot.status)}</div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px">
-        Category: ${slot.category}<br/>
-        Key: ${slot.key || 'none'}<br/>
-        ID: ${slot.id}
+        Group: ${slot.groupLabel}<br/>Category: ${slot.category}<br/>ID: ${slot.id}
       </div>
-      ${slot.assetPath ? `<div style="font-size:10px;color:var(--text-dim)">File: ${slot.assetPath}</div>` : ''}
+      ${slot.assignedFile ? `<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">File: ${slot.assignedFile} ${slot.fileExists ? '(exists)' : '(not found)'}</div>` : ''}
+      ${slot.notes ? `<div style="font-size:10px;color:var(--text-dim);font-style:italic;margin-bottom:8px">${slot.notes}</div>` : ''}
       <div style="margin-top:16px;display:flex;flex-direction:column;gap:6px">
-        <button class="btn btn-secondary btn-sm" onclick="poSetSlotStatus('${slot.id}','filled')">Mark Filled</button>
+        <button class="btn btn-secondary btn-sm" onclick="poSetSlotStatus('${slot.id}','exported')">Mark Exported</button>
+        <button class="btn btn-secondary btn-sm" onclick="poSetSlotStatus('${slot.id}','placeholder')">Mark Placeholder</button>
         <button class="btn btn-secondary btn-sm" onclick="poSetSlotStatus('${slot.id}','missing')">Mark Missing</button>
       </div>
     </div>
   `;
 }
 
+// ─── Courts View ───
+function poRenderCourts(el) {
+  if (!poData?.courts?.length) { el.innerHTML = '<p style="color:var(--text-dim)">No court data</p>'; return; }
+  let html = '';
+  for (const court of poData.courts) {
+    const pct = Math.round((court.filledSlots / Math.max(court.totalSlots, 1)) * 100);
+    html += `<div style="margin-bottom:24px">`;
+    html += `<h4 style="color:var(--text);margin:0 0 4px;font-size:13px">${court.name} <span style="font-size:10px;color:var(--text-dim)">${court.unlocked ? 'Unlocked' : 'Locked'}</span></h4>`;
+    html += `<div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:6px">${court.filledSlots}/${court.totalSlots} slots (${pct}%)</div>`;
+    html += `<div class="po-progress" style="margin-bottom:10px"><div class="po-progress-fill" style="width:${pct}%"></div></div>`;
+
+    // Group by category
+    const cats = {};
+    for (const [slotId, slot] of Object.entries(court.slots)) {
+      const cat = slot.category || 'other';
+      if (!cats[cat]) cats[cat] = [];
+      cats[cat].push(slot);
+    }
+
+    for (const [cat, catSlots] of Object.entries(cats)) {
+      html += `<div style="font-size:9px;color:var(--accent3);text-transform:uppercase;margin:8px 0 4px">${cat}</div>`;
+      html += '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px">';
+      for (const slot of catSlots) {
+        html += `
+          <div class="po-slot-card" style="padding:8px" onclick="poOpenCourtSlotDetail('${court.id}','${slot.slotId}')">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text)">${slot.label}</span>
+              ${poStatusBadge(slot.status)}
+            </div>
+            ${slot.file ? `<div style="font-size:8px;color:var(--text-dim);margin-top:2px">${slot.file}</div>` : ''}
+            ${slot.notes ? `<div style="font-size:8px;color:var(--text-dim);font-style:italic;margin-top:2px">${slot.notes}</div>` : ''}
+          </div>
+        `;
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function poOpenCourtSlotDetail(courtId, slotId) {
+  const court = poData?.courts?.find(c => c.id === courtId);
+  const slot = court?.slots?.[slotId];
+  if (!slot) return;
+  const panel = document.getElementById('poDetailPanel');
+  panel.classList.add('visible');
+  panel.innerHTML = `
+    <div class="po-detail-header">
+      <h3>${court.name} — ${slot.label}</h3>
+      <button class="po-detail-close" onclick="poCloseDetail()">&times;</button>
+    </div>
+    <div style="padding:16px">
+      <div style="margin-bottom:12px">${poStatusBadge(slot.status)}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px">
+        Court: ${courtId}<br/>Slot: ${slotId}<br/>Category: ${slot.category}
+      </div>
+      ${slot.file ? `<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">File: ${slot.file}</div>` : ''}
+      ${slot.notes ? `<div style="font-size:10px;color:var(--text-dim);font-style:italic;margin-bottom:8px">${slot.notes}</div>` : ''}
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="poUpdateCourtSlot('${courtId}','${slotId}','exported')">Mark Exported</button>
+        <button class="btn btn-secondary btn-sm" onclick="poUpdateCourtSlot('${courtId}','${slotId}','placeholder')">Mark Placeholder</button>
+        <button class="btn btn-secondary btn-sm" onclick="poUpdateCourtSlot('${courtId}','${slotId}','missing')">Mark Missing</button>
+      </div>
+    </div>
+  `;
+}
+
+async function poUpdateCourtSlot(courtId, slotId, status) {
+  try {
+    await fetch(`${API}/api/production/court-slot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courtId, slotId, status }),
+    });
+    toast(`Court slot → ${status}`);
+    loadProductionData();
+    poCloseDetail();
+  } catch (err) { toast('Update failed', true); }
+}
+
+// ─── Screens View ───
+function poRenderScreens(el) {
+  if (!poData?.screens?.length) { el.innerHTML = '<p style="color:var(--text-dim)">No screen data</p>'; return; }
+  let html = '';
+  for (const screen of poData.screens) {
+    const pct = Math.round((screen.filledSlots / Math.max(screen.totalSlots, 1)) * 100);
+    html += `<div style="margin-bottom:20px">`;
+    html += `<h4 style="color:var(--text);margin:0 0 4px;font-size:13px">${screen.name}</h4>`;
+    html += `<div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:6px">${screen.filledSlots}/${screen.totalSlots} slots (${pct}%)</div>`;
+    html += `<div class="po-progress" style="margin-bottom:8px"><div class="po-progress-fill" style="width:${pct}%"></div></div>`;
+    html += '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px">';
+
+    for (const [slotId, slot] of Object.entries(screen.slots)) {
+      html += `
+        <div class="po-slot-card" style="padding:8px" onclick="poOpenScreenSlotDetail('${screen.id}','${slot.slotId}')">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text)">${slot.label}</span>
+            ${poStatusBadge(slot.status)}
+          </div>
+          ${slot.file ? `<div style="font-size:8px;color:var(--text-dim);margin-top:2px">${slot.file}</div>` : ''}
+          ${slot.notes ? `<div style="font-size:8px;color:var(--text-dim);font-style:italic;margin-top:2px">${slot.notes}</div>` : ''}
+        </div>
+      `;
+    }
+    html += '</div></div>';
+  }
+  el.innerHTML = html;
+}
+
+function poOpenScreenSlotDetail(screenId, slotId) {
+  const screen = poData?.screens?.find(s => s.id === screenId);
+  const slot = screen?.slots?.[slotId];
+  if (!slot) return;
+  const panel = document.getElementById('poDetailPanel');
+  panel.classList.add('visible');
+  panel.innerHTML = `
+    <div class="po-detail-header">
+      <h3>${screen.name} — ${slot.label}</h3>
+      <button class="po-detail-close" onclick="poCloseDetail()">&times;</button>
+    </div>
+    <div style="padding:16px">
+      <div style="margin-bottom:12px">${poStatusBadge(slot.status)}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px">
+        Screen: ${screenId}<br/>Slot: ${slotId}
+      </div>
+      ${slot.file ? `<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">File: ${slot.file}</div>` : ''}
+      ${slot.notes ? `<div style="font-size:10px;color:var(--text-dim);font-style:italic;margin-bottom:8px">${slot.notes}</div>` : ''}
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="poUpdateScreenSlot('${screenId}','${slotId}','exported')">Mark Exported</button>
+        <button class="btn btn-secondary btn-sm" onclick="poUpdateScreenSlot('${screenId}','${slotId}','placeholder')">Mark Placeholder</button>
+        <button class="btn btn-secondary btn-sm" onclick="poUpdateScreenSlot('${screenId}','${slotId}','missing')">Mark Missing</button>
+      </div>
+    </div>
+  `;
+}
+
+async function poUpdateScreenSlot(screenId, slotId, status) {
+  try {
+    await fetch(`${API}/api/production/screen-slot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ screenId, slotId, status }),
+    });
+    toast(`Screen slot → ${status}`);
+    loadProductionData();
+    poCloseDetail();
+  } catch (err) { toast('Update failed', true); }
+}
+
+// ─── Missing Work View ───
 function poRenderMissing(el) {
   if (!poData) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
-
-  let html = '<div class="po-todo-list">';
+  let html = '';
   let todoCount = 0;
 
+  // Character production assets missing
   for (const char of (poData.characters || [])) {
-    if (!char.hasPortrait) {
-      html += poBuildTodoItem('portrait', `Create portrait for ${char.name}`, 'Character has no portrait image', char.id);
+    const missingProd = Object.values(char.productionAssets || {}).filter(a => a.status === 'missing');
+    for (const asset of missingProd) {
+      html += poBuildTodoItem('reference', `${char.name}: ${asset.label}`, asset.category, char.id);
       todoCount++;
     }
   }
 
+  // Game animations missing
   const gameAnims = ['static-dribble', 'dribble', 'jumpshot', 'stepback', 'crossover', 'defense-backpedal', 'defense-shuffle', 'steal'];
   for (const char of (poData.characters || [])) {
     for (const anim of gameAnims) {
       if (!char.animations?.[anim]?.exists) {
-        html += poBuildTodoItem('animation', `${char.name} / ${anim}`, 'Required game animation missing', char.id);
+        html += poBuildTodoItem('animation', `${char.name} / ${anim}`, 'Required game animation', char.id);
         todoCount++;
       }
     }
   }
 
+  // Grid sheets missing
   for (const char of (poData.characters || [])) {
     if (!char.hasGrid && char.completedAnims > 0) {
-      html += poBuildTodoItem('grid', `Build grid sheet for ${char.name}`, `${char.completedAnims} animations ready, needs grid`, char.id);
+      html += poBuildTodoItem('grid', `Build grid sheet for ${char.name}`, `${char.completedAnims} anims ready`, char.id);
       todoCount++;
     }
   }
 
+  // Court slots missing
+  for (const court of (poData.courts || [])) {
+    for (const [slotId, slot] of Object.entries(court.slots || {})) {
+      if (slot.status === 'missing') {
+        html += poBuildTodoItem('court', `${court.name}: ${slot.label}`, slot.category, null);
+        todoCount++;
+      }
+    }
+  }
+
+  // Screen slots missing
+  for (const screen of (poData.screens || [])) {
+    for (const [slotId, slot] of Object.entries(screen.slots || {})) {
+      if (slot.status === 'missing') {
+        html += poBuildTodoItem('screen', `${screen.name}: ${slot.label}`, 'UI asset', null);
+        todoCount++;
+      }
+    }
+  }
+
+  // Skin slots missing
   for (const slot of (poData.slotCoverage || [])) {
-    if (slot.status !== 'filled') {
-      html += poBuildTodoItem('slot', `Fill slot: ${slot.label}`, `${slot.category} — ${slot.key || 'no key'}`, null);
+    if (slot.status === 'missing') {
+      html += poBuildTodoItem('slot', `Skin: ${slot.label}`, `${slot.groupLabel}`, null);
       todoCount++;
     }
   }
 
   if (todoCount === 0) {
-    html += '<div style="text-align:center;padding:40px;color:var(--accent2);font-size:14px">All caught up! No missing work.</div>';
+    html = '<div style="text-align:center;padding:40px;color:var(--accent2);font-size:14px">All caught up!</div>';
   } else {
-    html = `<div style="font-family:var(--mono);font-size:11px;color:var(--warning);margin-bottom:12px">${todoCount} items need attention</div>` + html;
+    html = `<div style="font-family:var(--mono);font-size:11px;color:var(--warning);margin-bottom:12px">${todoCount} items need attention</div><div class="po-todo-list">${html}</div>`;
   }
-
-  html += '</div>';
   el.innerHTML = html;
 }
 
 function poBuildTodoItem(type, title, subtitle, charId) {
-  const typeColors = { portrait: 'var(--accent3)', animation: 'var(--accent)', grid: 'var(--accent2)', slot: 'var(--warning)' };
+  const typeColors = { reference: 'var(--accent3)', animation: 'var(--accent)', grid: 'var(--accent2)', court: '#8855ff', screen: '#55aaff', slot: 'var(--warning)' };
   const color = typeColors[type] || 'var(--text-dim)';
   const action = charId ? `onclick="selectCharFromRoster('${charId}');closeProductionOverview()"` : '';
   return `
@@ -5125,85 +5322,69 @@ function poBuildTodoItem(type, title, subtitle, charId) {
       <div style="display:flex;align-items:center;gap:8px">
         <span style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></span>
         <div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--text)">${title}</div>
-          <div style="font-size:9px;color:var(--text-dim)">${subtitle}</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text)">${title}</div>
+          <div style="font-size:8px;color:var(--text-dim)">${subtitle}</div>
         </div>
       </div>
-      <span style="font-size:8px;color:${color};text-transform:uppercase">${type}</span>
+      <span style="font-size:7px;color:${color};text-transform:uppercase">${type}</span>
     </div>
   `;
 }
 
+// ─── All Assets View ───
 function poRenderAllAssets(el) {
   if (!poData?.characters) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
+  let html = '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">';
 
-  let html = '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">';
-
+  // Character assets
   for (const char of poData.characters) {
     if (char.hasPortrait) {
-      html += `
-        <div class="po-asset-card">
-          <img class="po-asset-thumb" src="${char.portrait}" onerror="this.style.display='none'" />
-          <div class="po-asset-label">${char.name} portrait</div>
-          <span class="po-badge po-badge-approved" style="font-size:7px">portrait</span>
-        </div>
-      `;
+      html += `<div class="po-asset-card"><img class="po-asset-thumb" src="${char.portrait}" onerror="this.style.display='none'" /><div class="po-asset-label">${char.name} portrait</div>${poStatusBadge('done')}</div>`;
     }
-
+    if (char.hasSelect) {
+      html += `<div class="po-asset-card"><img class="po-asset-thumb" src="/assets/${char.id}-player-select.webp" onerror="this.style.display='none'" /><div class="po-asset-label">${char.name} select</div>${poStatusBadge('done')}</div>`;
+    }
     for (const [animKey, animInfo] of Object.entries(char.animations || {})) {
       if (animInfo.exists) {
-        html += `
-          <div class="po-asset-card">
-            <img class="po-asset-thumb" src="/raw/${char.id}/${animKey}-strip.png?t=${Date.now()}" onerror="this.src='/raw/${char.id}/${animKey}/frame-0.png'" />
-            <div class="po-asset-label">${char.name}/${animKey}</div>
-            <span class="po-badge po-badge-generated" style="font-size:7px">${animInfo.frameCount}f</span>
-          </div>
-        `;
+        html += `<div class="po-asset-card"><img class="po-asset-thumb" src="/assets/${char.id}-${animKey}.png?t=${Date.now()}" onerror="this.style.display='none'" /><div class="po-asset-label">${char.name}/${animKey}</div>${poStatusBadge('exported')}</div>`;
       }
     }
-
     if (char.hasGrid) {
-      html += `
-        <div class="po-asset-card">
-          <img class="po-asset-thumb" src="/raw/${char.id}/${char.id}-spritesheet.png?t=${Date.now()}" onerror="this.style.display='none'" />
-          <div class="po-asset-label">${char.name} grid</div>
-          <span class="po-badge po-badge-exported" style="font-size:7px">grid</span>
-        </div>
-      `;
+      html += `<div class="po-asset-card"><img class="po-asset-thumb" src="/assets/${char.id}-spritesheet.png?t=${Date.now()}" onerror="this.style.display='none'" /><div class="po-asset-label">${char.name} grid</div>${poStatusBadge('exported')}</div>`;
     }
+  }
+
+  // Court/screen/shared assets
+  const sharedAssets = [
+    { file: 'court.webp', label: 'Court Floor' },
+    { file: 'basketball.png', label: 'Basketball' },
+    { file: 'loading-screen.webp', label: 'Loading Screen' },
+    { file: 'playerselect.jpg', label: 'Player Select BG' },
+  ];
+  for (const sa of sharedAssets) {
+    html += `<div class="po-asset-card"><img class="po-asset-thumb" src="/assets/${sa.file}" onerror="this.style.display='none'" /><div class="po-asset-label">${sa.label}</div>${poStatusBadge('exported')}</div>`;
   }
 
   html += '</div>';
   el.innerHTML = html;
 }
 
+// ─── Status Update Helpers ───
 async function poSetStatus(assetId, status) {
   try {
-    await fetch(`${API}/api/production/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assetId, status }),
-    });
+    await fetch(`${API}/api/production/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assetId, status }) });
     toast(`Status → ${status}`);
     loadProductionData();
-  } catch (err) {
-    toast('Status update failed', true);
-  }
+  } catch (err) { toast('Update failed', true); }
 }
 
 async function poSetSlotStatus(slotId, status) {
   try {
-    await fetch(`${API}/api/production/slot`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slotId, status }),
-    });
+    await fetch(`${API}/api/production/slot`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slotId, status }) });
     toast(`Slot → ${status}`);
     loadProductionData();
     poCloseDetail();
-  } catch (err) {
-    toast('Slot update failed', true);
-  }
+  } catch (err) { toast('Update failed', true); }
 }
 
 function poCloseDetail() {
@@ -5212,11 +5393,8 @@ function poCloseDetail() {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (document.getElementById('poDetailPanel').classList.contains('visible')) {
-      poCloseDetail();
-    } else if (document.getElementById('productionOverview').classList.contains('visible')) {
-      closeProductionOverview();
-    }
+    if (document.getElementById('poDetailPanel').classList.contains('visible')) poCloseDetail();
+    else if (document.getElementById('productionOverview').classList.contains('visible')) closeProductionOverview();
   }
 });
 
