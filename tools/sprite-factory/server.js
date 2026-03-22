@@ -149,6 +149,7 @@ require('./routes/export').register(router, ctx);
 require('./routes/pipeline').register(router, ctx);
 require('./routes/prompts').register(router, ctx);
 require('./routes/production').register(router, ctx);
+require('./routes/anchor').register(router, ctx);
 
 // ─── Server ─────────────────────────────────────────────────────────────
 

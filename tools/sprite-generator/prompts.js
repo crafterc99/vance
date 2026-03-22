@@ -526,10 +526,139 @@ function listAnimations() {
   }));
 }
 
+// ─── Anchor System Prompts ──────────────────────────────────────────────
+
+const ANGLE_NAMES = [
+  'front', 'front-3/4-L', 'side-L', 'back-3/4-L',
+  'back', 'back-3/4-R', 'side-R', 'front-3/4-R',
+];
+
+const BALL_VARIANTS = [
+  'dribble-low', 'dribble-high', 'carry-hip',
+  'shoot-release', 'two-hand-chest', 'palming',
+];
+
+/**
+ * Build a prompt for generating a canonical angle reference for a character.
+ * Uses the character portrait as identity reference + requests a specific viewing angle.
+ * Standardized: brown shirt, black baggy pants, basketball in hand.
+ */
+function buildAnglePrompt(charName, angleName, angleIndex, totalAngles) {
+  const angleDescriptions = {
+    'front':        'facing directly toward the camera, head-on front view',
+    'front-3/4-L':  'turned roughly 45 degrees to the left, three-quarter front view from the left side',
+    'side-L':       'turned 90 degrees to the left, full left-side profile view',
+    'back-3/4-L':   'turned roughly 135 degrees to the left, three-quarter rear view from the left side',
+    'back':         'facing directly away from the camera, full rear view',
+    'back-3/4-R':   'turned roughly 135 degrees to the right, three-quarter rear view from the right side',
+    'side-R':       'turned 90 degrees to the right, full right-side profile view',
+    'front-3/4-R':  'turned roughly 45 degrees to the right, three-quarter front view from the right side',
+  };
+
+  const angleDesc = angleDescriptions[angleName] || `angle ${angleIndex + 1} of ${totalAngles}`;
+
+  const prompt = [
+    `IDENTITY REFERENCE: Image 1 is the character's portrait. Keep their exact face, skin tone, hairstyle, and body proportions.`,
+    ``,
+    `TASK: Generate this character ${angleDesc}.`,
+    `This is angle ${angleIndex + 1} of ${totalAngles} in a full turnaround sheet.`,
+    ``,
+    `OUTFIT — STANDARDIZED:`,
+    `- Plain brown t-shirt (solid #8B4513 / saddle brown)`,
+    `- Black baggy basketball pants/shorts`,
+    `- Basketball held casually in the right hand at hip level`,
+    `- Same shoes/sneakers as the portrait`,
+    ``,
+    `POSE:`,
+    `- Standing upright in a relaxed neutral stance`,
+    `- Weight evenly distributed, arms relaxed`,
+    `- Basketball held in right hand at hip height`,
+    `- Full body from head to shoes, NO cropping`,
+    ``,
+    `CONSISTENCY:`,
+    `- Match the exact same proportions and height as Image 1`,
+    `- Same pixel art style, same level of detail`,
+    `- Same outline thickness and color palette`,
+    `- Character should fill ~85% of frame height`,
+    ``,
+    `STYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines`,
+    `OUTPUT: Single character, full body, ONE frame only`,
+    `Background: solid green (#00FF00), NO green on character`,
+  ].join('\n');
+
+  return {
+    prompt,
+    angleName,
+    angleIndex,
+    totalAngles,
+    characterName: charName,
+    mode: 'angle-reference',
+  };
+}
+
+/**
+ * Build a prompt for generating a ball-holding variant reference.
+ * Uses character portrait + front angle as refs.
+ */
+function buildBallRefPrompt(charName, variant, variantIndex) {
+  const variantDescriptions = {
+    'dribble-low':     'dribbling the basketball low near the ground, knees bent, ball below knee height, right hand on top of ball pushing down',
+    'dribble-high':    'dribbling the basketball high at waist level, standing more upright, right hand bouncing ball at hip height',
+    'carry-hip':       'carrying the basketball casually tucked against the right hip with one hand, standing upright relaxed',
+    'shoot-release':   'in a jump shot release position — ball above head in both hands, arms extended upward, wrists flicking, at the peak of a shot',
+    'two-hand-chest':  'holding the basketball with both hands at chest height, elbows out, in a triple-threat or pass-ready position',
+    'palming':         'palming the basketball in the right hand with arm extended to the side at shoulder height, showing off ball control',
+  };
+
+  const variantDesc = variantDescriptions[variant] || variant;
+
+  const prompt = [
+    `IDENTITY REFERENCE: Image 1 is the character's portrait. Match their exact face, skin tone, hairstyle, body proportions.`,
+    `If Image 2 is provided, it shows the character's front angle reference — match the outfit and proportions exactly.`,
+    ``,
+    `TASK: Generate this character ${variantDesc}.`,
+    `This is ball variant "${variant}" (${variantIndex + 1} of 6).`,
+    ``,
+    `OUTFIT — STANDARDIZED:`,
+    `- Plain brown t-shirt (solid #8B4513 / saddle brown)`,
+    `- Black baggy basketball pants/shorts`,
+    `- Same shoes/sneakers as the portrait`,
+    ``,
+    `POSE:`,
+    `- Character facing front (toward camera)`,
+    `- ${variantDesc}`,
+    `- Full body from head to shoes, NO cropping`,
+    ``,
+    `BALL:`,
+    `- Standard orange basketball with black lines`,
+    `- Ball size proportional to character (~12px diameter at character scale)`,
+    `- Ball interaction must look natural and physically correct`,
+    ``,
+    `CONSISTENCY:`,
+    `- Match the exact same proportions and height as Image 1`,
+    `- Same pixel art style, same level of detail, same outline thickness`,
+    `- Character should fill ~85% of frame height`,
+    ``,
+    `STYLE: 16-bit pixel art, GBA style, bold BLACK pixel outlines`,
+    `OUTPUT: Single character, full body, ONE frame only`,
+    `Background: solid green (#00FF00), NO green on character`,
+  ].join('\n');
+
+  return {
+    prompt,
+    variant,
+    variantIndex,
+    characterName: charName,
+    mode: 'ball-reference',
+  };
+}
+
 module.exports = {
   CHARACTERS,
   ANIMATIONS,
   PROMPT_SECTIONS,
+  ANGLE_NAMES,
+  BALL_VARIANTS,
   buildPrompt,
   buildPoseTransferPrompt,
   buildFilmToSpritePrompt,
@@ -540,6 +669,8 @@ module.exports = {
   getDefaultSections,
   parseFrameDescriptions,
   listAnimations,
+  buildAnglePrompt,
+  buildBallRefPrompt,
   trainPrompt,
   loadTraining,
 };
