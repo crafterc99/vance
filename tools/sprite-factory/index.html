@@ -430,6 +430,139 @@
   .frame-thumb:hover { border-color: var(--accent3); }
   .frame-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
+  .frame-thumb-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+  .frame-order-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: var(--accent);
+    color: white;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .frame-selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--surface2);
+    border-radius: 6px;
+    margin: 6px 0;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .frame-selection-bar .count { color: var(--accent); font-weight: 700; }
+  .frame-selection-bar button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .frame-selection-bar button:hover { color: var(--text); border-color: var(--accent); }
+
+  .anim-config-panel {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid var(--border);
+  }
+  .anim-config-panel label {
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .anim-config-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 6px 0;
+  }
+  .anim-config-row.full { grid-template-columns: 1fr; }
+
+  .video-fbf-progress {
+    display: none;
+    margin: 10px 0;
+    padding: 10px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .video-fbf-progress.visible { display: block; }
+  .video-fbf-frame-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .video-fbf-frame-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+  .video-fbf-frame-card.done { border-color: var(--accent2); }
+  .video-fbf-frame-card.active { border-color: var(--accent3); }
+  .video-fbf-frame-card img {
+    width: 100%;
+    image-rendering: pixelated;
+    border-radius: 2px;
+  }
+
+  .mode-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 2px;
+    border: 1px solid var(--border);
+  }
+  .mode-toggle button {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.1s;
+  }
+  .mode-toggle button.active { background: var(--accent); color: white; }
+
+  .anim-btn .custom-badge {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent3);
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
   .selected-strip {
     display: flex;
     gap: 4px;
@@ -1020,6 +1153,125 @@
   }
   .gen-mode-btn:hover { color: var(--text); }
   .gen-mode-btn.active { background: var(--accent3); color: white; }
+  .gen-mode-btn.active-auto { background: var(--accent2); color: #0a0a0f; }
+
+  /* ─── Auto-Test UI ─── */
+  .autotest-controls {
+    display: none;
+    margin-top: 6px;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .autotest-controls.visible { display: block; }
+  .autotest-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .autotest-row label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 80px;
+  }
+  .autotest-row input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    width: 80px;
+  }
+  .autotest-row input:focus { outline: none; border-color: var(--accent2); }
+
+  .autotest-progress {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-top: 8px;
+  }
+  .autotest-progress.visible { display: block; }
+
+  .autotest-iteration {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .autotest-iteration-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface2);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .autotest-iteration-header .iter-label { color: var(--text); font-weight: 700; }
+  .autotest-iteration-header .iter-score { font-weight: 700; }
+  .autotest-iteration-header .iter-score.pass { color: var(--accent2); }
+  .autotest-iteration-header .iter-score.fail { color: var(--warning); }
+  .autotest-iteration-header .iter-score.bad { color: var(--danger); }
+
+  .autotest-iteration-body {
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .autotest-iteration-body .metric-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 4px;
+  }
+  .autotest-iteration-body .metric-row span { white-space: nowrap; }
+  .autotest-issues {
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: var(--surface);
+    border-radius: 4px;
+    font-size: 10px;
+  }
+  .autotest-issues .issue-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .issue-tag.major { background: rgba(255,170,0,0.2); color: var(--warning); }
+  .issue-tag.minor { background: rgba(68,136,255,0.15); color: var(--accent3); }
+  .issue-tag.critical { background: rgba(255,34,68,0.2); color: var(--danger); }
+
+  .autotest-fixes {
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--accent2);
+  }
+
+  .autotest-summary {
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .autotest-summary .result-pass { color: var(--accent2); font-weight: 700; }
+  .autotest-summary .result-fail { color: var(--warning); font-weight: 700; }
 
   /* ─── FBF Progress UI ─── */
   .fbf-progress {
@@ -1099,6 +1351,525 @@
     color: var(--text-muted);
   }
 
+  /* ─── PRODUCTION OVERVIEW ─── */
+
+  .production-overview {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    z-index: 200;
+    overflow-y: auto;
+  }
+  .production-overview.visible { display: block; }
+
+  .po-header {
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,15,0.97);
+    z-index: 201;
+  }
+
+  .po-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .po-title span { color: var(--text-dim); font-weight: 400; }
+
+  .po-view-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 3px;
+    border: 1px solid var(--border);
+  }
+
+  .po-view-tab {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .po-view-tab:hover { color: var(--text); }
+  .po-view-tab.active { background: var(--accent); color: white; }
+
+  .po-body {
+    padding: 24px 32px;
+  }
+
+  /* ─── Summary Cards ─── */
+  .po-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .po-stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .po-stat-card .po-stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .po-stat-card .po-stat-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .po-stat-card .po-stat-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .po-stat-card .po-stat-bar {
+    height: 4px;
+    background: var(--surface3);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .po-stat-card .po-stat-bar .fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s;
+  }
+
+  /* ─── Filters ─── */
+  .po-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .po-search {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    width: 240px;
+  }
+  .po-search:focus { outline: none; border-color: var(--accent3); }
+
+  .po-filter-btn {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text-dim);
+    transition: all 0.12s;
+  }
+  .po-filter-btn:hover { border-color: var(--accent3); color: var(--text); }
+  .po-filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,68,0,0.08); }
+
+  /* ─── Thumbnail Grid ─── */
+  .po-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .po-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .po-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+
+  .po-card-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .po-card-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    image-rendering: pixelated;
+    object-fit: contain;
+  }
+
+  .po-card-thumb .po-empty-thumb {
+    font-family: var(--mono);
+    font-size: 24px;
+    color: var(--text-muted);
+  }
+
+  .po-card-body {
+    padding: 10px 12px;
+  }
+
+  .po-card-body h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .po-card-body p {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  /* ─── Status Badges ─── */
+  .po-badge {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    font-weight: 700;
+  }
+
+  .po-badge-missing { background: rgba(255,34,68,0.15); color: var(--danger); }
+  .po-badge-placeholder { background: rgba(106,106,128,0.2); color: var(--text-dim); }
+  .po-badge-generated { background: rgba(68,136,255,0.15); color: var(--accent3); }
+  .po-badge-review { background: rgba(255,170,0,0.15); color: var(--warning); }
+  .po-badge-approved { background: rgba(0,255,136,0.12); color: var(--accent2); }
+  .po-badge-exported { background: rgba(0,255,136,0.2); color: var(--accent2); border: 1px solid rgba(0,255,136,0.3); }
+  .po-badge-linked { background: rgba(136,68,255,0.15); color: #aa66ff; }
+  .po-badge-outdated { background: rgba(255,170,0,0.12); color: var(--warning); }
+  .po-badge-failed { background: rgba(255,34,68,0.2); color: var(--danger); }
+  .po-badge-partial { background: rgba(255,170,0,0.12); color: var(--warning); }
+  .po-badge-ready { background: rgba(0,255,136,0.12); color: var(--accent2); }
+  .po-badge-not_started { background: rgba(255,34,68,0.12); color: var(--danger); }
+
+  .po-badge-pos { position: absolute; top: 8px; right: 8px; }
+
+  /* ─── Character Overview Card ─── */
+  .po-char-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .po-char-card:hover { border-color: var(--accent); }
+
+  .po-char-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+    image-rendering: pixelated;
+    background: var(--surface2);
+    flex-shrink: 0;
+  }
+
+  .po-char-info { flex: 1; }
+  .po-char-info h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .po-char-info .po-char-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    margin-bottom: 8px;
+  }
+
+  .po-anim-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .po-anim-pill {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+  .po-anim-pill.done { border-color: rgba(0,255,136,0.3); color: var(--accent2); background: rgba(0,255,136,0.06); }
+  .po-anim-pill.missing { border-color: rgba(255,34,68,0.3); color: var(--danger); background: rgba(255,34,68,0.06); }
+
+  .po-progress-bar {
+    height: 6px;
+    background: var(--surface3);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .po-progress-bar .fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent2);
+    transition: width 0.4s;
+  }
+
+  /* ─── Animation Matrix ─── */
+  .po-matrix {
+    overflow-x: auto;
+    margin-bottom: 20px;
+  }
+
+  .po-matrix table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
+  .po-matrix th {
+    background: var(--surface2);
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 56px;
+    z-index: 5;
+  }
+
+  .po-matrix td {
+    padding: 6px 12px;
+    border-bottom: 1px solid rgba(42,42,58,0.5);
+    vertical-align: middle;
+  }
+
+  .po-matrix tr:hover td { background: rgba(255,68,0,0.03); }
+
+  .po-matrix .family-header {
+    background: var(--surface);
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    border-top: 2px solid var(--border);
+  }
+
+  .po-matrix .cell-status {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 0 auto;
+  }
+  .po-matrix .cell-status.exported { background: var(--accent2); }
+  .po-matrix .cell-status.missing { background: rgba(255,34,68,0.2); border: 1px solid rgba(255,34,68,0.4); }
+  .po-matrix .cell-status.template { background: rgba(136,68,255,0.3); border: 1px solid rgba(136,68,255,0.5); }
+
+  .po-priority-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .po-priority-dot.high { background: var(--danger); }
+  .po-priority-dot.medium { background: var(--warning); }
+  .po-priority-dot.low { background: var(--text-muted); }
+
+  /* ─── Slot List ─── */
+  .po-slot-group {
+    margin-bottom: 24px;
+  }
+
+  .po-slot-group-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .po-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background 0.1s;
+    margin-bottom: 2px;
+  }
+  .po-slot-row:hover { background: var(--surface); }
+
+  .po-slot-label {
+    flex: 1;
+    font-size: 12px;
+  }
+
+  .po-slot-file {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ─── Missing Work ─── */
+  .po-todo-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    transition: all 0.12s;
+  }
+  .po-todo-item:hover { border-color: var(--accent); }
+
+  .po-todo-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .po-todo-icon.char { background: rgba(68,136,255,0.15); }
+  .po-todo-icon.slot { background: rgba(255,170,0,0.15); }
+  .po-todo-icon.anim { background: rgba(255,34,68,0.15); }
+
+  .po-todo-body { flex: 1; }
+  .po-todo-body h4 { font-size: 12px; margin-bottom: 2px; }
+  .po-todo-body p { font-size: 10px; color: var(--text-dim); font-family: var(--mono); }
+
+  /* ─── Detail Panel ─── */
+  .po-detail-overlay {
+    display: none;
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 420px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 210;
+    overflow-y: auto;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+    padding: 24px;
+  }
+  .po-detail-overlay.visible { display: block; }
+
+  .po-detail-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 32px; height: 32px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+  .po-detail-close:hover { border-color: var(--danger); color: var(--danger); }
+
+  .po-detail-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .po-detail-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    image-rendering: pixelated;
+  }
+
+  .po-detail-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+
+  .po-detail-field {
+    margin-bottom: 12px;
+  }
+  .po-detail-field label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .po-detail-field .value {
+    font-size: 13px;
+    color: var(--text);
+  }
+
   /* Responsive */
   @media (max-width: 1100px) {
     .main { grid-template-columns: 1fr; }
@@ -1112,10 +1883,14 @@
   <div class="logo">SPRITE FACTORY <span>/ Soul Jam</span></div>
   <div class="header-right">
     <div class="mode-tabs">
-      <button class="mode-tab active" onclick="setMode('replicate')">Replicate</button>
+      <button class="mode-tab active" onclick="setMode('replicate')">Generate</button>
+      <button class="mode-tab" onclick="setMode('pipeline')">Pipeline</button>
+      <button class="mode-tab" onclick="setMode('promptlab')">Prompt Lab</button>
+      <button class="mode-tab" onclick="setMode('preview')">Preview</button>
       <button class="mode-tab" onclick="setMode('video')">Video</button>
-      <button class="mode-tab" onclick="setMode('character')">New Character</button>
+      <button class="mode-tab" onclick="setMode('character')">New Char</button>
       <button class="mode-tab" onclick="openRoster()">Roster</button>
+      <button class="mode-tab" onclick="openProductionOverview()" style="background:var(--surface2);color:var(--warning);border:1px solid rgba(255,170,0,0.3)">Production</button>
     </div>
     <div class="status" id="headerCost" style="background:var(--surface);padding:5px 12px;border-radius:6px;border:1px solid var(--border);cursor:default" title="Total spend across all generations ever">
       <span style="color:var(--accent2);font-weight:700" id="headerCostAmount">$0.00</span>
@@ -1165,8 +1940,19 @@
     <!-- Generation Mode Toggle + Actions -->
     <div id="replicateActions">
       <div class="gen-mode-toggle">
-        <button class="gen-mode-btn" onclick="setGenMode('strip')">Strip (batch)</button>
-        <button class="gen-mode-btn active" onclick="setGenMode('fbf')">Frame-by-Frame</button>
+        <button class="gen-mode-btn" onclick="setGenMode('strip')">Strip</button>
+        <button class="gen-mode-btn active" onclick="setGenMode('fbf')">FBF</button>
+        <button class="gen-mode-btn" onclick="setGenMode('autotest')">Auto-Test</button>
+      </div>
+      <div class="autotest-controls" id="autotestControls">
+        <div class="autotest-row">
+          <label>Budget $</label>
+          <input type="number" id="autotestBudget" value="1.00" step="0.25" min="0.10" />
+        </div>
+        <div class="autotest-row">
+          <label>Max Iters</label>
+          <input type="number" id="autotestMaxIters" value="5" step="1" min="1" max="10" />
+        </div>
       </div>
       <div class="actions">
         <button class="btn btn-primary" id="generateBtn" onclick="generate()">
@@ -1182,6 +1968,15 @@
       <div class="fbf-status" id="fbfStatus">Preparing...</div>
       <div class="fbf-progress-bar"><div class="fill" id="fbfProgressFill"></div></div>
       <div class="fbf-frame-grid" id="fbfFrameGrid"></div>
+    </div>
+
+    <!-- Auto-Test Progress UI -->
+    <div class="autotest-progress" id="autotestProgress">
+      <div class="section-label">Auto-Test Progress</div>
+      <div class="fbf-status" id="autotestStatus">Initializing...</div>
+      <div class="fbf-progress-bar"><div class="fill" id="autotestProgressFill"></div></div>
+      <div id="autotestIterations"></div>
+      <div class="autotest-summary" id="autotestSummary" style="display:none"></div>
     </div>
 
     <!-- Video Pipeline -->
@@ -1213,12 +2008,20 @@
         </div>
       </div>
 
-      <!-- Frame gallery -->
+      <!-- Frame gallery (clickable) -->
       <div id="frameGallery" style="display:none;margin-top:12px">
         <div class="section-label">Extracted Frames <span class="count" id="frameCountBadge">0</span></div>
         <div class="frame-gallery" id="frameGrid"></div>
-        <div class="actions" style="margin-top:8px">
-          <input class="path-input" id="selectCount" value="6" style="width:50px;text-align:center" />
+        <div class="frame-selection-bar" id="frameSelectionBar" style="display:none">
+          <span>Selected: <span class="count" id="frameSelCount">0</span></span>
+          <button onclick="clearFrameSelection()">Clear</button>
+          <button onclick="selectAllFrames()">All</button>
+          <div style="flex:1"></div>
+          <input class="path-input" id="selectCount" value="6" style="width:50px;text-align:center;margin:0" />
+          <button onclick="smartSelectFrames()">Smart Select</button>
+        </div>
+        <div class="actions" style="margin-top:8px" id="frameGalleryActions">
+          <input class="path-input" id="selectCountFallback" value="6" style="width:50px;text-align:center" />
           <button class="btn btn-primary btn-sm" onclick="smartSelectFrames()">
             <span class="spinner" id="selectSpinner"></span>
             Smart Select
@@ -1226,10 +2029,50 @@
         </div>
       </div>
 
-      <!-- Selected frames -->
+      <!-- Animation Config + Selected frames -->
       <div id="selectedSection" style="display:none;margin-top:12px">
         <div class="section-label">Selected Key Frames</div>
         <div class="selected-strip" id="selectedStrip"></div>
+
+        <!-- Animation Config Panel -->
+        <div class="anim-config-panel">
+          <div class="section-label" style="margin-bottom:6px">Animation Config</div>
+          <div class="anim-config-row full">
+            <div>
+              <label>Animation Name</label>
+              <input class="path-input" id="videoAnimName" placeholder="e.g. behind-the-back, eurostep" style="margin:2px 0" />
+            </div>
+          </div>
+          <div class="anim-config-row full">
+            <div>
+              <label>Action Description</label>
+              <textarea class="path-input" id="videoAnimAction" placeholder="Describe the animation action, e.g. 'behind the back crossover dribble'" style="margin:2px 0;min-height:40px;resize:vertical"></textarea>
+            </div>
+          </div>
+          <div class="anim-config-row">
+            <div>
+              <label>FPS</label>
+              <input class="path-input" id="videoAnimFps" type="number" value="8" min="1" max="30" style="width:100%;margin:2px 0" />
+            </div>
+            <div>
+              <label>Loop</label>
+              <select class="path-input" id="videoAnimLoop" style="width:100%;margin:2px 0">
+                <option value="false">No (play once)</option>
+                <option value="true">Yes (loop)</option>
+              </select>
+            </div>
+          </div>
+          <div class="anim-config-row">
+            <div>
+              <label>Gen Mode</label>
+              <div class="mode-toggle" id="videoGenModeToggle">
+                <button class="active" onclick="setVideoGenMode('strip')">Strip</button>
+                <button onclick="setVideoGenMode('fbf')">FBF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="actions" style="margin-top:8px">
           <button class="btn btn-secondary btn-sm" onclick="buildStrip()">Build Strip</button>
           <button class="btn btn-primary btn-sm" style="flex:1" onclick="generateFromVideo()">
@@ -1237,6 +2080,14 @@
             Generate Sprite
           </button>
         </div>
+      </div>
+
+      <!-- Video FBF Progress -->
+      <div class="video-fbf-progress" id="videoFbfProgress">
+        <div class="section-label">Video FBF Progress</div>
+        <div class="fbf-status" id="videoFbfStatus">Preparing...</div>
+        <div class="fbf-progress-bar"><div class="fill" id="videoFbfProgressFill"></div></div>
+        <div class="video-fbf-frame-grid" id="videoFbfFrameGrid"></div>
       </div>
 
       <!-- Strip preview -->
@@ -1255,6 +2106,53 @@
 
       <div style="display:flex;gap:8px;margin:10px 0;align-items:center">
         <input class="path-input" id="newCharName" placeholder="Character name (e.g. drake, marcus)" style="flex:1" />
+      </div>
+
+      <!-- Physical Attributes -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0">
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">Height</label>
+          <select class="path-input" id="charHeight" style="width:100%;margin:2px 0">
+            <option value="66">5'6" (66")</option>
+            <option value="68">5'8" (68")</option>
+            <option value="70">5'10" (70")</option>
+            <option value="72" selected>6'0" (72")</option>
+            <option value="74">6'2" (74")</option>
+            <option value="76">6'4" (76")</option>
+            <option value="78">6'6" (78")</option>
+            <option value="80">6'8" (80")</option>
+            <option value="82">6'10" (82")</option>
+            <option value="84">7'0" (84")</option>
+            <option value="86">7'2" (86")</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">Weight</label>
+          <input class="path-input" id="charWeight" type="number" value="185" min="120" max="350" style="width:100%;margin:2px 0" />
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 8px">
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">Build</label>
+          <select class="path-input" id="charBuild" style="width:100%;margin:2px 0">
+            <option value="lean">Lean</option>
+            <option value="athletic" selected>Athletic</option>
+            <option value="muscular">Muscular</option>
+            <option value="stocky">Stocky</option>
+            <option value="slim">Slim</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">Jersey #</label>
+          <input class="path-input" id="charJersey" placeholder="#" style="width:100%;margin:2px 0" />
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin:0 0 8px">
+        <label style="font-family:var(--mono);font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap">Team Colors</label>
+        <input type="color" id="charColor1" value="#FF4400" style="width:32px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface)" />
+        <input type="color" id="charColor2" value="#FFFFFF" style="width:32px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface)" />
+        <input type="color" id="charColor3" value="#000000" style="width:32px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface)" />
+        <span id="charScaleInfo" style="font-family:var(--mono);font-size:9px;color:var(--accent3);margin-left:auto">1.000x / 112px</span>
       </div>
 
       <div class="drop-zone" id="charDropZone" style="margin:6px 0">
@@ -1297,6 +2195,108 @@
           <button class="btn btn-success btn-sm" style="flex:1" id="confirmCharBtn" onclick="confirmCharacter()" disabled>Confirm Selection</button>
           <button class="btn btn-secondary btn-sm" onclick="createCharacter()">Regenerate</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Pipeline Tab -->
+    <div class="video-pipeline" id="pipelineTab">
+      <div class="section-label">Pipeline Orchestration</div>
+      <p style="font-size:11px;color:var(--text-dim);margin:6px 0">Generate all 8 animations for the selected character sequentially.</p>
+      <div id="pipelineAnimGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0"></div>
+      <div style="display:flex;gap:8px;margin:10px 0;align-items:center">
+        <label style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">Budget $</label>
+        <input class="path-input" id="pipelineBudget" value="5.00" type="number" step="1" min="0.5" style="width:70px;text-align:center" />
+        <div style="flex:1"></div>
+        <span id="pipelineSpent" style="font-family:var(--mono);font-size:10px;color:var(--warning)">$0.000 spent</span>
+      </div>
+      <div class="fbf-progress-bar" style="margin:6px 0"><div class="fill" id="pipelineProgressFill" style="width:0%"></div></div>
+      <div id="pipelineStatus" style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin:4px 0">Idle</div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn btn-primary btn-sm" style="flex:1" id="pipelineStartBtn" onclick="startPipeline()">
+          <span class="spinner" id="pipelineSpinner"></span>
+          Generate All
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="runAudit()">Audit</button>
+        <button class="btn btn-success btn-sm" onclick="deployToSoulJam()">Deploy</button>
+      </div>
+      <div id="auditResults" style="display:none;margin:10px 0">
+        <div class="section-label">Quality Audit</div>
+        <div id="auditReport" style="font-family:var(--mono);font-size:9px;max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div id="deployResults" style="display:none;margin:10px 0">
+        <div class="section-label">Deploy Output</div>
+        <div id="deployReport" style="font-family:var(--mono);font-size:9px;max-height:200px;overflow-y:auto;white-space:pre-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Prompt Lab Tab -->
+    <div class="video-pipeline" id="promptLabTab">
+      <div class="section-label">Prompt Testing Lab</div>
+      <p style="font-size:11px;color:var(--text-dim);margin:6px 0">Quick-test prompt changes on a single frame before full generation.</p>
+      <div style="display:flex;gap:8px;margin:10px 0;align-items:center">
+        <label style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">Test Frame</label>
+        <input class="path-input" id="promptLabFrame" type="number" value="0" min="0" style="width:50px;text-align:center" />
+        <button class="btn btn-primary btn-sm" id="promptLabTestBtn" onclick="promptLabQuickTest()">
+          <span class="spinner" id="promptLabSpinner"></span>
+          Quick Test
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="promptLabCompare()">A/B Compare</button>
+      </div>
+      <div id="promptLabResults" style="display:none;margin:10px 0">
+        <div class="section-label">Results</div>
+        <div id="promptLabCompareGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="text-align:center">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-bottom:4px">Version A</div>
+            <img id="promptLabImgA" style="width:100%;image-rendering:pixelated;border:1px solid var(--border);border-radius:6px;background:var(--surface2)" />
+          </div>
+          <div style="text-align:center">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-bottom:4px">Version B</div>
+            <img id="promptLabImgB" style="width:100%;image-rendering:pixelated;border:1px solid var(--border);border-radius:6px;background:var(--surface2)" />
+          </div>
+        </div>
+      </div>
+      <div id="promptLabHistory" style="margin:10px 0">
+        <div class="section-label">Prompt History</div>
+        <div id="promptLabHistoryList" style="max-height:150px;overflow-y:auto;font-family:var(--mono);font-size:9px;color:var(--text-dim)">No tests yet.</div>
+      </div>
+    </div>
+
+    <!-- Preview Tab (Canvas Animation Player) -->
+    <div class="video-pipeline" id="previewTab">
+      <div class="section-label">Live Animation Preview</div>
+      <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
+        <label style="font-family:var(--mono);font-size:9px;color:var(--text-dim)">Animation</label>
+        <select class="model-select" id="previewAnimSelect" onchange="previewChangeAnim()" style="flex:1"></select>
+      </div>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <div style="flex:1;text-align:center">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-bottom:4px" id="previewCharLabel">Selected Character</div>
+          <canvas id="previewCanvas" width="360" height="360" style="border:1px solid var(--border);border-radius:6px;background:var(--surface2);image-rendering:pixelated;width:100%;max-width:360px"></canvas>
+        </div>
+        <div style="flex:1;text-align:center" id="previewRefContainer">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-bottom:4px">Breezy Reference</div>
+          <canvas id="previewCanvasRef" width="360" height="360" style="border:1px solid var(--border);border-radius:6px;background:var(--surface2);image-rendering:pixelated;width:100%;max-width:360px"></canvas>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
+        <button class="btn btn-secondary btn-sm" id="prevPlayBtn" onclick="previewTogglePlay()">Play</button>
+        <button class="btn btn-secondary btn-sm" onclick="previewStepBack()">-</button>
+        <span id="previewFrameNum" style="font-family:var(--mono);font-size:11px;min-width:60px;text-align:center">0 / 0</span>
+        <button class="btn btn-secondary btn-sm" onclick="previewStepForward()">+</button>
+        <div style="flex:1"></div>
+        <label style="font-family:var(--mono);font-size:9px;color:var(--text-dim)">Speed</label>
+        <select class="model-select" id="previewSpeed" onchange="previewUpdateSpeed()">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+        </select>
+        <select class="model-select" id="previewBg" onchange="previewUpdateBg()">
+          <option value="dark">Dark BG</option>
+          <option value="checker">Checker</option>
+          <option value="court">Court</option>
+          <option value="transparent">Transparent</option>
+        </select>
       </div>
     </div>
 
@@ -1445,6 +2445,51 @@
   <div class="roster-grid" id="rosterGrid"></div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════
+     PRODUCTION OVERVIEW / ASSET MANAGER
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="production-overview" id="productionOverview">
+  <div class="po-header">
+    <div class="po-title">PRODUCTION OVERVIEW <span>/ Asset Manager</span></div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <div class="po-view-tabs" id="poViewTabs">
+        <button class="po-view-tab active" onclick="poSetView('characters')">Characters</button>
+        <button class="po-view-tab" onclick="poSetView('matrix')">Anim Matrix</button>
+        <button class="po-view-tab" onclick="poSetView('slots')">Skin Slots</button>
+        <button class="po-view-tab" onclick="poSetView('screens')">Screens</button>
+        <button class="po-view-tab" onclick="poSetView('courts')">Courts</button>
+        <button class="po-view-tab" onclick="poSetView('missing')">Missing</button>
+        <button class="po-view-tab" onclick="poSetView('all')">All Assets</button>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="closeProductionOverview()">Back to Studio</button>
+    </div>
+  </div>
+
+  <div class="po-body">
+    <!-- Summary Cards -->
+    <div class="po-summary" id="poSummary"></div>
+
+    <!-- Filters -->
+    <div class="po-filters" id="poFilters">
+      <input type="text" class="po-search" id="poSearch" placeholder="Search assets..." oninput="poApplyFilters()">
+      <button class="po-filter-btn active" onclick="poToggleFilter(this,'all')">All</button>
+      <button class="po-filter-btn" onclick="poToggleFilter(this,'missing')">Missing</button>
+      <button class="po-filter-btn" onclick="poToggleFilter(this,'exported')">Exported</button>
+      <button class="po-filter-btn" onclick="poToggleFilter(this,'placeholder')">Placeholder</button>
+      <button class="po-filter-btn" onclick="poToggleFilter(this,'approved')">Approved</button>
+    </div>
+
+    <!-- Dynamic Content Area -->
+    <div id="poContent"></div>
+  </div>
+</div>
+
+<!-- Detail Side Panel -->
+<div class="po-detail-overlay" id="poDetailPanel">
+  <button class="po-detail-close" onclick="poCloseDetail()">&times;</button>
+  <div id="poDetailContent"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1457,6 +2502,10 @@ let genMode = 'fbf'; // 'fbf' or 'strip'
 let characters = {};
 let animations = {};
 let videoSession = null;
+let videoSelectedFrameFiles = [];  // Ordered list of manually selected frame filenames
+let allExtractedFrames = [];       // All extracted frame URLs/files from video
+let videoGenMode = 'strip';        // 'strip' or 'fbf'
+let customAnimations = {};         // Custom animations from server
 let previewBgDark = true;
 let promptSectionsData = {}; // { [key]: { label, text, enabled } }
 
@@ -1467,6 +2516,7 @@ async function init() {
     const data = await res.json();
     characters = data.characters;
     animations = data.animations;
+    customAnimations = data.customAnimations || {};
     renderCharacters();
     renderAnimations();
     updatePrompt();
@@ -1486,27 +2536,42 @@ async function init() {
 function setMode(mode) {
   currentMode = mode;
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  if (event?.target) event.target.classList.add('active');
 
-  const pipeline = document.getElementById('videoPipeline');
+  const panels = ['videoPipeline', 'characterCreator', 'pipelineTab', 'promptLabTab', 'previewTab'];
+  panels.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('visible');
+  });
+
   const replicateActions = document.getElementById('replicateActions');
-  const charCreator = document.getElementById('characterCreator');
   const promptEditor = document.getElementById('promptEditorSection');
   const fbfProgress = document.getElementById('fbfProgress');
+  const refImages = document.getElementById('refImagesSection');
 
-  pipeline.classList.remove('visible');
-  charCreator.classList.remove('visible');
   replicateActions.style.display = 'none';
-  promptEditor.style.display = 'block';
+  promptEditor.style.display = 'none';
   fbfProgress.classList.remove('visible');
+  if (refImages) refImages.style.display = 'none';
 
   if (mode === 'video') {
-    pipeline.classList.add('visible');
+    document.getElementById('videoPipeline').classList.add('visible');
   } else if (mode === 'character') {
-    charCreator.classList.add('visible');
-    promptEditor.style.display = 'none';
+    document.getElementById('characterCreator').classList.add('visible');
+  } else if (mode === 'pipeline') {
+    document.getElementById('pipelineTab').classList.add('visible');
+    renderPipelineGrid();
+  } else if (mode === 'promptlab') {
+    document.getElementById('promptLabTab').classList.add('visible');
+    promptEditor.style.display = 'block';
+  } else if (mode === 'preview') {
+    document.getElementById('previewTab').classList.add('visible');
+    initPreviewPlayer();
   } else {
+    // replicate / generate
     replicateActions.style.display = 'block';
+    promptEditor.style.display = 'block';
+    if (refImages) refImages.style.display = 'block';
   }
 }
 
@@ -1538,7 +2603,8 @@ function renderAnimations() {
     btn.className = `anim-btn ${key === selectedAnim ? 'active' : ''}`;
     btn.dataset.anim = key;
     btn.onclick = () => { selectedAnim = key; renderAnimations(); updatePrompt(); checkExisting(); };
-    btn.innerHTML = `${key}<span class="frames">${anim.frames}f @ ${anim.fps}fps</span>`;
+    const isCustom = !!customAnimations[key];
+    btn.innerHTML = `${key}${isCustom ? '<span class="custom-badge"></span>' : ''}<span class="frames">${anim.frames}f @ ${anim.fps}fps</span>`;
     el.appendChild(btn);
   }
 }
@@ -1693,8 +2759,16 @@ function getCustomSectionsPayload() {
 function setGenMode(mode) {
   genMode = mode;
   document.querySelectorAll('.gen-mode-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(mode === 'fbf' ? 'frame' : 'strip'));
+    btn.classList.remove('active', 'active-auto');
+    const t = btn.textContent.toLowerCase();
+    if ((mode === 'fbf' && t.includes('fbf')) ||
+        (mode === 'strip' && t.includes('strip')) ||
+        (mode === 'autotest' && t.includes('auto'))) {
+      btn.classList.add(mode === 'autotest' ? 'active-auto' : 'active');
+    }
   });
+  const atControls = document.getElementById('autotestControls');
+  if (atControls) atControls.classList.toggle('visible', mode === 'autotest');
   updatePrompt();
 }
 
@@ -1725,7 +2799,9 @@ async function _checkExistingNow() {
 
 // ─── Generation ───
 async function generate() {
-  if (genMode === 'fbf') {
+  if (genMode === 'autotest') {
+    await generateAutoTest();
+  } else if (genMode === 'fbf') {
     await generateFBF();
   } else {
     await generateStrip();
@@ -1936,6 +3012,213 @@ function handleFBFEvent(data, totalFrames, statusEl, fillEl, onFrameDone) {
   }
 }
 
+// ─── Auto-Test Pipeline ───
+async function generateAutoTest() {
+  const btn = document.getElementById('generateBtn');
+  const spinner = document.getElementById('genSpinner');
+  btn.disabled = true;
+  spinner.classList.add('active');
+
+  const budget = parseFloat(document.getElementById('autotestBudget').value) || 1.00;
+  const maxIters = parseInt(document.getElementById('autotestMaxIters').value) || 5;
+
+  log(`Auto-testing ${selectedChar} / ${selectedAnim} — budget $${budget.toFixed(2)}, max ${maxIters} iterations`, 'info');
+
+  // Show auto-test progress UI
+  const atEl = document.getElementById('autotestProgress');
+  atEl.classList.add('visible');
+  const statusEl = document.getElementById('autotestStatus');
+  const fillEl = document.getElementById('autotestProgressFill');
+  const itersEl = document.getElementById('autotestIterations');
+  const summaryEl = document.getElementById('autotestSummary');
+  itersEl.innerHTML = '';
+  summaryEl.style.display = 'none';
+  statusEl.textContent = 'Preparing...';
+  fillEl.style.width = '0%';
+
+  // Hide FBF progress if visible
+  document.getElementById('fbfProgress').classList.remove('visible');
+
+  let currentIterDiv = null;
+
+  try {
+    const response = await fetch(`${API}/api/auto-test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: selectedChar,
+        animation: selectedAnim,
+        model: document.getElementById('modelSelect').value,
+        budget,
+        maxIterations: maxIters,
+        customSections: getCustomSectionsPayload(),
+      }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          handleAutoTestEvent(data, statusEl, fillEl, itersEl, summaryEl, maxIters, (div) => { currentIterDiv = div; }, () => currentIterDiv);
+        } catch {}
+      }
+    }
+  } catch (err) {
+    log(`Auto-test error: ${err.message}`, 'error');
+    toast(err.message.substring(0, 100), true);
+  }
+
+  btn.disabled = false;
+  spinner.classList.remove('active');
+}
+
+function handleAutoTestEvent(data, statusEl, fillEl, itersEl, summaryEl, maxIters, setIterDiv, getIterDiv) {
+  switch (data.type) {
+    case 'autotest_start':
+      statusEl.textContent = `Auto-testing ${data.character}/${data.animation} — ${data.totalFrames} frames, budget $${data.budget.toFixed(2)}`;
+      fillEl.style.width = '2%';
+      break;
+
+    case 'iteration_start': {
+      const iterDiv = document.createElement('div');
+      iterDiv.className = 'autotest-iteration';
+      iterDiv.id = `autotest-iter-${data.iteration}`;
+      iterDiv.innerHTML = `
+        <div class="autotest-iteration-header">
+          <span class="iter-label">Iteration ${data.iteration + 1}</span>
+          <span class="iter-score" id="iter-score-${data.iteration}">generating...</span>
+        </div>
+        <div class="autotest-iteration-body" id="iter-body-${data.iteration}">
+          <div class="metric-row"><span>Spent so far: $${data.spent.toFixed(4)}</span></div>
+        </div>
+      `;
+      itersEl.appendChild(iterDiv);
+      setIterDiv(iterDiv);
+      statusEl.textContent = `Iteration ${data.iteration + 1}/${maxIters} — generating frames...`;
+      const pct = (data.iteration / maxIters) * 80;
+      fillEl.style.width = pct + '%';
+      break;
+    }
+
+    case 'frame_done': {
+      if (data.cost) trackSessionCost(data.cost);
+      const scoreEl = document.getElementById(`iter-score-${data.iteration}`);
+      if (scoreEl) scoreEl.textContent = `frame ${data.frame + 1} done ($${data.cost?.toFixed(4) || '?'})`;
+      break;
+    }
+
+    case 'frame_retry':
+      log(`[iter ${data.iteration + 1}] Frame ${data.frame + 1} retry ${data.attempt}: ${data.error}`, 'warn');
+      break;
+
+    case 'frame_error':
+      log(`[iter ${data.iteration + 1}] Frame ${data.frame + 1} FAILED: ${data.error}`, 'error');
+      break;
+
+    case 'generation_done': {
+      const body = document.getElementById(`iter-body-${data.iteration}`);
+      if (body) {
+        body.innerHTML = `
+          <div class="metric-row">
+            <span>Frames: ${data.frames}/${data.frames + data.failed}</span>
+            <span>Cost: $${data.cost.toFixed(4)}</span>
+          </div>
+          <div class="metric-row"><span>Evaluating quality...</span></div>
+        `;
+      }
+      statusEl.textContent = `Iteration ${data.iteration + 1} — evaluating quality...`;
+      break;
+    }
+
+    case 'evaluation': {
+      const scoreClass = data.overallScore >= 75 ? 'pass' : data.overallScore >= 50 ? 'fail' : 'bad';
+      const scoreEl = document.getElementById(`iter-score-${data.iteration}`);
+      if (scoreEl) {
+        scoreEl.textContent = `${data.overallScore}/100 ${data.passed ? 'PASS' : 'FAIL'}`;
+        scoreEl.className = `iter-score ${scoreClass}`;
+      }
+
+      const body = document.getElementById(`iter-body-${data.iteration}`);
+      if (body) {
+        let issuesHtml = '';
+        if (data.issues.length > 0) {
+          issuesHtml = '<div class="autotest-issues">' +
+            data.issues.map(i => `<span class="issue-tag ${i.severity}">${i.type}</span> frames: ${i.affectedFrames.join(',')}`).join('<br>') +
+            '</div>';
+        }
+
+        body.innerHTML = `
+          <div class="metric-row">
+            <span>Frame: ${data.avgFrameScore}</span>
+            <span>Consistency: ${data.consistencyScore}</span>
+            <span>Fill: ${data.medianFill}%</span>
+          </div>
+          ${issuesHtml}
+          ${data.fixes > 0 ? `<div class="autotest-fixes">${data.fixes} auto-fixes will be applied</div>` : ''}
+        `;
+      }
+
+      log(`[iter ${data.iteration + 1}] Score: ${data.overallScore} (frame: ${data.avgFrameScore}, consistency: ${data.consistencyScore}) ${data.passed ? 'PASS' : 'FAIL'}`, data.passed ? 'success' : 'warn');
+      break;
+    }
+
+    case 'applying_fixes': {
+      statusEl.textContent = `Iteration ${data.iteration + 1} — applying ${data.fixCount} fixes, regenerating...`;
+      log(`[iter ${data.iteration + 1}] Applying ${data.fixCount} fixes: ${data.fixes.join('; ')}`, 'info');
+      break;
+    }
+
+    case 'budget_warning':
+      statusEl.textContent = `Budget limit reached ($${data.spent.toFixed(2)}/$${(data.spent + data.remaining).toFixed(2)})`;
+      log(`Budget exhausted: spent $${data.spent.toFixed(4)}, need $${data.needed.toFixed(4)}`, 'warn');
+      break;
+
+    case 'autotest_complete': {
+      fillEl.style.width = '100%';
+      const passed = data.status === 'passed';
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `
+        <div class="${passed ? 'result-pass' : 'result-fail'}">
+          ${passed ? 'PASSED' : data.status === 'budget_exhausted' ? 'BUDGET EXHAUSTED' : 'MAX ITERATIONS REACHED'}
+        </div>
+        <div class="metric-row" style="margin-top:4px">
+          <span>Best score: ${data.bestScore || data.score || '?'}/100</span>
+          <span>Iterations: ${data.totalIterations || '?'}</span>
+          <span>Spent: $${data.spent.toFixed(4)}</span>
+        </div>
+      `;
+
+      if (data.url) {
+        showPreview(data.url + '');
+        checkExisting();
+      }
+      loadCosts();
+
+      const status = passed ? 'success' : 'warn';
+      log(`Auto-test ${data.status}: best ${data.bestScore || data.score}/100 after ${data.totalIterations || '?'} iterations, $${data.spent.toFixed(4)} spent`, status);
+      toast(passed ? 'Auto-test PASSED!' : `Auto-test done (best: ${data.bestScore || data.score}/100)`);
+      break;
+    }
+
+    case 'error':
+      statusEl.textContent = `Error: ${data.message}`;
+      log(`Auto-test error: ${data.message}`, 'error');
+      break;
+  }
+}
+
 async function generateAll() {
   const anims = Object.keys(animations);
   log(`Generating all ${anims.length} for ${selectedChar} (${genMode})...`, 'warn');
@@ -2006,27 +3289,117 @@ async function extractFrames() {
     setStep('extract', true);
     document.getElementById('frameCountBadge').textContent = data.frameCount;
 
-    // Render gallery
+    // Store extracted frames for selection
+    allExtractedFrames = data.frames.map(url => {
+      const parts = url.split('/');
+      return { url, file: parts[parts.length - 1] };
+    });
+    videoSelectedFrameFiles = [];
+
+    // Render clickable gallery
     const gallery = document.getElementById('frameGrid');
     gallery.innerHTML = '';
-    data.frames.forEach(url => {
+    allExtractedFrames.forEach((frame, idx) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'frame-thumb-wrapper';
+      wrapper.dataset.file = frame.file;
+      wrapper.dataset.index = idx;
+
       const img = document.createElement('img');
-      img.src = url;
+      img.src = frame.url;
       img.className = 'frame-thumb';
       img.loading = 'lazy';
-      gallery.appendChild(img);
+      wrapper.appendChild(img);
+
+      wrapper.onclick = () => toggleFrameSelect(frame.file, wrapper);
+      gallery.appendChild(wrapper);
     });
+
     document.getElementById('frameGallery').style.display = 'block';
+    document.getElementById('frameSelectionBar').style.display = 'flex';
+    document.getElementById('frameGalleryActions').style.display = 'none';
+    updateFrameSelectionUI();
   } catch (err) {
     log(`Extract error: ${err.message}`, 'error');
   }
 }
 
+function toggleFrameSelect(file, wrapper) {
+  const idx = videoSelectedFrameFiles.indexOf(file);
+  if (idx >= 0) {
+    videoSelectedFrameFiles.splice(idx, 1);
+  } else {
+    videoSelectedFrameFiles.push(file);
+  }
+  updateFrameSelectionUI();
+}
+
+function updateFrameSelectionUI() {
+  // Update badges and selection styling
+  document.querySelectorAll('#frameGrid .frame-thumb-wrapper').forEach(w => {
+    const file = w.dataset.file;
+    const img = w.querySelector('.frame-thumb');
+    const existingBadge = w.querySelector('.frame-order-badge');
+    if (existingBadge) existingBadge.remove();
+
+    const selIdx = videoSelectedFrameFiles.indexOf(file);
+    if (selIdx >= 0) {
+      img.classList.add('selected');
+      const badge = document.createElement('div');
+      badge.className = 'frame-order-badge';
+      badge.textContent = selIdx + 1;
+      w.appendChild(badge);
+    } else {
+      img.classList.remove('selected');
+    }
+  });
+
+  // Update count
+  document.getElementById('frameSelCount').textContent = videoSelectedFrameFiles.length;
+
+  // Show/hide selected section
+  if (videoSelectedFrameFiles.length > 0) {
+    updateSelectedStrip();
+    document.getElementById('selectedSection').style.display = 'block';
+  }
+}
+
+function updateSelectedStrip() {
+  const strip = document.getElementById('selectedStrip');
+  strip.innerHTML = '';
+  videoSelectedFrameFiles.forEach(file => {
+    const frame = allExtractedFrames.find(f => f.file === file);
+    if (frame) {
+      const img = document.createElement('img');
+      img.src = frame.url;
+      strip.appendChild(img);
+    }
+  });
+}
+
+function clearFrameSelection() {
+  videoSelectedFrameFiles = [];
+  updateFrameSelectionUI();
+  document.getElementById('selectedSection').style.display = 'none';
+}
+
+function selectAllFrames() {
+  videoSelectedFrameFiles = allExtractedFrames.map(f => f.file);
+  updateFrameSelectionUI();
+}
+
+function setVideoGenMode(mode) {
+  videoGenMode = mode;
+  document.querySelectorAll('#videoGenModeToggle button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
 async function smartSelectFrames() {
   if (!videoSession) return;
-  const count = parseInt(document.getElementById('selectCount').value) || 6;
+  const countEl = document.getElementById('selectCount') || document.getElementById('selectCountFallback');
+  const count = parseInt(countEl?.value) || 6;
   const spinner = document.getElementById('selectSpinner');
-  spinner.classList.add('active');
+  if (spinner) spinner.classList.add('active');
   log(`Smart-selecting ${count} frames...`, 'info');
   setStep('select');
 
@@ -2042,19 +3415,23 @@ async function smartSelectFrames() {
     log(`Selected ${data.count} key frames`, 'success');
     setStep('select', true);
 
-    // Show selected
-    const strip = document.getElementById('selectedStrip');
-    strip.innerHTML = '';
-    data.frames.forEach(f => {
-      const img = document.createElement('img');
-      img.src = f.selectedUrl;
-      strip.appendChild(img);
-    });
+    // Pre-select frames in the gallery
+    if (data.selectedFileNames && data.selectedFileNames.length) {
+      videoSelectedFrameFiles = data.selectedFileNames;
+    } else if (data.frames) {
+      // Fallback: extract filenames from frame URLs
+      videoSelectedFrameFiles = data.frames.map(f => {
+        const parts = f.url.split('/');
+        return parts[parts.length - 1];
+      });
+    }
+    updateFrameSelectionUI();
+
     document.getElementById('selectedSection').style.display = 'block';
   } catch (err) {
     log(`Select error: ${err.message}`, 'error');
   }
-  spinner.classList.remove('active');
+  if (spinner) spinner.classList.remove('active');
 }
 
 async function buildStrip() {
@@ -2062,6 +3439,17 @@ async function buildStrip() {
   log('Building reference strip...', 'info');
   setStep('strip');
   try {
+    // Sync manual selection first
+    if (videoSelectedFrameFiles.length > 0) {
+      const selRes = await fetch(`${API}/api/video/select-manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: videoSession, frameFiles: videoSelectedFrameFiles }),
+      });
+      const selData = await selRes.json();
+      if (selData.error) throw new Error(selData.error);
+    }
+
     const res = await fetch(`${API}/api/video/strip`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2081,26 +3469,41 @@ async function buildStrip() {
 
 async function generateFromVideo() {
   if (!videoSession) return;
+
+  // Read animation config
+  const animName = document.getElementById('videoAnimName').value.trim() || selectedAnim;
+  const animAction = document.getElementById('videoAnimAction').value.trim() || animName;
+  const animFps = parseInt(document.getElementById('videoAnimFps').value) || 8;
+  const animLoop = document.getElementById('videoAnimLoop').value === 'true';
+  const frameCount = videoSelectedFrameFiles.length || parseInt((document.getElementById('selectCount') || document.getElementById('selectCountFallback'))?.value) || 6;
+
+  if (videoGenMode === 'fbf') {
+    await generateVideoFBF(animName, animAction, animFps, animLoop);
+    return;
+  }
+
   const spinner = document.getElementById('vidGenSpinner');
   spinner.classList.add('active');
   log(`Generating from video strip...`, 'info');
   setStep('generate');
 
   try {
-    // Build strip first if not done
+    // Sync manual selection + build strip first if not done
     const stripCheck = document.getElementById('stripSection');
     if (stripCheck.style.display === 'none') await buildStrip();
 
-    const count = parseInt(document.getElementById('selectCount').value) || 6;
     const res = await fetch(`${API}/api/video/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: videoSession,
         character: selectedChar,
-        animName: selectedAnim,
-        frameCount: count,
+        animName,
+        frameCount,
         model: document.getElementById('modelSelect').value,
+        fps: animFps,
+        loop: animLoop,
+        action: animAction,
       }),
     });
     const data = await res.json();
@@ -2110,11 +3513,174 @@ async function generateFromVideo() {
     log(`Film-to-sprite: ${data.frames} frames`, 'success');
     toast('Sprite from video!');
     setStep('generate', true);
+
+    // Register custom animation
+    await registerCustomAnimation(data.animName || animName, frameCount, animFps, animLoop, animAction);
     checkExisting();
   } catch (err) {
     log(`Generate error: ${err.message}`, 'error');
   }
   spinner.classList.remove('active');
+}
+
+async function generateVideoFBF(animName, animAction, animFps, animLoop) {
+  if (!videoSession) return;
+  if (!videoSelectedFrameFiles.length) {
+    toast('Select frames first', true);
+    return;
+  }
+
+  // Sync manual selection first
+  await fetch(`${API}/api/video/select-manual`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: videoSession, frameFiles: videoSelectedFrameFiles }),
+  });
+
+  const progressEl = document.getElementById('videoFbfProgress');
+  const statusEl = document.getElementById('videoFbfStatus');
+  const fillEl = document.getElementById('videoFbfProgressFill');
+  const gridEl = document.getElementById('videoFbfFrameGrid');
+  progressEl.classList.add('visible');
+  statusEl.textContent = 'Starting FBF generation...';
+  fillEl.style.width = '0%';
+  gridEl.innerHTML = '';
+
+  // Create placeholder cards
+  for (let i = 0; i < videoSelectedFrameFiles.length; i++) {
+    const card = document.createElement('div');
+    card.className = 'video-fbf-frame-card';
+    card.id = `vfbf-card-${i}`;
+    card.textContent = `Frame ${i + 1}`;
+    gridEl.appendChild(card);
+  }
+
+  log(`Video FBF: ${videoSelectedFrameFiles.length} frames`, 'info');
+  setStep('generate');
+
+  try {
+    const res = await fetch(`${API}/api/video/generate-fbf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: videoSession,
+        character: selectedChar,
+        animName,
+        model: document.getElementById('modelSelect').value,
+        fps: animFps,
+        loop: animLoop,
+        action: animAction,
+      }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          const eventType = line.slice(7);
+          continue;
+        }
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            handleVideoFBFEvent(data, statusEl, fillEl, gridEl, videoSelectedFrameFiles.length);
+          } catch {}
+        }
+      }
+    }
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+    log(`Video FBF error: ${err.message}`, 'error');
+  }
+}
+
+function handleVideoFBFEvent(data, statusEl, fillEl, gridEl, totalFrames) {
+  if (data.totalFrames !== undefined && data.animName !== undefined && !data.frameIndex) {
+    // start event
+    statusEl.textContent = `Generating ${data.totalFrames} frames for ${data.animName}...`;
+    return;
+  }
+
+  if (data.frameIndex !== undefined && data.url === undefined) {
+    // frame_start
+    const card = document.getElementById(`vfbf-card-${data.frameIndex}`);
+    if (card) card.classList.add('active');
+    statusEl.textContent = `Generating frame ${data.frameIndex + 1} of ${data.totalFrames || totalFrames}...`;
+    return;
+  }
+
+  if (data.frameIndex !== undefined && data.url !== undefined) {
+    // frame_done
+    const card = document.getElementById(`vfbf-card-${data.frameIndex}`);
+    if (card) {
+      card.classList.remove('active');
+      card.classList.add('done');
+      card.innerHTML = `<img src="${data.url}?t=${Date.now()}" /><div>Frame ${data.frameIndex + 1}</div>`;
+    }
+    const progress = ((data.frameIndex + 1) / totalFrames) * 100;
+    fillEl.style.width = progress + '%';
+    statusEl.textContent = `Frame ${data.frameIndex + 1}/${totalFrames} done`;
+    return;
+  }
+
+  if (data.success !== undefined) {
+    // complete
+    statusEl.textContent = `Done! ${data.totalFrames} frames, $${(data.totalCost || 0).toFixed(3)}`;
+    fillEl.style.width = '100%';
+    log(`Video FBF complete: ${data.totalFrames} frames`, 'success');
+    toast('FBF sprite from video!');
+    setStep('generate', true);
+
+    if (data.stripUrl) showPreview(data.stripUrl);
+
+    // Register custom animation
+    registerCustomAnimation(data.animName, data.totalFrames, data.fps || 8, data.loop || false, '');
+    checkExisting();
+    return;
+  }
+
+  if (data.message !== undefined) {
+    // error
+    statusEl.textContent = `Error: ${data.message}`;
+    log(`Video FBF error: ${data.message}`, 'error');
+  }
+}
+
+async function registerCustomAnimation(animName, frameCount, fps, loop, action) {
+  try {
+    const res = await fetch(`${API}/api/animations/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: animName,
+        frames: frameCount,
+        fps,
+        loop,
+        action: action || animName,
+        source: 'video',
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Refresh animations
+      animations[animName] = data.animation;
+      customAnimations[animName] = data.animation;
+      renderAnimations();
+      log(`Registered animation: ${animName}`, 'success');
+    }
+  } catch (err) {
+    log(`Animation register error: ${err.message}`, 'error');
+  }
 }
 
 function setStep(name, done = false) {
@@ -2650,6 +4216,1009 @@ async function confirmCharacter() {
     toast(err.message.substring(0, 100), true);
   }
 }
+
+// ─── Height Scale Updater ───
+const charHeightSelect = document.getElementById('charHeight');
+if (charHeightSelect) {
+  charHeightSelect.addEventListener('change', updateCharScale);
+}
+
+function updateCharScale() {
+  const h = parseInt(document.getElementById('charHeight').value) || 72;
+  const scale = (h / 72).toFixed(3);
+  const px = Math.round(111.6 * h / 72);
+  document.getElementById('charScaleInfo').textContent = `${scale}x / ${px}px`;
+}
+
+// ─── Live Animation Preview (Phase 3) ───
+let previewPlaying = false;
+let previewFrameIndex = 0;
+let previewFrames = [];
+let previewRefFrames = [];
+let previewAnimId = null;
+let previewSpeedMult = 1;
+let previewCurrentAnim = null; // Track which anim is loaded in preview
+
+function populatePreviewAnimSelect() {
+  const sel = document.getElementById('previewAnimSelect');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  for (const [key, anim] of Object.entries(animations)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${key} (${anim.frames}f @ ${anim.fps}fps)${customAnimations[key] ? ' *' : ''}`;
+    if (key === selectedAnim) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  // Restore previous selection if valid
+  if (prev && animations[prev]) sel.value = prev;
+}
+
+function previewChangeAnim() {
+  const sel = document.getElementById('previewAnimSelect');
+  if (!sel) return;
+  selectedAnim = sel.value;
+  renderAnimations();
+  initPreviewPlayer();
+}
+
+async function initPreviewPlayer() {
+  populatePreviewAnimSelect();
+  const animKey = selectedAnim;
+  const anim = animations[animKey];
+  if (!anim) return;
+
+  previewCurrentAnim = animKey;
+  const isCustom = !!customAnimations[animKey];
+
+  document.getElementById('previewCharLabel').textContent = `${selectedChar} / ${animKey}`;
+
+  // Hide Breezy reference for custom animations
+  const refContainer = document.getElementById('previewRefContainer');
+  if (refContainer) {
+    refContainer.style.display = (isCustom || !anim.breezyFile) ? 'none' : '';
+  }
+
+  // Check if frames exist via API
+  previewFrames = [];
+  previewRefFrames = [];
+
+  try {
+    const res = await fetch(`${API}/api/animations/frames?character=${selectedChar}&animation=${animKey}`);
+    const data = await res.json();
+
+    if (data.frameCount > 0) {
+      // Load frames from the frames directory
+      for (let i = 0; i < data.frameCount; i++) {
+        const img = new Image();
+        img.src = data.frames[i].url + `?t=${Date.now()}`;
+        previewFrames.push(img);
+      }
+    } else {
+      // Fallback: try loading from standard frame path
+      const totalFrames = anim.frames;
+      for (let i = 0; i < totalFrames; i++) {
+        const img = new Image();
+        img.src = `/assets/${selectedChar}-${animKey}-frames/frame-${i}.png?t=${Date.now()}`;
+        previewFrames.push(img);
+      }
+    }
+
+    // Load Breezy reference frames (only for predefined animations)
+    if (!isCustom && anim.breezyFile) {
+      const totalFrames = anim.frames;
+      for (let i = 0; i < totalFrames; i++) {
+        const refImg = new Image();
+        refImg.src = `/assets/breezy-${animKey}-frames/frame-${i}.png?t=${Date.now()}`;
+        previewRefFrames.push(refImg);
+      }
+    }
+  } catch {
+    // Fallback to basic frame loading
+    const totalFrames = anim.frames;
+    for (let i = 0; i < totalFrames; i++) {
+      const img = new Image();
+      img.src = `/assets/${selectedChar}-${animKey}-frames/frame-${i}.png?t=${Date.now()}`;
+      previewFrames.push(img);
+    }
+  }
+
+  previewFrameIndex = 0;
+  previewPlaying = false;
+  document.getElementById('prevPlayBtn').textContent = 'Play';
+  document.getElementById('previewFrameNum').textContent = `1 / ${previewFrames.length || '?'}`;
+
+  // Wait for images to load then draw first frame
+  await new Promise(r => setTimeout(r, 400));
+  drawPreviewFrame();
+}
+
+function drawPreviewBg(c) {
+  const bg = document.getElementById('previewBg').value;
+  c.clearRect(0, 0, 360, 360);
+  if (bg === 'dark') {
+    c.fillStyle = '#12121a';
+    c.fillRect(0, 0, 360, 360);
+  } else if (bg === 'checker') {
+    for (let y = 0; y < 360; y += 20) {
+      for (let x = 0; x < 360; x += 20) {
+        c.fillStyle = ((x + y) / 20) % 2 === 0 ? '#1a1a28' : '#222236';
+        c.fillRect(x, y, 20, 20);
+      }
+    }
+  } else if (bg === 'court') {
+    c.fillStyle = '#c27a3e';
+    c.fillRect(0, 0, 360, 360);
+    c.strokeStyle = '#e8c07a';
+    c.lineWidth = 2;
+    c.strokeRect(20, 20, 320, 320);
+  }
+}
+
+function drawPreviewFrame() {
+  const canvas = document.getElementById('previewCanvas');
+  const ctx = canvas.getContext('2d');
+  const refCanvas = document.getElementById('previewCanvasRef');
+  const refCtx = refCanvas.getContext('2d');
+
+  // Draw backgrounds
+  drawPreviewBg(ctx);
+  drawPreviewBg(refCtx);
+
+  // Draw character frame
+  if (previewFrames.length === 0) {
+    // Show "No frames" message
+    ctx.fillStyle = '#6a6a80';
+    ctx.font = '13px "Space Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('No frames generated', 180, 180);
+    ctx.fillText(`for ${selectedChar}/${previewCurrentAnim || selectedAnim}`, 180, 200);
+    document.getElementById('previewFrameNum').textContent = '0 / 0';
+    return;
+  }
+
+  const frame = previewFrames[previewFrameIndex];
+  if (frame && frame.complete && frame.naturalWidth > 0) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(frame, 0, 0, 360, 360);
+  }
+
+  const refFrame = previewRefFrames[previewFrameIndex];
+  if (refFrame && refFrame.complete && refFrame.naturalWidth > 0) {
+    refCtx.imageSmoothingEnabled = false;
+    refCtx.drawImage(refFrame, 0, 0, 360, 360);
+  } else if (previewRefFrames.length === 0) {
+    // No reference — show message
+    refCtx.fillStyle = '#44445a';
+    refCtx.font = '11px "Space Mono", monospace';
+    refCtx.textAlign = 'center';
+    refCtx.fillText('No reference', 180, 180);
+  }
+
+  const total = previewFrames.length || 1;
+  document.getElementById('previewFrameNum').textContent = `${previewFrameIndex + 1} / ${total}`;
+}
+
+function previewTogglePlay() {
+  if (previewFrames.length === 0) return;
+  previewPlaying = !previewPlaying;
+  document.getElementById('prevPlayBtn').textContent = previewPlaying ? 'Pause' : 'Play';
+  if (previewPlaying) previewLoop();
+  else if (previewAnimId) cancelAnimationFrame(previewAnimId);
+}
+
+let _previewLastTime = 0;
+function previewLoop(timestamp) {
+  if (!previewPlaying) return;
+  const anim = animations[previewCurrentAnim || selectedAnim];
+  if (!anim || previewFrames.length === 0) return;
+
+  const fps = anim.fps * previewSpeedMult;
+  const interval = 1000 / fps;
+
+  if (!timestamp) { _previewLastTime = 0; }
+  if (timestamp - _previewLastTime >= interval) {
+    _previewLastTime = timestamp;
+    previewFrameIndex = (previewFrameIndex + 1) % previewFrames.length;
+
+    // Handle non-looping animations
+    if (!anim.loop && previewFrameIndex === 0) {
+      previewPlaying = false;
+      previewFrameIndex = previewFrames.length - 1;
+      document.getElementById('prevPlayBtn').textContent = 'Play';
+    }
+
+    drawPreviewFrame();
+  }
+  if (previewPlaying) previewAnimId = requestAnimationFrame(previewLoop);
+}
+
+function previewStepBack() {
+  if (previewFrames.length === 0) return;
+  previewPlaying = false;
+  document.getElementById('prevPlayBtn').textContent = 'Play';
+  previewFrameIndex = (previewFrameIndex - 1 + previewFrames.length) % previewFrames.length;
+  drawPreviewFrame();
+}
+
+function previewStepForward() {
+  if (previewFrames.length === 0) return;
+  previewPlaying = false;
+  document.getElementById('prevPlayBtn').textContent = 'Play';
+  previewFrameIndex = (previewFrameIndex + 1) % previewFrames.length;
+  drawPreviewFrame();
+}
+
+function previewUpdateSpeed() {
+  previewSpeedMult = parseFloat(document.getElementById('previewSpeed').value) || 1;
+}
+
+function previewUpdateBg() {
+  drawPreviewFrame();
+}
+
+// ─── Single Frame Regeneration (Phase 4) ───
+async function regenerateFrame(frameIndex) {
+  log(`Regenerating frame ${frameIndex + 1}...`, 'info');
+
+  const card = document.getElementById(`fbf-card-${frameIndex}`);
+  if (card) {
+    card.className = 'fbf-frame-card generating';
+    const st = document.getElementById(`fbf-status-${frameIndex}`);
+    if (st) st.textContent = 'regenerating...';
+  }
+
+  try {
+    const res = await fetch(`${API}/api/generate-frame`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: selectedChar,
+        animation: selectedAnim,
+        frameIndex,
+        model: document.getElementById('modelSelect').value,
+        customSections: getCustomSectionsPayload(),
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    if (card) {
+      card.className = 'fbf-frame-card done';
+      const inner = card.querySelector('div:nth-child(2)');
+      if (inner) inner.innerHTML = `<img class="frame-preview" src="${data.processedUrl}?t=${Date.now()}" />`;
+    }
+
+    // Auto cherry-pick this frame into the strip
+    await fetch(`${API}/api/cherry-pick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: selectedChar,
+        animation: selectedAnim,
+        frameIndex,
+        processedPath: data.processedPath,
+      }),
+    });
+
+    if (data.cost) trackSessionCost(data.cost);
+    log(`Frame ${frameIndex + 1} regenerated`, 'success');
+    checkExisting();
+  } catch (err) {
+    if (card) card.className = 'fbf-frame-card error';
+    log(`Regen error: ${err.message}`, 'error');
+  }
+}
+
+// ─── Pipeline Orchestration (Phase 6) ───
+let pipelineRunning = false;
+
+function renderPipelineGrid() {
+  const grid = document.getElementById('pipelineAnimGrid');
+  grid.innerHTML = '';
+
+  for (const [key, anim] of Object.entries(animations)) {
+    const div = document.createElement('div');
+    div.id = `pipeline-anim-${key}`;
+    div.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:var(--mono);font-size:10px';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span>${key}</span>
+        <span class="pipeline-status" style="font-size:8px;color:var(--text-dim)">pending</span>
+      </div>
+      <div style="height:3px;background:var(--surface2);border-radius:2px;margin-top:4px;overflow:hidden">
+        <div class="pipeline-fill" style="height:100%;width:0%;background:var(--accent3);border-radius:2px;transition:width 0.3s"></div>
+      </div>
+    `;
+    grid.appendChild(div);
+  }
+
+  // Check which are already done
+  checkExisting();
+}
+
+async function startPipeline() {
+  if (pipelineRunning) return;
+  pipelineRunning = true;
+
+  const btn = document.getElementById('pipelineStartBtn');
+  const spinner = document.getElementById('pipelineSpinner');
+  btn.disabled = true;
+  spinner.classList.add('active');
+
+  const budget = parseFloat(document.getElementById('pipelineBudget').value) || 5.00;
+  let spent = 0;
+
+  const animOrder = ['static-dribble', 'dribble', 'jumpshot', 'stepback', 'crossover', 'defense-backpedal', 'defense-shuffle', 'steal'];
+  const total = animOrder.length;
+
+  log(`Pipeline: generating ${total} animations for ${selectedChar}, budget $${budget.toFixed(2)}`, 'warn');
+
+  for (let i = 0; i < animOrder.length; i++) {
+    const animName = animOrder[i];
+    const anim = animations[animName];
+    if (!anim) continue;
+
+    // Check if already exists
+    try {
+      const sprRes = await fetch(`${API}/api/sprites/${selectedChar}`);
+      const sprData = await sprRes.json();
+      if (sprData.sprites[animName]?.exists) {
+        updatePipelineAnim(animName, 'done', 100);
+        continue;
+      }
+    } catch {}
+
+    // Budget check
+    const estCost = anim.frames * 0.07;
+    if (spent + estCost > budget) {
+      updatePipelineAnim(animName, 'skipped', 0);
+      log(`Pipeline: skipping ${animName} (budget)`, 'warn');
+      continue;
+    }
+
+    updatePipelineAnim(animName, 'generating...', 20);
+    document.getElementById('pipelineStatus').textContent = `${i + 1}/${total}: ${animName}`;
+    document.getElementById('pipelineProgressFill').style.width = `${(i / total) * 100}%`;
+
+    selectedAnim = animName;
+    renderAnimations();
+    await updatePrompt();
+
+    try {
+      await generateFBF();
+      updatePipelineAnim(animName, 'done', 100);
+    } catch (err) {
+      updatePipelineAnim(animName, 'failed', 0);
+      log(`Pipeline ${animName} failed: ${err.message}`, 'error');
+    }
+
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  document.getElementById('pipelineStatus').textContent = 'Pipeline complete!';
+  document.getElementById('pipelineProgressFill').style.width = '100%';
+  log('Pipeline complete!', 'success');
+  toast('Full character pipeline complete!');
+
+  btn.disabled = false;
+  spinner.classList.remove('active');
+  pipelineRunning = false;
+}
+
+function updatePipelineAnim(animName, status, pct) {
+  const el = document.getElementById(`pipeline-anim-${animName}`);
+  if (!el) return;
+  const statusEl = el.querySelector('.pipeline-status');
+  const fillEl = el.querySelector('.pipeline-fill');
+  if (statusEl) {
+    statusEl.textContent = status;
+    statusEl.style.color = status === 'done' ? 'var(--accent2)' : status === 'failed' ? 'var(--danger)' : 'var(--accent3)';
+  }
+  if (fillEl) fillEl.style.width = pct + '%';
+  if (status === 'done') el.style.borderColor = 'var(--accent2)';
+}
+
+async function deployToSoulJam() {
+  log(`Deploying ${selectedChar} to Soul Jam...`, 'info');
+  try {
+    const res = await fetch(`${API}/api/deploy/${selectedChar}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('deployResults').style.display = 'block';
+    const report = document.getElementById('deployReport');
+    const lines = [
+      `Grid: ${data.grid.width}x${data.grid.height}px`,
+      `Completed: ${data.completedAnims}/${data.completedAnims + data.missingAnims.length} animations`,
+    ];
+    if (data.missingAnims.length > 0) {
+      lines.push(`Missing: ${data.missingAnims.join(', ')}`);
+    }
+    lines.push('', '── Characters.ts ──', data.gameIntegration.charactersEntry, '', '── PreloadScene.ts ──', data.gameIntegration.preloadEntry);
+    report.textContent = lines.join('\n');
+
+    log(`Deployed: ${data.grid.width}x${data.grid.height}px grid, ${data.completedAnims} animations`, 'success');
+    toast('Deployed to Soul Jam!');
+  } catch (err) {
+    log(`Deploy error: ${err.message}`, 'error');
+    toast(err.message, true);
+  }
+}
+
+async function runAudit() {
+  log(`Running quality audit for ${selectedChar}...`, 'info');
+  try {
+    const res = await fetch(`${API}/api/audit/${selectedChar}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('auditResults').style.display = 'block';
+    const report = document.getElementById('auditReport');
+    const r = data.report;
+    const lines = [
+      `<div style="color:${r.passed ? 'var(--accent2)' : 'var(--danger)'}; font-size:14px; font-weight:bold; margin-bottom:6px">Score: ${r.overallScore}/100 ${r.passed ? 'PASS' : 'FAIL'}</div>`,
+    ];
+
+    for (const [anim, info] of Object.entries(r.animations || {})) {
+      const color = info.score >= 80 ? 'var(--accent2)' : info.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+      lines.push(`<div style="margin:4px 0"><span style="color:${color}">${info.score}</span> ${anim} (${info.frameCount} frames, hVar:${(info.heightVariance*100).toFixed(0)}%)</div>`);
+      if (info.issues) {
+        for (const issue of info.issues) {
+          lines.push(`<div style="margin-left:12px;color:var(--text-dim)">- ${issue.message}</div>`);
+        }
+      }
+    }
+
+    if (r.crossAnimationIssues && r.crossAnimationIssues.length > 0) {
+      lines.push('<div style="margin-top:6px;color:var(--warning)">Cross-Animation Issues:</div>');
+      for (const issue of r.crossAnimationIssues) {
+        lines.push(`<div style="margin-left:12px;color:var(--text-dim)">- ${issue.message}</div>`);
+      }
+    }
+
+    report.innerHTML = lines.join('');
+    log(`Audit complete: ${r.overallScore}/100 ${r.passed ? '(PASS)' : '(FAIL)'}`, r.passed ? 'success' : 'warning');
+  } catch (err) {
+    log(`Audit error: ${err.message}`, 'error');
+    toast(err.message, true);
+  }
+}
+
+// ─── Prompt Lab (Phase 5) ───
+let promptLabVersionA = null;
+
+async function promptLabQuickTest() {
+  const frameIdx = parseInt(document.getElementById('promptLabFrame').value) || 0;
+  const spinner = document.getElementById('promptLabSpinner');
+  spinner.classList.add('active');
+  document.getElementById('promptLabTestBtn').disabled = true;
+
+  log(`Prompt lab: testing frame ${frameIdx + 1}...`, 'info');
+
+  try {
+    const res = await fetch(`${API}/api/generate-frame`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: selectedChar,
+        animation: selectedAnim,
+        frameIndex: frameIdx,
+        model: document.getElementById('modelSelect').value,
+        customSections: getCustomSectionsPayload(),
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('promptLabResults').style.display = 'block';
+    document.getElementById('promptLabImgA').src = data.processedUrl + '?t=' + Date.now();
+    promptLabVersionA = data;
+
+    if (data.cost) trackSessionCost(data.cost);
+    log(`Prompt lab test done`, 'success');
+  } catch (err) {
+    log(`Prompt lab error: ${err.message}`, 'error');
+  }
+
+  spinner.classList.remove('active');
+  document.getElementById('promptLabTestBtn').disabled = false;
+}
+
+async function promptLabCompare() {
+  const frameIdx = parseInt(document.getElementById('promptLabFrame').value) || 0;
+
+  log(`Prompt lab: generating version B for comparison...`, 'info');
+
+  try {
+    const res = await fetch(`${API}/api/generate-frame`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: selectedChar,
+        animation: selectedAnim,
+        frameIndex: frameIdx,
+        model: document.getElementById('modelSelect').value,
+        customSections: getCustomSectionsPayload(),
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('promptLabResults').style.display = 'block';
+    document.getElementById('promptLabImgB').src = data.processedUrl + '?t=' + Date.now();
+
+    if (data.cost) trackSessionCost(data.cost);
+    log(`Prompt lab B generated — compare side by side`, 'success');
+  } catch (err) {
+    log(`Prompt lab B error: ${err.message}`, 'error');
+  }
+}
+
+// ─── Enhanced FBF Frame Cards (add regenerate buttons) ───
+const _origHandleFBFEvent = handleFBFEvent;
+handleFBFEvent = function(data, totalFrames, statusEl, fillEl, onFrameDone) {
+  _origHandleFBFEvent(data, totalFrames, statusEl, fillEl, onFrameDone);
+
+  // After completion, add regenerate buttons to each frame card
+  if (data.type === 'complete') {
+    setTimeout(() => {
+      for (let i = 0; i < (data.totalFrames || totalFrames); i++) {
+        const card = document.getElementById(`fbf-card-${i}`);
+        if (card && !card.querySelector('.regen-btn')) {
+          const btn = document.createElement('button');
+          btn.className = 'regen-btn';
+          btn.style.cssText = 'font-family:var(--mono);font-size:8px;padding:3px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--accent3);cursor:pointer;width:100%';
+          btn.textContent = 'Regen';
+          btn.onclick = () => regenerateFrame(i);
+          card.appendChild(btn);
+        }
+      }
+    }, 500);
+  }
+};
+
+// ─── Confirm character with extended fields ───
+const _origConfirmChar = confirmCharacter;
+confirmCharacter = async function() {
+  if (selectedCharOption < 0 || !currentCharName) return;
+
+  log(`Confirming option ${selectedCharOption + 1} for "${currentCharName}"...`, 'info');
+
+  try {
+    const res = await fetch(`${API}/api/character/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: currentCharName,
+        optionIndex: selectedCharOption,
+        feedback: document.getElementById('charChangeRequest').value.trim(),
+        heightInches: parseInt(document.getElementById('charHeight').value) || 72,
+        weightLbs: parseInt(document.getElementById('charWeight').value) || 185,
+        build: document.getElementById('charBuild').value || 'athletic',
+        jerseyNumber: document.getElementById('charJersey').value || '',
+        teamColors: {
+          primary: document.getElementById('charColor1').value,
+          secondary: document.getElementById('charColor2').value,
+          accent: document.getElementById('charColor3').value,
+        },
+      }),
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    characters[currentCharName] = {
+      description: 'the character shown in Image 2',
+      style: '16-bit pixel art, GBA style',
+    };
+    renderCharacters();
+
+    log(`"${currentCharName}" confirmed with physical attributes!`, 'success');
+    toast(`${currentCharName} added! Switch to Generate to create sprites.`);
+    document.getElementById('charChangeRequest').value = '';
+  } catch (err) {
+    log(`Confirm error: ${err.message}`, 'error');
+    toast(err.message.substring(0, 100), true);
+  }
+};
+
+// ─── Production Overview ───
+let poData = null;
+let poMatrixData = null;
+let poCurrentView = 'characters';
+let poActiveFilter = 'all';
+
+function openProductionOverview() {
+  document.getElementById('productionOverview').classList.add('visible');
+  loadProductionData();
+}
+
+function closeProductionOverview() {
+  document.getElementById('productionOverview').classList.remove('visible');
+  poCloseDetail();
+}
+
+async function loadProductionData() {
+  try {
+    const [ovRes, matRes] = await Promise.all([
+      fetch(`${API}/api/production/overview`),
+      fetch(`${API}/api/production/animation-matrix`),
+    ]);
+    poData = await ovRes.json();
+    poMatrixData = await matRes.json();
+    poRenderSummary();
+    poSetView(poCurrentView);
+  } catch (err) {
+    log(`Production data error: ${err.message}`, 'error');
+  }
+}
+
+function poSetView(view) {
+  poCurrentView = view;
+  document.querySelectorAll('.po-view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  const el = document.getElementById('poContent');
+  el.innerHTML = '';
+
+  switch (view) {
+    case 'characters': poRenderCharacters(el); break;
+    case 'matrix': poRenderMatrix(el); break;
+    case 'slots': poRenderSlots(el); break;
+    case 'missing': poRenderMissing(el); break;
+    case 'all': poRenderAllAssets(el); break;
+  }
+}
+
+function poRenderSummary() {
+  if (!poData) return;
+  const el = document.getElementById('poSummary');
+  const s = poData.summary;
+  el.innerHTML = `
+    <div class="po-stat-card"><div class="po-stat-value">${s.totalCharacters}</div><div class="po-stat-label">Characters</div></div>
+    <div class="po-stat-card"><div class="po-stat-value">${s.totalAnimations}</div><div class="po-stat-label">Animations</div></div>
+    <div class="po-stat-card"><div class="po-stat-value">${s.completedAssets}/${s.totalAssets}</div><div class="po-stat-label">Assets Done</div></div>
+    <div class="po-stat-card"><div class="po-stat-value">${Math.round((s.completedAssets / Math.max(s.totalAssets, 1)) * 100)}%</div><div class="po-stat-label">Coverage</div></div>
+  `;
+}
+
+function poRenderCharacters(el) {
+  if (!poData?.characters) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
+  let html = '<div class="po-grid">';
+  for (const char of poData.characters) {
+    const pct = Math.round((char.completedAnims / Math.max(char.totalAnims, 1)) * 100);
+    const statusClass = pct === 100 ? 'approved' : pct > 50 ? 'generated' : pct > 0 ? 'placeholder' : 'missing';
+    html += `
+      <div class="po-char-card" onclick="poOpenCharDetail('${char.id}')">
+        <div class="po-char-header">
+          <img class="po-char-thumb" src="${char.portrait}" onerror="this.style.display='none'" />
+          <div>
+            <div class="po-char-name">${char.name}</div>
+            <span class="po-badge po-badge-${statusClass}">${pct}%</span>
+          </div>
+        </div>
+        <div class="po-progress"><div class="po-progress-fill" style="width:${pct}%"></div></div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:6px">
+          ${char.completedAnims}/${char.totalAnims} anims &middot; ${char.hasPortrait ? 'portrait' : 'no portrait'} &middot; ${char.hasGrid ? 'grid' : 'no grid'}
+        </div>
+        <div class="po-char-anims">
+          ${Object.entries(char.animations || {}).map(([k, v]) =>
+            `<span class="po-anim-pip ${v.exists ? 'done' : ''}" title="${k}: ${v.exists ? v.frameCount + ' frames' : 'missing'}">${k.substring(0, 3)}</span>`
+          ).join('')}
+        </div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function poOpenCharDetail(charId) {
+  const char = poData?.characters?.find(c => c.id === charId);
+  if (!char) return;
+
+  const panel = document.getElementById('poDetailPanel');
+  panel.classList.add('visible');
+
+  const pct = Math.round((char.completedAnims / Math.max(char.totalAnims, 1)) * 100);
+  let html = `
+    <div class="po-detail-header">
+      <h3>${char.name}</h3>
+      <button class="po-detail-close" onclick="poCloseDetail()">&times;</button>
+    </div>
+    <div style="padding:16px">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+        <img src="${char.portrait}" style="width:64px;height:64px;border-radius:8px;object-fit:cover" onerror="this.style.display='none'" />
+        <div>
+          <div style="font-size:18px;font-weight:bold;color:var(--text)">${pct}% complete</div>
+          <div style="font-size:11px;color:var(--text-dim)">${char.completedAnims}/${char.totalAnims} animations</div>
+        </div>
+      </div>
+      <div class="po-progress" style="margin-bottom:16px"><div class="po-progress-fill" style="width:${pct}%"></div></div>
+      <h4 style="color:var(--text);margin:12px 0 8px;font-size:12px">ANIMATIONS</h4>
+  `;
+
+  for (const [animKey, animInfo] of Object.entries(char.animations || {})) {
+    const statusClass = animInfo.exists ? 'approved' : 'missing';
+    html += `
+      <div class="po-detail-anim">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${animKey}</span>
+          <span class="po-badge po-badge-${statusClass}">${animInfo.exists ? animInfo.frameCount + 'f' : 'missing'}</span>
+        </div>
+        ${animInfo.exists ? `<div style="font-size:9px;color:var(--text-dim);margin-top:2px">${animInfo.frameCount} frames &middot; strip ready</div>` : ''}
+        <div style="margin-top:4px">
+          <button class="btn btn-sm" style="font-size:9px;padding:2px 8px" onclick="selectCharFromRoster('${charId}');selectedAnim='${animKey}';renderAnimations();closeProductionOverview()">Open in Generator</button>
+        </div>
+      </div>
+    `;
+  }
+
+  html += `
+      <h4 style="color:var(--text);margin:16px 0 8px;font-size:12px">ACTIONS</h4>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="selectCharFromRoster('${charId}');closeProductionOverview()">Select Character</button>
+        <button class="btn btn-secondary btn-sm" onclick="selectCharFromRoster('${charId}');closeProductionOverview();document.getElementById('pipelineMode').click()">Run Pipeline</button>
+      </div>
+    </div>
+  `;
+  panel.innerHTML = html;
+}
+
+function poRenderMatrix(el) {
+  if (!poMatrixData) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
+
+  const chars = poMatrixData.characters || [];
+  const manifest = poMatrixData.manifest || [];
+
+  const families = {};
+  for (const anim of manifest) {
+    const fam = anim.family || 'other';
+    if (!families[fam]) families[fam] = [];
+    families[fam].push(anim);
+  }
+
+  let html = '<div class="po-matrix-wrap" style="overflow-x:auto">';
+
+  for (const [famName, anims] of Object.entries(families)) {
+    html += `<h4 style="color:var(--warning);margin:16px 0 8px;font-size:11px;text-transform:uppercase">${famName}</h4>`;
+    html += '<table class="po-matrix"><thead><tr><th style="text-align:left;font-size:9px;color:var(--text-dim)">Animation</th>';
+    for (const c of chars) {
+      html += `<th style="font-size:9px;color:var(--text-dim);min-width:50px">${c.name.substring(0, 6)}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    for (const anim of anims) {
+      const isGame = anim.inGame;
+      html += `<tr><td style="font-family:var(--mono);font-size:10px;color:${isGame ? 'var(--text)' : 'var(--text-dim)'};white-space:nowrap">${anim.id} ${isGame ? '<span style="color:var(--accent2);font-size:8px">GAME</span>' : ''}</td>`;
+      for (const c of chars) {
+        const has = c.animations?.[anim.gameKey || anim.id]?.exists;
+        html += `<td style="text-align:center"><span class="po-matrix-cell ${has ? 'done' : 'empty'}">${has ? '●' : '○'}</span></td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function poRenderSlots(el, filterCategory) {
+  if (!poData?.slotCoverage) { el.innerHTML = '<p style="color:var(--text-dim)">No slot data</p>'; return; }
+
+  const slots = poData.slotCoverage;
+  const categories = [...new Set(slots.map(s => s.category))];
+
+  let html = '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
+  html += `<button class="btn btn-sm ${!filterCategory ? 'active' : ''}" style="font-size:9px" onclick="poRenderSlots(document.getElementById('poContent'), null)">All</button>`;
+  for (const cat of categories) {
+    html += `<button class="btn btn-sm ${filterCategory === cat ? 'active' : ''}" style="font-size:9px" onclick="poRenderSlots(document.getElementById('poContent'), '${cat}')">${cat}</button>`;
+  }
+  html += '</div>';
+
+  const filtered = filterCategory ? slots.filter(s => s.category === filterCategory) : slots;
+  const filled = filtered.filter(s => s.status === 'filled').length;
+  const total = filtered.length;
+
+  html += `<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:12px">${filled}/${total} slots filled (${Math.round((filled / Math.max(total, 1)) * 100)}%)</div>`;
+
+  html += '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr))">';
+  for (const slot of filtered) {
+    const statusClass = slot.status === 'filled' ? 'approved' : 'missing';
+    html += `
+      <div class="po-slot-card" onclick="poOpenSlotDetail('${slot.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${slot.label}</span>
+          <span class="po-badge po-badge-${statusClass}">${slot.status}</span>
+        </div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:4px">${slot.category} &middot; key: ${slot.key || 'none'}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function poOpenSlotDetail(slotId) {
+  const slot = poData?.slotCoverage?.find(s => s.id === slotId);
+  if (!slot) return;
+
+  const panel = document.getElementById('poDetailPanel');
+  panel.classList.add('visible');
+  panel.innerHTML = `
+    <div class="po-detail-header">
+      <h3>${slot.label}</h3>
+      <button class="po-detail-close" onclick="poCloseDetail()">&times;</button>
+    </div>
+    <div style="padding:16px">
+      <div style="margin-bottom:12px">
+        <span class="po-badge po-badge-${slot.status === 'filled' ? 'approved' : 'missing'}">${slot.status}</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px">
+        Category: ${slot.category}<br/>
+        Key: ${slot.key || 'none'}<br/>
+        ID: ${slot.id}
+      </div>
+      ${slot.assetPath ? `<div style="font-size:10px;color:var(--text-dim)">File: ${slot.assetPath}</div>` : ''}
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="poSetSlotStatus('${slot.id}','filled')">Mark Filled</button>
+        <button class="btn btn-secondary btn-sm" onclick="poSetSlotStatus('${slot.id}','missing')">Mark Missing</button>
+      </div>
+    </div>
+  `;
+}
+
+function poRenderMissing(el) {
+  if (!poData) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
+
+  let html = '<div class="po-todo-list">';
+  let todoCount = 0;
+
+  for (const char of (poData.characters || [])) {
+    if (!char.hasPortrait) {
+      html += poBuildTodoItem('portrait', `Create portrait for ${char.name}`, 'Character has no portrait image', char.id);
+      todoCount++;
+    }
+  }
+
+  const gameAnims = ['static-dribble', 'dribble', 'jumpshot', 'stepback', 'crossover', 'defense-backpedal', 'defense-shuffle', 'steal'];
+  for (const char of (poData.characters || [])) {
+    for (const anim of gameAnims) {
+      if (!char.animations?.[anim]?.exists) {
+        html += poBuildTodoItem('animation', `${char.name} / ${anim}`, 'Required game animation missing', char.id);
+        todoCount++;
+      }
+    }
+  }
+
+  for (const char of (poData.characters || [])) {
+    if (!char.hasGrid && char.completedAnims > 0) {
+      html += poBuildTodoItem('grid', `Build grid sheet for ${char.name}`, `${char.completedAnims} animations ready, needs grid`, char.id);
+      todoCount++;
+    }
+  }
+
+  for (const slot of (poData.slotCoverage || [])) {
+    if (slot.status !== 'filled') {
+      html += poBuildTodoItem('slot', `Fill slot: ${slot.label}`, `${slot.category} — ${slot.key || 'no key'}`, null);
+      todoCount++;
+    }
+  }
+
+  if (todoCount === 0) {
+    html += '<div style="text-align:center;padding:40px;color:var(--accent2);font-size:14px">All caught up! No missing work.</div>';
+  } else {
+    html = `<div style="font-family:var(--mono);font-size:11px;color:var(--warning);margin-bottom:12px">${todoCount} items need attention</div>` + html;
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function poBuildTodoItem(type, title, subtitle, charId) {
+  const typeColors = { portrait: 'var(--accent3)', animation: 'var(--accent)', grid: 'var(--accent2)', slot: 'var(--warning)' };
+  const color = typeColors[type] || 'var(--text-dim)';
+  const action = charId ? `onclick="selectCharFromRoster('${charId}');closeProductionOverview()"` : '';
+  return `
+    <div class="po-todo-item" ${action} style="cursor:${charId ? 'pointer' : 'default'}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text)">${title}</div>
+          <div style="font-size:9px;color:var(--text-dim)">${subtitle}</div>
+        </div>
+      </div>
+      <span style="font-size:8px;color:${color};text-transform:uppercase">${type}</span>
+    </div>
+  `;
+}
+
+function poRenderAllAssets(el) {
+  if (!poData?.characters) { el.innerHTML = '<p style="color:var(--text-dim)">No data</p>'; return; }
+
+  let html = '<div class="po-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">';
+
+  for (const char of poData.characters) {
+    if (char.hasPortrait) {
+      html += `
+        <div class="po-asset-card">
+          <img class="po-asset-thumb" src="${char.portrait}" onerror="this.style.display='none'" />
+          <div class="po-asset-label">${char.name} portrait</div>
+          <span class="po-badge po-badge-approved" style="font-size:7px">portrait</span>
+        </div>
+      `;
+    }
+
+    for (const [animKey, animInfo] of Object.entries(char.animations || {})) {
+      if (animInfo.exists) {
+        html += `
+          <div class="po-asset-card">
+            <img class="po-asset-thumb" src="/raw/${char.id}/${animKey}-strip.png?t=${Date.now()}" onerror="this.src='/raw/${char.id}/${animKey}/frame-0.png'" />
+            <div class="po-asset-label">${char.name}/${animKey}</div>
+            <span class="po-badge po-badge-generated" style="font-size:7px">${animInfo.frameCount}f</span>
+          </div>
+        `;
+      }
+    }
+
+    if (char.hasGrid) {
+      html += `
+        <div class="po-asset-card">
+          <img class="po-asset-thumb" src="/raw/${char.id}/${char.id}-spritesheet.png?t=${Date.now()}" onerror="this.style.display='none'" />
+          <div class="po-asset-label">${char.name} grid</div>
+          <span class="po-badge po-badge-exported" style="font-size:7px">grid</span>
+        </div>
+      `;
+    }
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function poSetStatus(assetId, status) {
+  try {
+    await fetch(`${API}/api/production/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assetId, status }),
+    });
+    toast(`Status → ${status}`);
+    loadProductionData();
+  } catch (err) {
+    toast('Status update failed', true);
+  }
+}
+
+async function poSetSlotStatus(slotId, status) {
+  try {
+    await fetch(`${API}/api/production/slot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slotId, status }),
+    });
+    toast(`Slot → ${status}`);
+    loadProductionData();
+    poCloseDetail();
+  } catch (err) {
+    toast('Slot update failed', true);
+  }
+}
+
+function poCloseDetail() {
+  document.getElementById('poDetailPanel').classList.remove('visible');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('poDetailPanel').classList.contains('visible')) {
+      poCloseDetail();
+    } else if (document.getElementById('productionOverview').classList.contains('visible')) {
+      closeProductionOverview();
+    }
+  }
+});
 
 init();
 </script>
