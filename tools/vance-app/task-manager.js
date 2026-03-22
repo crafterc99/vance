@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const claudeRunner = require('./claude-runner');
+const coding = require('./coding');
 const costs = require('./costs');
 
 const DATA_DIR = path.resolve(__dirname, '../../.vance-data');
@@ -96,14 +96,14 @@ function createTask(opts) {
   let modelInfo;
   if (opts.model) {
     // Find tier from model name
-    const tier = Object.entries(claudeRunner.MODEL_TIERS).find(([, v]) => v.model === opts.model);
+    const tier = Object.entries(coding.MODEL_TIERS).find(([, v]) => v.model === opts.model);
     modelInfo = {
       tier: tier ? tier[0] : 'sonnet',
       model: opts.model,
       maxBudget: opts.maxBudget || (tier ? tier[1].defaultBudget : 3.00),
     };
   } else {
-    modelInfo = claudeRunner.selectModel(opts);
+    modelInfo = coding.selectModel(opts);
     if (opts.maxBudget) modelInfo.maxBudget = opts.maxBudget;
   }
 
@@ -212,7 +212,7 @@ function _startTask(task) {
   // Git branch isolation
   let gitResult = null;
   try {
-    gitResult = claudeRunner.prepareGitBranch(task);
+    gitResult = coding.prepareGitBranch(task);
   } catch (err) {
     console.error(`[TaskManager] Git branch prep failed for ${task.id}: ${err.message}`);
   }
@@ -229,9 +229,9 @@ function _startTask(task) {
 
   broadcast({ type: 'task-started', task: taskSummary(task) });
 
-  // Spawn Claude
+  // Spawn Claude via coding.js
   console.log(`[TaskManager] Spawning Claude Code for task ${task.id}...`);
-  const proc = claudeRunner.run(task, {
+  const { process: proc, result: spawnResult } = coding.runBackground(task, {
     onStream: (text) => {
       appendLog(task.id, text);
       broadcast({ type: 'task-stream', taskId: task.id, content: text });
@@ -267,7 +267,7 @@ function _startTask(task) {
       // Post-task git cleanup
       const updatedTask = getTask(task.id);
       if (updatedTask) {
-        claudeRunner.postTaskGit(updatedTask);
+        coding.postTaskGit(updatedTask);
       }
 
       updateTask(task.id, {
@@ -289,52 +289,68 @@ function _startTask(task) {
       _autoStartNext();
     },
 
-    onFail: (result) => {
-      console.error(`[TaskManager] Task ${task.id} FAILED: ${result.error}`);
-      runningProcess = null;
+    onError: (error) => {
+      // Error callback fires during process — full result handling in spawnResult.then below
+    },
+  });
+
+  runningProcess = proc;
+  updateTask(task.id, { pid: proc.pid });
+
+  // Handle completion/failure via the result promise
+  spawnResult.then((result) => {
+    runningProcess = null;
+
+    if (result.exitCode === 0 && !result.error) {
+      // Success
+      console.log(`[TaskManager] Task ${task.id} completed. Cost: $${result.costUsd || 0}`);
+      const updatedTask = getTask(task.id);
+      if (updatedTask) coding.postTaskGit(updatedTask);
+
+      updateTask(task.id, {
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        costUsd: result.costUsd,
+        sessionId: result.sessionId,
+      });
+
+      appendLog(task.id, '\n\n--- TASK COMPLETED ---\n');
+      broadcast({ type: 'task-completed', task: taskSummary(getTask(task.id)), costUsd: result.costUsd });
+      _autoStartNext();
+    } else {
+      // Failure
+      const errorMsg = result.error || `Exit code ${result.exitCode}`;
+      console.error(`[TaskManager] Task ${task.id} FAILED: ${errorMsg}`);
 
       const currentTask = getTask(task.id);
       if (!currentTask) return;
 
-      // Retry once with --resume if we have a session ID
       if (currentTask.retryCount < 1 && result.sessionId) {
         updateTask(task.id, {
           status: 'queued',
           sessionId: result.sessionId,
           retryCount: currentTask.retryCount + 1,
           costUsd: (currentTask.costUsd || 0) + (result.costUsd || 0),
-          error: `Retry after: ${result.error}`,
+          error: `Retry after: ${errorMsg}`,
         });
-        broadcast({ type: 'task-retrying', taskId: task.id, error: result.error });
+        broadcast({ type: 'task-retrying', taskId: task.id, error: errorMsg });
         startNext();
         return;
       }
 
-      // Post-task git cleanup
-      claudeRunner.postTaskGit(currentTask);
-
+      coding.postTaskGit(currentTask);
       updateTask(task.id, {
         status: 'failed',
         completedAt: new Date().toISOString(),
         costUsd: (currentTask.costUsd || 0) + (result.costUsd || 0),
         sessionId: result.sessionId,
-        error: result.error,
+        error: errorMsg,
       });
-
-      appendLog(task.id, `\n\n--- TASK FAILED ---\n${result.error}\n`);
-
-      broadcast({
-        type: 'task-failed',
-        task: taskSummary(getTask(task.id)),
-        error: result.error,
-      });
-
+      appendLog(task.id, `\n\n--- TASK FAILED ---\n${errorMsg}\n`);
+      broadcast({ type: 'task-failed', task: taskSummary(getTask(task.id)), error: errorMsg });
       _autoStartNext();
-    },
+    }
   });
-
-  runningProcess = proc;
-  updateTask(task.id, { pid: proc.pid });
 
   // Start watchdog
   _startWatchdog();
@@ -400,7 +416,7 @@ function cancelTask(id) {
   if (task.status === 'running' && runningProcess) {
     try { runningProcess.kill('SIGTERM'); } catch {}
     runningProcess = null;
-    claudeRunner.postTaskGit(task);
+    coding.postTaskGit(task);
   }
 
   updateTask(id, {

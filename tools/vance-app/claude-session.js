@@ -15,11 +15,10 @@
  *   const session = sessionManager.getOrCreate(projectId, projectDir);
  *   const result = await sessionManager.prompt(session.id, "add dark mode");
  */
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const costs = require('./costs');
-const claudeRunner = require('./claude-runner');
+const coding = require('./coding');
 
 const DATA_DIR = path.resolve(__dirname, '../../.vance-data');
 const SESSIONS_FILE = path.join(DATA_DIR, 'claude-sessions.json');
@@ -48,26 +47,6 @@ function saveSessions() {
 
 loadSessions();
 
-// ─── Full Tool Access (mirrors VS Code experience) ───────────────────────
-
-const FULL_TOOLS = [
-  'Read', 'Edit', 'Write', 'Glob', 'Grep', 'NotebookEdit',
-  'Bash(git:*)', 'Bash(npm:*)', 'Bash(npx:*)', 'Bash(node:*)', 'Bash(bun:*)',
-  'Bash(ls:*)', 'Bash(mkdir:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)',
-  'Bash(rm:*)', 'Bash(cp:*)', 'Bash(mv:*)', 'Bash(find:*)', 'Bash(wc:*)',
-  'Bash(python:*)', 'Bash(pip:*)', 'Bash(python3:*)',
-  'Bash(tsc:*)', 'Bash(eslint:*)', 'Bash(prettier:*)',
-  'Bash(jest:*)', 'Bash(vitest:*)', 'Bash(mocha:*)',
-  'Bash(curl:*)', 'Bash(wget:*)',
-  'Bash(docker:*)', 'Bash(docker-compose:*)',
-  'Bash(cargo:*)', 'Bash(go:*)', 'Bash(make:*)',
-  'Bash(brew:*)', 'Bash(which:*)', 'Bash(echo:*)', 'Bash(env:*)',
-  'Bash(cd:*)', 'Bash(pwd:*)', 'Bash(chmod:*)',
-  'Bash(sed:*)', 'Bash(awk:*)', 'Bash(sort:*)', 'Bash(uniq:*)',
-  'Bash(tar:*)', 'Bash(zip:*)', 'Bash(unzip:*)',
-  'Bash(ps:*)', 'Bash(kill:*)', 'Bash(lsof:*)',
-].join(',');
-
 // ─── Session Management ──────────────────────────────────────────────────
 
 /**
@@ -85,7 +64,7 @@ function getOrCreate(projectId, projectDir) {
   const session = {
     id: key,
     projectId: projectId || null,
-    projectDir: claudeRunner.expandHome(projectDir) || process.env.HOME,
+    projectDir: coding.expandHome(projectDir) || process.env.HOME,
     claudeSessionId: null, // Set after first prompt
     model: 'claude-sonnet-4-6',
     status: 'idle', // idle | running | error
@@ -149,7 +128,6 @@ function prompt(sessionId, message, opts = {}) {
       return reject(new Error(`Session not found: ${sessionId}`));
     }
 
-    // Don't allow concurrent prompts on the same session
     if (activeProcesses[sessionId]) {
       return reject(new Error('Session is already running. Wait for it to finish or cancel it.'));
     }
@@ -166,178 +144,59 @@ function prompt(sessionId, message, opts = {}) {
       prompt: message.slice(0, 100),
     });
 
-    // Build Claude CLI args
-    const args = ['-p', message];
+    // Use coding.js unified spawn
+    const { process: proc, result: spawnResult } = coding.runInteractive({
+      message,
+      cwd: session.projectDir || process.env.HOME,
+      model: opts.model || session.model || 'claude-sonnet-4-6',
+      maxBudget: opts.maxBudget,
+      effort: opts.effort,
+      claudeSessionId: session.claudeSessionId,
+      projectId: session.projectId,
+      callbacks: {
+        onStream: (text) => {
+          if (opts.onStream) opts.onStream(text);
+          broadcast({ type: 'claude-session-stream', sessionId, content: text });
 
-    // Model
-    args.push('--model', opts.model || session.model || 'claude-sonnet-4-6');
-
-    // Budget
-    if (opts.maxBudget) {
-      args.push('--max-budget-usd', String(opts.maxBudget));
-    }
-
-    // Effort
-    if (opts.effort) {
-      args.push('--effort', opts.effort);
-    }
-
-    // Resume existing session or start fresh
-    if (session.claudeSessionId) {
-      args.push('--resume', session.claudeSessionId);
-    }
-
-    // Full permission bypass — like VS Code
-    args.push('--permission-mode', 'bypassPermissions');
-
-    // Full tool access
-    args.push('--allowedTools', FULL_TOOLS);
-
-    // Stream JSON output (--verbose required for stream-json in print mode)
-    args.push('--output-format', 'stream-json', '--verbose');
-
-    // System prompt with Vance context
-    const systemAppend = [
-      'You are operating as Claude Code, controlled by Vance (a JARVIS-like AI).',
-      `Project: ${session.projectId || 'general'}`,
-      session.projectDir ? `Working directory: ${session.projectDir}` : '',
-      'Work autonomously. Commit frequently. Do NOT push unless told to.',
-      'Be thorough — read files before editing, run tests after changes.',
-    ].filter(Boolean).join('\n');
-    args.push('--append-system-prompt', systemAppend);
-
-    const cwd = claudeRunner.expandHome(session.projectDir) || process.env.HOME;
-    const claudeBin = claudeRunner.getClaudeBin();
-
-    // Ensure cwd exists
-    if (!fs.existsSync(cwd)) {
-      try { fs.mkdirSync(cwd, { recursive: true }); } catch {}
-    }
-
-    // Remove Claude Code env vars to prevent "nested session" blocking
-    const cleanEnv = { ...process.env, FORCE_COLOR: '0' };
-    delete cleanEnv.CLAUDECODE;
-    delete cleanEnv.CLAUDE_CODE_SSE_PORT;
-    delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
-    if (cleanEnv.PATH && !cleanEnv.PATH.includes('/usr/local/bin')) {
-      cleanEnv.PATH = '/usr/local/bin:' + cleanEnv.PATH;
-    }
-
-    // Spawn
-    const proc = spawn(claudeBin, args, {
-      cwd,
-      env: cleanEnv,
-      stdio: ['pipe', 'pipe', 'pipe'],
+          const milestones = coding.detectMilestones(text);
+          for (const ms of milestones) {
+            broadcast({ type: 'claude-session-milestone', sessionId, milestone: ms });
+          }
+        },
+        onToolUse: (name, input) => {
+          if (opts.onToolUse) opts.onToolUse(name, input);
+          broadcast({ type: 'claude-session-tool', sessionId, tool: name });
+        },
+      },
     });
-
-    // Close stdin — claude -p doesn't need it, and an open pipe causes hangs
-    proc.stdin.end();
 
     activeProcesses[sessionId] = proc;
 
-    let output = '';
-    let costUsd = 0;
-    let claudeSessionId = null;
-    let toolCalls = [];
-
-    proc.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n').filter(l => l.trim());
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-
-          if (parsed.type === 'assistant' && parsed.message?.content) {
-            for (const block of parsed.message.content) {
-              if (block.type === 'text') {
-                output += block.text;
-                if (opts.onStream) opts.onStream(block.text);
-                broadcast({
-                  type: 'claude-session-stream',
-                  sessionId,
-                  content: block.text,
-                });
-
-                // Detect milestones
-                const milestones = claudeRunner.detectMilestones(block.text);
-                for (const ms of milestones) {
-                  broadcast({
-                    type: 'claude-session-milestone',
-                    sessionId,
-                    milestone: ms,
-                  });
-                }
-              } else if (block.type === 'tool_use') {
-                toolCalls.push({ name: block.name, input: block.input });
-                if (opts.onToolUse) opts.onToolUse(block.name, block.input);
-                broadcast({
-                  type: 'claude-session-tool',
-                  sessionId,
-                  tool: block.name,
-                });
-              }
-            }
-          } else if (parsed.type === 'result') {
-            costUsd = parsed.cost_usd || 0;
-            claudeSessionId = parsed.session_id || null;
-          }
-        } catch {}
-      }
-    });
-
-    let stderr = '';
-    proc.stderr.on('data', d => { stderr += d.toString(); });
-
-    proc.on('close', (code) => {
+    spawnResult.then((result) => {
       delete activeProcesses[sessionId];
 
-      // Update session
-      if (claudeSessionId) {
-        session.claudeSessionId = claudeSessionId;
+      if (result.sessionId) {
+        session.claudeSessionId = result.sessionId;
       }
-      session.totalCost += costUsd;
-      session.status = code === 0 ? 'idle' : 'error';
+      session.totalCost += result.costUsd;
+      session.status = result.exitCode === 0 ? 'idle' : 'error';
       saveSessions();
-
-      // Log cost
-      if (costUsd) {
-        costs.logCall('claude-session', session.model || 'claude-sonnet-4-6', { cost: costUsd });
-      }
-
-      const result = {
-        output: output || 'Done.',
-        costUsd,
-        claudeSessionId,
-        toolCalls,
-        exitCode: code,
-      };
 
       broadcast({
         type: 'claude-session-complete',
         sessionId,
-        costUsd,
-        exitCode: code,
-        toolCount: toolCalls.length,
+        costUsd: result.costUsd,
+        exitCode: result.exitCode,
+        toolCount: result.toolCalls.length,
       });
 
-      if (code === 0) {
+      if (result.exitCode === 0) {
         if (opts.onComplete) opts.onComplete(result);
-        resolve(result);
-      } else {
-        const error = stderr.slice(0, 1000) || `Exit code ${code}`;
-        result.error = error;
-        if (opts.onError) opts.onError(error);
-        resolve(result); // Resolve, don't reject — let caller handle
+      } else if (opts.onError) {
+        opts.onError(result.error);
       }
-    });
 
-    proc.on('error', (err) => {
-      delete activeProcesses[sessionId];
-      session.status = 'error';
-      saveSessions();
-
-      const error = `Failed to spawn Claude: ${err.message}`;
-      if (opts.onError) opts.onError(error);
-      resolve({ output: '', costUsd: 0, error, toolCalls: [] });
+      resolve(result);
     });
   });
 }
