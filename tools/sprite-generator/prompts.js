@@ -17,10 +17,14 @@ const CHARACTERS = {
   breezy: {
     description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
     style: '16-bit pixel art, GBA style',
+    heightInches: 72, weightLbs: 185, build: 'athletic',
+    jerseyNumber: '', teamColors: { primary: '#FF4400', secondary: '#FFFFFF', accent: '#000000' },
   },
   '99': {
     description: 'the character shown in Image 2 — keep their exact appearance, outfit, hairstyle, skin tone, and proportions',
     style: '16-bit pixel art, GBA style',
+    heightInches: 72, weightLbs: 185, build: 'athletic',
+    jerseyNumber: '99', teamColors: { primary: '#FF4400', secondary: '#FFFFFF', accent: '#000000' },
   },
 };
 
@@ -169,15 +173,31 @@ const PROMPT_SECTIONS = [
     key: 'sizeAnchoring',
     label: 'Size Consistency',
     buildDefault(char, anim, frameIndex) {
+      // Height-aware sizing: compute fill percentage from character height
+      const heightInches = char.heightInches || 72;
+      const fillPct = Math.round((111.6 * heightInches / 72) / 180 * 100);
+      const ballSize = Math.round(12 * (heightInches / 72)); // proportional ball
+
       if (frameIndex !== undefined) {
-        return [
+        const lines = [
           'SIZE ANCHORING:',
-          '- Character should fill ~85% of frame height',
+          `- Character should fill ~${fillPct}% of frame height`,
           '- Lock proportions — do NOT stretch or squash',
           '- Feet on the baseline, consistent ground plane',
-        ].join('\n');
+        ];
+        if (anim.action.includes('dribble') || anim.action.includes('shot') || anim.action.includes('crossover')) {
+          lines.push(`- Basketball should be ~${ballSize}px diameter relative to character`);
+        }
+        return lines.join('\n');
       }
-      return '- Same character size in every frame, feet on same baseline\n- Characters should fill ~85% of frame height, locked proportions';
+      const lines = [
+        `- Same character size in every frame, feet on same baseline`,
+        `- Characters should fill ~${fillPct}% of frame height, locked proportions`,
+      ];
+      if (anim.action.includes('dribble') || anim.action.includes('shot') || anim.action.includes('crossover')) {
+        lines.push(`- Basketball should be proportional to character (~${ballSize}px diameter)`);
+      }
+      return lines.join('\n');
     },
   },
 ];
@@ -391,6 +411,53 @@ function buildFilmToSpritePrompt(characterName, animDescription, frameCount, opt
   };
 }
 
+/**
+ * Build a prompt for generating a SINGLE frame from a video reference frame.
+ * Used by the video FBF pipeline — each video frame becomes a pose reference.
+ *
+ * @param {string} characterName - Character to generate
+ * @param {string} animDescription - Description of the animation action
+ * @param {number} frameIndex - 0-based frame index
+ * @param {number} totalFrames - Total frames in the animation
+ */
+function buildFilmToSingleFramePrompt(characterName, animDescription, frameIndex, totalFrames) {
+  const char = CHARACTERS[characterName];
+  if (!char) throw new Error(`Unknown character: ${characterName}. Available: ${Object.keys(CHARACTERS).join(', ')}`);
+
+  const prompt = [
+    `STRICT POSE TRANSFER — FILM TO SINGLE SPRITE FRAME`,
+    ``,
+    `Image 1 = real video frame showing the exact pose to replicate`,
+    `Image 2 = character appearance reference`,
+    ``,
+    `This is frame ${frameIndex + 1} of ${totalFrames} in a "${animDescription}" animation.`,
+    ``,
+    `POSE RULES:`,
+    `- Match Image 1's body pose EXACTLY — same arm angles, leg positions, weight distribution`,
+    `- Treat Image 1 as motion capture — do NOT reinterpret the pose`,
+    `- Copy the exact body angle, lean, and center of gravity`,
+    ``,
+    `CHARACTER:`,
+    `- Use Image 2's face, skin tone, hairstyle, outfit: ${char.description}`,
+    `- Maintain Image 2's exact proportions and clothing colors`,
+    `- Character should fill ~85% of frame height`,
+    ``,
+    `STYLE: ${char.style || '16-bit pixel art, GBA style'}, bold BLACK pixel outlines`,
+    `OUTPUT: Single character, ONE frame only (NOT a strip)`,
+    `Background: solid green (#00FF00), NO green on character`,
+    `NO anti-aliasing, NO gradients, NO shadows on background.`,
+  ].join('\n');
+
+  return {
+    prompt,
+    frameIndex,
+    totalFrames,
+    animDescription,
+    characterName,
+    mode: 'film-to-single-frame',
+  };
+}
+
 // ─── Legacy prompt (backward compat) ────────────────────────────────────
 
 function buildPrompt(characterName, animationName, opts = {}) {
@@ -466,6 +533,7 @@ module.exports = {
   buildPrompt,
   buildPoseTransferPrompt,
   buildFilmToSpritePrompt,
+  buildFilmToSingleFramePrompt,
   buildCustomPrompt,
   buildSingleFramePrompt,
   buildSectionedPrompt,

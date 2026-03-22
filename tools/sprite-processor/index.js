@@ -380,14 +380,37 @@ async function cropToContent(imagePath, outputPath, opts = {}) {
 
 /**
  * Process a single frame image (NOT a strip).
- * Pipeline: removeBackground → cropToContent → done.
+ * Pipeline: removeBackground → cropToContent (or scaleToHeight if targetPixelHeight given) → done.
  * No cutFrames — input IS a single frame.
+ *
+ * @param {string} inputPath
+ * @param {string} outputPath
+ * @param {object} opts - { width, height, targetPixelHeight, baselineY }
  */
 async function processSingleFrame(inputPath, outputPath, opts = {}) {
   const targetW = opts.width || DEFAULT_FRAME_SIZE;
   const targetH = opts.height || DEFAULT_FRAME_SIZE;
 
-  // Temp file for bg-removed intermediate
+  // If height-aware processing requested, use the height scaler
+  if (opts.targetPixelHeight) {
+    try {
+      const { processFrameWithHeight } = require('./height-scaler');
+      return await processFrameWithHeight(inputPath, outputPath, {
+        targetPixelHeight: opts.targetPixelHeight,
+        baselineY: opts.baselineY || 170,
+        width: targetW,
+        height: targetH,
+        hueMin: opts.hueMin,
+        hueMax: opts.hueMax,
+        satMin: opts.satMin,
+        valMin: opts.valMin,
+      });
+    } catch (err) {
+      console.log(`  Height scaler unavailable, falling back to standard: ${err.message}`);
+    }
+  }
+
+  // Standard pipeline: BG removal → crop to content
   const cleanPath = outputPath.replace('.png', '-clean.png');
 
   // Step 1: Remove green background
@@ -481,6 +504,192 @@ async function normalizeFrameSizes(framePaths, opts = {}) {
   }
 
   return framePaths;
+}
+
+// ─── Quality Evaluator ──────────────────────────────────────────────────
+
+/**
+ * Quality thresholds derived from analyzing known-good Breezy sprites:
+ * - Breezy fill height: 57-63% (character is ~60% of frame height)
+ * - Breezy coverage: 8-11% of total pixels
+ * - Breezy frame variance: ±3% across frames
+ */
+const QUALITY_THRESHOLDS = {
+  fillMin: 0.40,
+  fillMax: 0.92,
+  fillIdeal: 0.62,
+  coverageMin: 0.05,
+  coverageMax: 0.45,
+  greenMaxPct: 0.5,
+  sizeVarianceMax: 0.18,
+  edgeContactMax: 0.10,
+};
+
+async function evaluateFrame(framePath) {
+  const { data, info } = await sharp(framePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+
+  let minX = info.width, maxX = 0, minY = info.height, maxY = 0;
+  let contentPixels = 0, greenPixels = 0;
+  let topEdge = 0, bottomEdge = 0, leftEdge = 0, rightEdge = 0;
+  const total = info.width * info.height;
+
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const idx = (y * info.width + x) * 4;
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2], a = data[idx + 3];
+      if (a > 10) {
+        contentPixels++;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        if (g > 200 && r < 100 && b < 100) greenPixels++;
+        if (y <= 1) topEdge++;
+        if (y >= info.height - 2) bottomEdge++;
+        if (x <= 1) leftEdge++;
+        if (x >= info.width - 2) rightEdge++;
+      }
+    }
+  }
+
+  const has = contentPixels > 0;
+  const contentH = has ? maxY - minY + 1 : 0;
+  const contentW = has ? maxX - minX + 1 : 0;
+  const fill = contentH / info.height;
+  const coverage = contentPixels / total;
+  const greenPct = has ? greenPixels / contentPixels : 0;
+  const edge = Math.max(topEdge / info.width, bottomEdge / info.width, leftEdge / info.height, rightEdge / info.height);
+
+  const metrics = {
+    contentW, contentH,
+    fillHeight: +(fill * 100).toFixed(1),
+    coverage: +(coverage * 100).toFixed(1),
+    greenPct: +(greenPct * 100).toFixed(2),
+    edgeContact: +(edge * 100).toFixed(1),
+  };
+
+  const issues = [];
+  let score = 100;
+
+  if (!has || coverage < QUALITY_THRESHOLDS.coverageMin) {
+    issues.push({ type: 'empty', severity: 'critical', msg: `Empty frame (${metrics.coverage}% coverage)` });
+    score -= 50;
+  }
+  if (fill > QUALITY_THRESHOLDS.fillMax) {
+    const sev = fill > 0.95 ? 'critical' : 'major';
+    issues.push({ type: 'too_large', severity: sev, msg: `Too large (${metrics.fillHeight}% fill)` });
+    score -= fill > 0.95 ? 35 : 25;
+  }
+  if (fill < QUALITY_THRESHOLDS.fillMin && has) {
+    issues.push({ type: 'too_small', severity: 'major', msg: `Too small (${metrics.fillHeight}% fill)` });
+    score -= 20;
+  }
+  if (greenPct > QUALITY_THRESHOLDS.greenMaxPct / 100) {
+    issues.push({ type: 'green_remnant', severity: 'minor', msg: `Green remnants (${metrics.greenPct}%)` });
+    score -= 10;
+  }
+  if (coverage > QUALITY_THRESHOLDS.coverageMax) {
+    issues.push({ type: 'blob', severity: 'major', msg: `Blob (${metrics.coverage}% coverage)` });
+    score -= 15;
+  }
+  if (edge > QUALITY_THRESHOLDS.edgeContactMax) {
+    issues.push({ type: 'edge_bleed', severity: 'minor', msg: `Edge bleed (${metrics.edgeContact}%)` });
+    score -= 10;
+  }
+
+  if (Math.abs(fill - QUALITY_THRESHOLDS.fillIdeal) < 0.10) score = Math.min(100, score + 5);
+
+  return { score: Math.max(0, score), issues, metrics };
+}
+
+async function evaluateStrip(framePaths) {
+  const frameResults = await Promise.all(framePaths.map(evaluateFrame));
+
+  const fills = frameResults.map(r => r.metrics.fillHeight).filter(f => f > 0);
+  const sorted = [...fills].sort((a, b) => a - b);
+  const medianFill = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+
+  let consistencyScore = 100;
+  const consistencyIssues = [];
+
+  if (fills.length > 1) {
+    const maxDev = Math.max(...fills.map(f => Math.abs(f - medianFill) / Math.max(medianFill, 1)));
+    if (maxDev > QUALITY_THRESHOLDS.sizeVarianceMax) {
+      consistencyIssues.push({
+        type: 'size_inconsistent', severity: 'major',
+        msg: `Sizes vary ${(maxDev * 100).toFixed(0)}% (max ${(QUALITY_THRESHOLDS.sizeVarianceMax * 100)}%)`,
+        maxDeviation: +(maxDev * 100).toFixed(1),
+      });
+      consistencyScore -= Math.min(40, Math.round(maxDev * 100));
+    }
+  }
+
+  const avgFrame = frameResults.reduce((s, r) => s + r.score, 0) / Math.max(frameResults.length, 1);
+  const overall = Math.round(avgFrame * 0.6 + consistencyScore * 0.4);
+
+  // Aggregate unique issues
+  const seen = new Set();
+  const aggregated = [];
+  for (const fr of frameResults) {
+    for (const issue of fr.issues) {
+      if (!seen.has(issue.type)) {
+        seen.add(issue.type);
+        const affected = frameResults.map((r, i) => r.issues.some(is => is.type === issue.type) ? i : -1).filter(i => i >= 0);
+        aggregated.push({ ...issue, affectedFrames: affected });
+      }
+    }
+  }
+
+  // Generate fixes
+  const fixes = [];
+  for (const issue of [...aggregated, ...consistencyIssues]) {
+    switch (issue.type) {
+      case 'too_large':
+        fixes.push({ section: 'sizeAnchoring', action: 'append', text: '\n- Character must NOT fill the entire frame — target ~60-65% of frame height with padding on all sides' });
+        fixes.push({ section: 'outputStyle', action: 'append', text: '\n- Leave clear empty space above the head and below the feet' });
+        break;
+      case 'too_small':
+        fixes.push({ section: 'sizeAnchoring', action: 'append', text: '\n- Character is TOO SMALL — scale up to fill ~60-65% of frame height' });
+        break;
+      case 'green_remnant':
+        fixes.push({ section: 'outputStyle', action: 'append', text: '\n- CRITICAL: absolutely NO green (#00FF00) anywhere on the character body, clothes, or skin' });
+        break;
+      case 'size_inconsistent':
+        fixes.push({ section: 'sizeAnchoring', action: 'append', text: '\n- CRITICAL: character height must be IDENTICAL in every single frame — lock proportions' });
+        break;
+      case 'empty':
+        fixes.push({ section: 'poseReplication', action: 'append', text: '\n- Character MUST be clearly visible, fully rendered, and recognizable in every frame' });
+        break;
+      case 'edge_bleed':
+        fixes.push({ section: 'outputStyle', action: 'append', text: '\n- Keep character centered with clear padding from all frame edges' });
+        break;
+    }
+  }
+
+  return {
+    passed: overall >= 70 && !aggregated.some(i => i.severity === 'critical'),
+    overallScore: overall,
+    avgFrameScore: Math.round(avgFrame),
+    consistencyScore: Math.round(consistencyScore),
+    medianFill: +medianFill.toFixed(1),
+    frameResults,
+    issues: aggregated,
+    consistencyIssues,
+    fixes,
+  };
+}
+
+function applyFixes(sections, fixes) {
+  const modified = JSON.parse(JSON.stringify(sections));
+  for (const fix of fixes) {
+    const sec = modified[fix.section];
+    if (!sec) continue;
+    if (!sec.text.includes(fix.text.trim().substring(0, 40))) {
+      sec.text += fix.text;
+    }
+    sec.enabled = true;
+  }
+  return modified;
 }
 
 // ─── Grid Sheet Assembler ───────────────────────────────────────────────
@@ -621,6 +830,10 @@ module.exports = {
   cropToContent,
   processSingleFrame,
   normalizeFrameSizes,
+  evaluateFrame,
+  evaluateStrip,
+  applyFixes,
+  QUALITY_THRESHOLDS,
   rgbToHsv,
   SOUL_JAM_ASSETS,
   DEFAULT_FRAME_SIZE,
