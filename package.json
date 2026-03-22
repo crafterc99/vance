@@ -37,11 +37,13 @@
     "start": "node tools/vance-app/server.js"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.81",
     "@deepgram/sdk": "^5.0.0",
     "@google/genai": "^1.44.0",
     "ffmpeg-static": "^5.3.0",
     "pg": "^8.20.0",
     "playwright": "^1.58.2",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
   }
 }

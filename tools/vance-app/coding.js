@@ -1,19 +1,21 @@
 /**
- * VANCE — Unified Coding Executor
+ * VANCE — Unified Coding Executor (Agent SDK)
  *
- * Merges the shared spawn logic from claude-session.js and claude-runner.js
- * into a single module. Exports:
- *   - spawnClaude(opts) — shared spawn with cleanEnv, stream-json parsing
- *   - runInteractive(sessionId, message, opts) — persistent session prompts
+ * Replaces child_process.spawn with @anthropic-ai/claude-agent-sdk query().
+ * Same external API so claude-session.js and task-manager.js don't change.
+ *
+ * Exports:
+ *   - spawnClaude(opts) — SDK query with stream-json-compatible return shape
+ *   - runInteractive(opts) — persistent session prompts
  *   - runBackground(task, callbacks) — background task execution
  */
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { getSDK } = require('./sdk');
 const costs = require('./costs');
 
-// ─── Helpers (moved from claude-runner.js) ──────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────
 
 /** Expand ~ to actual home directory */
 function expandHome(dir) {
@@ -23,7 +25,7 @@ function expandHome(dir) {
   return dir;
 }
 
-/** Find the absolute path to the claude binary */
+/** Find the absolute path to the claude binary (kept for fallback) */
 let _claudeBin = null;
 function getClaudeBin() {
   if (_claudeBin) return _claudeBin;
@@ -44,7 +46,7 @@ function getClaudeBin() {
   return _claudeBin;
 }
 
-// ─── Milestone Detection (moved from claude-runner.js) ──────────────────
+// ─── Milestone Detection ─────────────────────────────────────────────────
 
 const MILESTONE_PATTERNS = [
   { pattern: /(\d+)\s+(?:tests?\s+)?pass(?:ing|ed)/i, type: 'tests-passing', extract: (m) => `${m[1]} tests passing` },
@@ -69,12 +71,8 @@ function detectMilestones(text) {
   return milestones;
 }
 
-// ─── Shared Spawn Logic ─────────────────────────────────────────────────
+// ─── Clean Environment ───────────────────────────────────────────────────
 
-/**
- * Build a clean environment for spawning Claude Code.
- * Removes nested-session env vars, ensures /usr/local/bin in PATH.
- */
 function buildCleanEnv() {
   const cleanEnv = { ...process.env, FORCE_COLOR: '0' };
   delete cleanEnv.CLAUDECODE;
@@ -86,34 +84,202 @@ function buildCleanEnv() {
   return cleanEnv;
 }
 
+// ─── Unified Tool Allowlist ──────────────────────────────────────────────
+
+const FULL_TOOLS = [
+  'Read', 'Edit', 'Write', 'Glob', 'Grep', 'NotebookEdit',
+  'Bash(git:*)', 'Bash(npm:*)', 'Bash(npx:*)', 'Bash(node:*)', 'Bash(bun:*)',
+  'Bash(ls:*)', 'Bash(mkdir:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)',
+  'Bash(rm:*)', 'Bash(cp:*)', 'Bash(mv:*)', 'Bash(find:*)', 'Bash(wc:*)',
+  'Bash(python:*)', 'Bash(pip:*)', 'Bash(python3:*)',
+  'Bash(tsc:*)', 'Bash(eslint:*)', 'Bash(prettier:*)',
+  'Bash(jest:*)', 'Bash(vitest:*)', 'Bash(mocha:*)',
+  'Bash(curl:*)', 'Bash(wget:*)',
+  'Bash(docker:*)', 'Bash(docker-compose:*)',
+  'Bash(cargo:*)', 'Bash(go:*)', 'Bash(make:*)',
+  'Bash(brew:*)', 'Bash(which:*)', 'Bash(echo:*)', 'Bash(env:*)',
+  'Bash(cd:*)', 'Bash(pwd:*)', 'Bash(chmod:*)',
+  'Bash(sed:*)', 'Bash(awk:*)', 'Bash(sort:*)', 'Bash(uniq:*)',
+  'Bash(tar:*)', 'Bash(zip:*)', 'Bash(unzip:*)',
+  'Bash(ps:*)', 'Bash(kill:*)', 'Bash(lsof:*)',
+  'Bash(open:*)', 'Bash(osascript:*)', 'Bash(gh:*)',
+  'Bash(grep:*)', 'Bash(touch:*)',
+];
+
+// Keep legacy comma-separated strings for backward compat (child_process fallback)
+const INTERACTIVE_TOOLS = FULL_TOOLS.join(',');
+const BACKGROUND_TOOLS = FULL_TOOLS.join(',');
+
+// ─── SDK-Based Spawn ─────────────────────────────────────────────────────
+
 /**
- * Spawn Claude Code process with stream-json parsing.
+ * Spawn Claude Code via Agent SDK query().
+ * Returns same shape as old spawnClaude: { process: handle, result: Promise }
  *
- * @param {Object} opts
- * @param {string[]} opts.args - CLI arguments
- * @param {string} opts.cwd - Working directory
- * @param {string} [opts.costCategory] - Cost logging category
- * @param {string} [opts.model] - Model name for cost logging
- * @param {Object} [opts.callbacks] - { onStream, onToolUse, onMilestone, onActivity, onComplete, onError }
- * @returns {Object} { process, result: Promise<{output, costUsd, sessionId, toolCalls, exitCode}> }
+ * The `process` handle has:
+ *   - interrupt() for cancellation (replaces proc.kill('SIGTERM'))
+ *   - _getLastActivity() for watchdog
+ *
+ * Falls back to child_process.spawn if SDK import fails.
  */
-function spawnClaude(opts) {
-  const { args, cwd, costCategory, model, callbacks = {} } = opts;
-  const claudeBin = getClaudeBin();
+async function spawnClaude(opts) {
+  const { cwd, costCategory, model, callbacks = {} } = opts;
   const resolvedCwd = expandHome(cwd) || process.env.HOME;
 
-  // Ensure cwd exists
   if (!fs.existsSync(resolvedCwd)) {
     try { fs.mkdirSync(resolvedCwd, { recursive: true }); } catch {}
   }
 
-  const proc = spawn(claudeBin, args, {
+  let sdk;
+  try {
+    sdk = await getSDK();
+  } catch (err) {
+    console.error('[coding] Agent SDK import failed, falling back to CLI spawn:', err.message);
+    return spawnClaudeFallback(opts);
+  }
+
+  const { query } = sdk;
+
+  let output = '';
+  let costUsd = 0;
+  let sessionId = opts.sessionId || null;
+  let toolCalls = [];
+  let lastActivity = Date.now();
+  let interrupted = false;
+
+  // Build SDK query options
+  const queryOpts = {
+    model: model || 'claude-sonnet-4-6',
+    cwd: resolvedCwd,
+    permissionMode: 'bypassPermissions',
+    allowedTools: FULL_TOOLS,
+    systemPrompt: opts.systemPrompt || undefined,
+  };
+
+  if (opts.maxBudget) queryOpts.maxTurns = Math.ceil(opts.maxBudget * 20); // rough: $0.05/turn avg
+  if (opts.effort) queryOpts.effort = opts.effort;
+  if (opts.resume) queryOpts.resume = opts.resume;
+
+  // MCP servers — Playwright for browser control
+  queryOpts.mcpServers = {
+    playwright: {
+      command: 'npx',
+      args: ['@playwright/mcp@latest'],
+    },
+  };
+
+  // System prompt handling
+  if (opts.appendSystemPrompt) {
+    queryOpts.systemPrompt = opts.appendSystemPrompt;
+  }
+
+  // Create a handle that mimics a child process for cancel/watchdog
+  const handle = {
+    pid: process.pid, // placeholder
+    _getLastActivity: () => lastActivity,
+    _interrupted: false,
+    interrupt() {
+      this._interrupted = true;
+      interrupted = true;
+    },
+    // Compat: kill just calls interrupt
+    kill(signal) {
+      this.interrupt();
+    },
+  };
+
+  const result = (async () => {
+    try {
+      const conversation = await query({
+        prompt: opts.prompt || opts.message,
+        options: queryOpts,
+      });
+
+      // Iterate async generator
+      for await (const message of conversation) {
+        if (interrupted) break;
+        lastActivity = Date.now();
+        if (callbacks.onActivity) callbacks.onActivity(lastActivity);
+
+        // Process SDK messages
+        if (message.type === 'assistant') {
+          for (const block of (message.content || [])) {
+            if (block.type === 'text') {
+              output += block.text;
+              if (callbacks.onStream) callbacks.onStream(block.text);
+              const milestones = detectMilestones(block.text);
+              for (const ms of milestones) {
+                if (callbacks.onMilestone) callbacks.onMilestone(ms);
+              }
+            } else if (block.type === 'tool_use') {
+              toolCalls.push({ name: block.name, input: block.input });
+              if (callbacks.onToolUse) callbacks.onToolUse(block.name, block.input);
+            } else if (block.type === 'tool_result') {
+              // Check tool results for milestone text
+              const resultText = typeof block.content === 'string' ? block.content :
+                Array.isArray(block.content) ? block.content.map(c => c.text || '').join('') : '';
+              if (resultText) {
+                const milestones = detectMilestones(resultText);
+                for (const ms of milestones) {
+                  if (callbacks.onMilestone) callbacks.onMilestone(ms);
+                }
+              }
+            }
+          }
+        } else if (message.type === 'result') {
+          costUsd = message.total_cost_usd || message.cost_usd || 0;
+          sessionId = message.session_id || sessionId;
+        }
+      }
+
+      // Log cost
+      if (costUsd && costCategory) {
+        costs.logCall(costCategory, model || 'claude-sonnet-4-6', { cost: costUsd });
+      }
+
+      const resultObj = {
+        output: output || 'Done.',
+        costUsd,
+        sessionId,
+        toolCalls,
+        exitCode: interrupted ? 1 : 0,
+      };
+
+      if (callbacks.onComplete && !interrupted) callbacks.onComplete(resultObj);
+      return resultObj;
+    } catch (err) {
+      const error = `SDK query error: ${err.message}`;
+      if (callbacks.onError) callbacks.onError(error);
+
+      // Log any partial cost
+      if (costUsd && costCategory) {
+        costs.logCall(costCategory, model || 'claude-sonnet-4-6', { cost: costUsd });
+      }
+
+      return { output: output || '', costUsd, error, sessionId, toolCalls, exitCode: 1 };
+    }
+  })();
+
+  return { process: handle, result };
+}
+
+// ─── Fallback: CLI Spawn (if SDK unavailable) ────────────────────────────
+
+function spawnClaudeFallback(opts) {
+  const { spawn } = require('child_process');
+  const { args, cwd, costCategory, model, callbacks = {} } = opts;
+  const claudeBin = getClaudeBin();
+  const resolvedCwd = expandHome(cwd) || process.env.HOME;
+
+  if (!fs.existsSync(resolvedCwd)) {
+    try { fs.mkdirSync(resolvedCwd, { recursive: true }); } catch {}
+  }
+
+  const proc = spawn(claudeBin, args || [], {
     cwd: resolvedCwd,
     env: buildCleanEnv(),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-
-  // Close stdin — claude -p doesn't need it
   proc.stdin.end();
 
   let output = '';
@@ -131,13 +297,11 @@ function spawnClaude(opts) {
       for (const line of lines) {
         try {
           const parsed = JSON.parse(line);
-
           if (parsed.type === 'assistant' && parsed.message?.content) {
             for (const block of parsed.message.content) {
               if (block.type === 'text') {
                 output += block.text;
                 if (callbacks.onStream) callbacks.onStream(block.text);
-
                 const milestones = detectMilestones(block.text);
                 for (const ms of milestones) {
                   if (callbacks.onMilestone) callbacks.onMilestone(ms);
@@ -163,26 +327,16 @@ function spawnClaude(opts) {
     });
 
     proc.on('close', (code) => {
-      // Log cost
       if (costUsd && costCategory) {
         costs.logCall(costCategory, model || 'claude-sonnet-4-6', { cost: costUsd });
       }
-
-      const resultObj = {
-        output: output || 'Done.',
-        costUsd,
-        sessionId,
-        toolCalls,
-        exitCode: code,
-      };
-
+      const resultObj = { output: output || 'Done.', costUsd, sessionId, toolCalls, exitCode: code };
       if (code !== 0) {
         resultObj.error = stderr.slice(0, 1000) || `Exit code ${code}`;
         if (callbacks.onError) callbacks.onError(resultObj.error);
       } else {
         if (callbacks.onComplete) callbacks.onComplete(resultObj);
       }
-
       resolve(resultObj);
     });
 
@@ -193,44 +347,11 @@ function spawnClaude(opts) {
     });
   });
 
-  // Attach lastActivity getter for watchdog
   proc._getLastActivity = () => lastActivity;
-
   return { process: proc, result };
 }
 
-// ─── Tool Allowlists ────────────────────────────────────────────────────
-
-const INTERACTIVE_TOOLS = [
-  'Read', 'Edit', 'Write', 'Glob', 'Grep', 'NotebookEdit',
-  'Bash(git:*)', 'Bash(npm:*)', 'Bash(npx:*)', 'Bash(node:*)', 'Bash(bun:*)',
-  'Bash(ls:*)', 'Bash(mkdir:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)',
-  'Bash(rm:*)', 'Bash(cp:*)', 'Bash(mv:*)', 'Bash(find:*)', 'Bash(wc:*)',
-  'Bash(python:*)', 'Bash(pip:*)', 'Bash(python3:*)',
-  'Bash(tsc:*)', 'Bash(eslint:*)', 'Bash(prettier:*)',
-  'Bash(jest:*)', 'Bash(vitest:*)', 'Bash(mocha:*)',
-  'Bash(curl:*)', 'Bash(wget:*)',
-  'Bash(docker:*)', 'Bash(docker-compose:*)',
-  'Bash(cargo:*)', 'Bash(go:*)', 'Bash(make:*)',
-  'Bash(brew:*)', 'Bash(which:*)', 'Bash(echo:*)', 'Bash(env:*)',
-  'Bash(cd:*)', 'Bash(pwd:*)', 'Bash(chmod:*)',
-  'Bash(sed:*)', 'Bash(awk:*)', 'Bash(sort:*)', 'Bash(uniq:*)',
-  'Bash(tar:*)', 'Bash(zip:*)', 'Bash(unzip:*)',
-  'Bash(ps:*)', 'Bash(kill:*)', 'Bash(lsof:*)',
-].join(',');
-
-const BACKGROUND_TOOLS = [
-  'Read', 'Edit', 'Write', 'Glob', 'Grep', 'NotebookEdit',
-  'Bash(git status)', 'Bash(git add *)', 'Bash(git commit *)', 'Bash(git diff *)',
-  'Bash(git log *)', 'Bash(git branch *)', 'Bash(git checkout *)', 'Bash(git stash *)',
-  'Bash(npm *)', 'Bash(npx *)', 'Bash(node *)', 'Bash(bun *)',
-  'Bash(ls *)', 'Bash(mkdir *)', 'Bash(cat *)', 'Bash(head *)', 'Bash(tail *)',
-  'Bash(python *)', 'Bash(pip *)',
-  'Bash(tsc *)', 'Bash(eslint *)', 'Bash(prettier *)',
-  'Bash(jest *)', 'Bash(vitest *)', 'Bash(mocha *)',
-].join(',');
-
-// ─── Model Selection (moved from claude-runner.js) ──────────────────────
+// ─── Model Selection ─────────────────────────────────────────────────────
 
 const MODEL_TIERS = {
   haiku: {
@@ -261,7 +382,7 @@ function selectModel(task) {
   return { tier: 'sonnet', model: MODEL_TIERS.sonnet.model, maxBudget: MODEL_TIERS.sonnet.defaultBudget };
 }
 
-// ─── Git Isolation (moved from claude-runner.js) ────────────────────────
+// ─── Git Isolation ───────────────────────────────────────────────────────
 
 function slugify(text) {
   return text.toLowerCase()
@@ -351,35 +472,13 @@ function postTaskGit(task) {
   }
 }
 
-// ─── High-Level APIs ────────────────────────────────────────────────────
+// ─── High-Level APIs ─────────────────────────────────────────────────────
 
 /**
  * Run an interactive Claude Code prompt in a persistent session.
- * Used by claude-session.js.
- *
- * @param {Object} opts
- * @param {string} opts.message - The prompt text
- * @param {string} opts.cwd - Working directory
- * @param {string} [opts.model] - Model to use
- * @param {number} [opts.maxBudget] - Budget cap
- * @param {string} [opts.effort] - Effort level
- * @param {string} [opts.claudeSessionId] - Existing session to resume
- * @param {string} [opts.projectId] - Project ID for system prompt
- * @param {Object} [opts.callbacks] - Event callbacks
- * @returns {Object} { process, result: Promise }
+ * Now uses SDK query() instead of CLI spawn.
  */
 function runInteractive(opts) {
-  const args = ['-p', opts.message];
-
-  args.push('--model', opts.model || 'claude-sonnet-4-6');
-  if (opts.maxBudget) args.push('--max-budget-usd', String(opts.maxBudget));
-  if (opts.effort) args.push('--effort', opts.effort);
-  if (opts.claudeSessionId) args.push('--resume', opts.claudeSessionId);
-
-  args.push('--permission-mode', 'bypassPermissions');
-  args.push('--allowedTools', INTERACTIVE_TOOLS);
-  args.push('--output-format', 'stream-json', '--verbose');
-
   const systemAppend = [
     'You are operating as Claude Code, controlled by Vance (a JARVIS-like AI).',
     `Project: ${opts.projectId || 'general'}`,
@@ -387,35 +486,42 @@ function runInteractive(opts) {
     'Work autonomously. Commit frequently. Do NOT push unless told to.',
     'Be thorough — read files before editing, run tests after changes.',
   ].filter(Boolean).join('\n');
-  args.push('--append-system-prompt', systemAppend);
 
   return spawnClaude({
-    args,
+    prompt: opts.message,
+    message: opts.message,
     cwd: opts.cwd,
     costCategory: 'claude-session',
     model: opts.model || 'claude-sonnet-4-6',
+    maxBudget: opts.maxBudget,
+    effort: opts.effort,
+    resume: opts.claudeSessionId,
+    sessionId: opts.claudeSessionId,
+    appendSystemPrompt: systemAppend,
     callbacks: opts.callbacks || {},
+    // Fallback CLI args (for spawnClaudeFallback)
+    args: buildInteractiveArgs(opts, systemAppend),
   });
 }
 
+function buildInteractiveArgs(opts, systemAppend) {
+  const args = ['-p', opts.message];
+  args.push('--model', opts.model || 'claude-sonnet-4-6');
+  if (opts.maxBudget) args.push('--max-budget-usd', String(opts.maxBudget));
+  if (opts.effort) args.push('--effort', opts.effort);
+  if (opts.claudeSessionId) args.push('--resume', opts.claudeSessionId);
+  args.push('--permission-mode', 'bypassPermissions');
+  args.push('--allowedTools', INTERACTIVE_TOOLS);
+  args.push('--output-format', 'stream-json', '--verbose');
+  args.push('--append-system-prompt', systemAppend);
+  return args;
+}
+
 /**
- * Run a background Claude Code task (used by task-manager via claude-runner).
- *
- * @param {Object} task - Task object with prompt, model, maxBudget, etc.
- * @param {Object} callbacks - { onStream, onToolUse, onMilestone, onActivity, onComplete, onError }
- * @returns {Object} { process, result: Promise }
+ * Run a background Claude Code task.
+ * Now uses SDK query() instead of CLI spawn.
  */
 function runBackground(task, callbacks = {}) {
-  const args = ['-p', task.prompt];
-
-  if (task.model) args.push('--model', task.model);
-  if (task.maxBudget) args.push('--max-budget-usd', String(task.maxBudget));
-  if (task.effort) args.push('--effort', task.effort);
-  args.push('--permission-mode', 'bypassPermissions');
-  args.push('--allowedTools', BACKGROUND_TOOLS);
-  args.push('--output-format', 'stream-json', '--verbose');
-  if (task.sessionId) args.push('--resume', task.sessionId);
-
   const systemAppend = [
     `TASK: "${task.title}"`,
     task.projectDir ? `PROJECT DIR: ${task.projectDir}` : '',
@@ -423,15 +529,35 @@ function runBackground(task, callbacks = {}) {
     task.maxBudget ? `BUDGET LIMIT: $${task.maxBudget} — stay under this` : '',
     'RULES: Commit frequently. Do NOT push. Do NOT switch branches. Do NOT delete files unless replacing them.',
   ].filter(Boolean).join('\n');
-  args.push('--append-system-prompt', systemAppend);
 
   return spawnClaude({
-    args,
+    prompt: task.prompt,
+    message: task.prompt,
     cwd: task.projectDir,
     costCategory: 'claude',
     model: task.model || 'claude-sonnet-4-6',
+    maxBudget: task.maxBudget,
+    effort: task.effort,
+    resume: task.sessionId,
+    sessionId: task.sessionId,
+    appendSystemPrompt: systemAppend,
     callbacks,
+    // Fallback CLI args
+    args: buildBackgroundArgs(task, systemAppend),
   });
+}
+
+function buildBackgroundArgs(task, systemAppend) {
+  const args = ['-p', task.prompt];
+  if (task.model) args.push('--model', task.model);
+  if (task.maxBudget) args.push('--max-budget-usd', String(task.maxBudget));
+  if (task.effort) args.push('--effort', task.effort);
+  args.push('--permission-mode', 'bypassPermissions');
+  args.push('--allowedTools', BACKGROUND_TOOLS);
+  args.push('--output-format', 'stream-json', '--verbose');
+  if (task.sessionId) args.push('--resume', task.sessionId);
+  args.push('--append-system-prompt', systemAppend);
+  return args;
 }
 
 module.exports = {
@@ -439,7 +565,7 @@ module.exports = {
   spawnClaude,
   runInteractive,
   runBackground,
-  // Helpers (reused by other modules)
+  // Helpers
   expandHome,
   getClaudeBin,
   detectMilestones,
@@ -453,4 +579,5 @@ module.exports = {
   // Tool lists
   INTERACTIVE_TOOLS,
   BACKGROUND_TOOLS,
+  FULL_TOOLS,
 };

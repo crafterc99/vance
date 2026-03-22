@@ -208,7 +208,7 @@ function cancel(sessionId) {
   const proc = activeProcesses[sessionId];
   if (!proc) return { error: 'No active process for this session' };
 
-  try { proc.kill('SIGTERM'); } catch {}
+  try { if (proc.interrupt) proc.interrupt(); else proc.kill('SIGTERM'); } catch {}
   delete activeProcesses[sessionId];
 
   if (sessions[sessionId]) {

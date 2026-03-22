@@ -45,6 +45,8 @@ const coding = require('./coding');
 // New modular architecture
 const conversation = require('./conversation');
 const transport = require('./transport');
+const projectIntel = require('./project-intel');
+const dispatch = require('./dispatch');
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -315,6 +317,7 @@ if (!claudeBudget.dailyBudget) costs.setBudget('claude', 5, 50);
     claudeSession,
     conversation,
     getSystemInfo,
+    dispatch, projectIntel,
     get voiceSystem() { return voiceSystem; },
     get taskIntelligence() { return deps.taskIntelligence; },
   });
@@ -329,8 +332,17 @@ if (!claudeBudget.dailyBudget) costs.setBudget('claude', 5, 50);
   });
   deps.taskIntelligence = taskIntelligence;
 
+  // Init dispatch engine
+  dispatch.init({ loadProjects, taskManager, claudeSession, projectIntel, costs });
+
   // Init conversation engine
   conversation.init(deps);
+
+  // Bootstrap all projects (async, non-blocking)
+  projectIntel.bootstrapAll().then(results => {
+    const ok = results.filter(r => r.success).length;
+    console.log(`  Projects bootstrapped: ${ok}/${results.length}`);
+  }).catch(() => {});
 
   // Init voice system
   try {

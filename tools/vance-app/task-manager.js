@@ -37,9 +37,10 @@ function resolveProjectDir(projectId) {
 
 // ─── In-Memory State ──────────────────────────────────────────────────────
 
-let runningProcess = null; // Reference to child process
+let runningProcesses = {}; // projectId → child process (multi-project concurrency)
 let watchdogInterval = null;
 let broadcastFn = null; // Set by server.js to broadcast WS events
+const MAX_CONCURRENT = 3; // Max tasks running in parallel
 
 function setBroadcast(fn) {
   broadcastFn = fn;
@@ -156,6 +157,10 @@ function getRunningTask() {
   return loadTasks().find(t => t.status === 'running') || null;
 }
 
+function getRunningTasks() {
+  return loadTasks().filter(t => t.status === 'running');
+}
+
 function getAllTasks(filter = {}) {
   let tasks = loadTasks();
   if (filter.status) tasks = tasks.filter(t => t.status === filter.status);
@@ -179,12 +184,19 @@ function updateTask(id, updates) {
  * Returns the started task or null if nothing to start.
  */
 function startNext() {
-  // Don't start if something is already running
-  if (getRunningTask()) return null;
+  const running = getRunningTasks();
+
+  // Don't exceed max concurrency
+  if (running.length >= MAX_CONCURRENT) return null;
+
+  // Get projects that already have a running task
+  const busyProjects = new Set(running.map(t => t.projectId).filter(Boolean));
 
   const tasks = loadTasks();
   const queued = tasks
     .filter(t => t.status === 'queued')
+    // Skip projects that already have a running task (1 per project)
+    .filter(t => !t.projectId || !busyProjects.has(t.projectId))
     .sort((a, b) => (b.priority || 5) - (a.priority || 5));
 
   if (!queued.length) return null;
@@ -262,7 +274,7 @@ function _startTask(task) {
 
     onComplete: (result) => {
       console.log(`[TaskManager] Task ${task.id} completed. Cost: $${result.costUsd || 0}`);
-      runningProcess = null;
+      delete runningProcesses[task.projectId || task.id];
 
       // Post-task git cleanup
       const updatedTask = getTask(task.id);
@@ -294,12 +306,13 @@ function _startTask(task) {
     },
   });
 
-  runningProcess = proc;
+  const procKey = task.projectId || task.id;
+  runningProcesses[procKey] = proc;
   updateTask(task.id, { pid: proc.pid });
 
   // Handle completion/failure via the result promise
   spawnResult.then((result) => {
-    runningProcess = null;
+    delete runningProcesses[task.projectId || task.id];
 
     if (result.exitCode === 0 && !result.error) {
       // Success
@@ -371,9 +384,11 @@ function pauseTask(id) {
   const task = getTask(id);
   if (!task || task.status !== 'running') return { error: 'Task not running' };
 
-  if (runningProcess) {
-    try { runningProcess.kill('SIGTERM'); } catch {}
-    runningProcess = null;
+  const procKey = task.projectId || task.id;
+  const proc = runningProcesses[procKey];
+  if (proc) {
+    try { if (proc.interrupt) proc.interrupt(); else proc.kill('SIGTERM'); } catch {}
+    delete runningProcesses[procKey];
   }
 
   updateTask(id, {
@@ -413,9 +428,11 @@ function cancelTask(id) {
   const task = getTask(id);
   if (!task) return { error: 'Task not found' };
 
-  if (task.status === 'running' && runningProcess) {
-    try { runningProcess.kill('SIGTERM'); } catch {}
-    runningProcess = null;
+  const procKey = task.projectId || task.id;
+  if (task.status === 'running' && runningProcesses[procKey]) {
+    const proc = runningProcesses[procKey];
+    try { if (proc.interrupt) proc.interrupt(); else proc.kill('SIGTERM'); } catch {}
+    delete runningProcesses[procKey];
     coding.postTaskGit(task);
   }
 
@@ -438,22 +455,22 @@ function _startWatchdog() {
   if (watchdogInterval) return; // Already running
 
   watchdogInterval = setInterval(() => {
-    const running = getRunningTask();
-    if (!running) {
+    const running = getRunningTasks();
+    if (!running.length) {
       clearInterval(watchdogInterval);
       watchdogInterval = null;
       return;
     }
 
-    // Check for hung task (no output for 5 minutes)
-    const lastActivity = new Date(running.lastActivityAt).getTime();
-    const elapsed = Date.now() - lastActivity;
+    // Check each running task for hung state (no output for 5 minutes)
+    for (const task of running) {
+      const lastActivity = new Date(task.lastActivityAt).getTime();
+      const elapsed = Date.now() - lastActivity;
 
-    if (elapsed > 5 * 60 * 1000) {
-      console.log(`[Watchdog] Task ${running.id} hung for ${Math.round(elapsed / 60000)}m — pausing`);
-      pauseTask(running.id);
-      clearInterval(watchdogInterval);
-      watchdogInterval = null;
+      if (elapsed > 5 * 60 * 1000) {
+        console.log(`[Watchdog] Task ${task.id} hung for ${Math.round(elapsed / 60000)}m — pausing`);
+        pauseTask(task.id);
+      }
     }
   }, 30000); // Check every 30 seconds
 }
@@ -505,6 +522,7 @@ module.exports = {
   createTask,
   getTask,
   getRunningTask,
+  getRunningTasks,
   getAllTasks,
   startNext,
   pauseTask,
@@ -513,4 +531,5 @@ module.exports = {
   taskSummary,
   readLog,
   setBroadcast,
+  MAX_CONCURRENT,
 };

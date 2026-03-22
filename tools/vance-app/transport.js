@@ -24,6 +24,7 @@ function createServer(deps) {
     vectorMemory, projectState, executionLogger,
     claudeSession, voiceSystem,
     conversation, getSystemInfo,
+    dispatch, projectIntel,
   } = deps;
 
   const clients = new Set();
@@ -269,6 +270,39 @@ function createServer(deps) {
         break;
       }
 
+      // ─── Dispatch Actions ───
+      case 'dispatch': {
+        if (!dispatch) { ws.send({ type: 'error', message: 'Dispatch module not initialized' }); break; }
+        const result = await dispatch.dispatch({
+          projectId: msg.projectId, task: msg.task,
+          mode: msg.mode || 'background',
+          model: msg.model, maxBudget: msg.maxBudget, priority: msg.priority,
+        });
+        ws.send({ type: 'dispatch-result', ...result });
+        break;
+      }
+
+      case 'dispatch-batch': {
+        if (!dispatch) { ws.send({ type: 'error', message: 'Dispatch module not initialized' }); break; }
+        const results = await dispatch.dispatchBatch(msg.tasks || []);
+        ws.send({ type: 'dispatch-batch-result', results });
+        break;
+      }
+
+      case 'bootstrap-project': {
+        if (!projectIntel) { ws.send({ type: 'error', message: 'Project intel not initialized' }); break; }
+        const result = projectIntel.bootstrapProject(msg.projectId);
+        ws.send({ type: 'bootstrap-result', ...result });
+        break;
+      }
+
+      case 'bootstrap-all': {
+        if (!projectIntel) { ws.send({ type: 'error', message: 'Project intel not initialized' }); break; }
+        const results = await projectIntel.bootstrapAll();
+        ws.send({ type: 'bootstrap-all-result', results });
+        break;
+      }
+
       default:
         ws.send({ type: 'error', message: `Unknown action: ${msg.action}` });
     }
@@ -316,8 +350,99 @@ function createServer(deps) {
       return;
     }
 
+    // ─── Dispatch REST Endpoints ───
+    if (url.pathname === '/api/dispatch' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; });
+      req.on('end', () => {
+        (async () => {
+          const opts = JSON.parse(body);
+          const result = dispatch ? await dispatch.dispatch(opts) : { error: 'Dispatch not initialized' };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        })().catch(e => {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        });
+      });
+      return;
+    }
+    if (url.pathname === '/api/dispatch/batch' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; });
+      req.on('end', () => {
+        (async () => {
+          const { tasks } = JSON.parse(body);
+          const results = dispatch ? await dispatch.dispatchBatch(tasks || []) : { error: 'Dispatch not initialized' };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ results }));
+        })().catch(e => {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        });
+      });
+      return;
+    }
+    if (url.pathname.match(/^\/api\/projects\/([^/]+)\/bootstrap$/) && req.method === 'POST') {
+      const projectId = url.pathname.split('/')[3];
+      const result = projectIntel ? projectIntel.bootstrapProject(projectId) : { error: 'Project intel not initialized' };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+      return;
+    }
+    if (url.pathname === '/api/projects/bootstrap-all' && req.method === 'POST') {
+      (async () => {
+        const results = projectIntel ? await projectIntel.bootstrapAll() : [];
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ results }));
+      })().catch(e => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      });
+      return;
+    }
+    if (url.pathname === '/api/tasks' && req.method === 'GET') {
+      const filter = {};
+      if (url.searchParams.get('status')) filter.status = url.searchParams.get('status');
+      if (url.searchParams.get('projectId')) filter.projectId = url.searchParams.get('projectId');
+      const tasks = taskManager.getAllTasks(filter).map(t => taskManager.taskSummary(t));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ tasks }));
+      return;
+    }
+    if (url.pathname.match(/^\/api\/tasks\/([^/]+)$/) && req.method === 'GET') {
+      const taskId = url.pathname.split('/').pop();
+      const task = taskManager.getTask(taskId);
+      if (!task) { res.writeHead(404); res.end(JSON.stringify({ error: 'Task not found' })); return; }
+      const log = taskManager.readLog(taskId);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ task: taskManager.taskSummary(task), log: log.slice(-5000) }));
+      return;
+    }
+    if (url.pathname.match(/^\/api\/tasks\/([^/]+)\/control$/) && req.method === 'POST') {
+      const taskId = url.pathname.split('/')[3];
+      let body = '';
+      req.on('data', c => { body += c; });
+      req.on('end', () => {
+        try {
+          const { action } = JSON.parse(body);
+          let result;
+          if (action === 'pause') result = taskManager.pauseTask(taskId);
+          else if (action === 'resume') result = taskManager.resumeTask(taskId);
+          else if (action === 'cancel') result = taskManager.cancelTask(taskId);
+          else result = { error: `Unknown action: ${action}` };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
     // Serve UI pages
-    const pages = { '/': 'index.html', '/index.html': 'index.html', '/costs': 'costs.html', '/costs.html': 'costs.html', '/brain': 'brain.html', '/brain.html': 'brain.html', '/spatial': 'spatial.html', '/spatial.html': 'spatial.html' };
+    const pages = { '/': 'index.html', '/index.html': 'index.html', '/costs': 'costs.html', '/costs.html': 'costs.html', '/brain': 'brain.html', '/brain.html': 'brain.html', '/spatial': 'spatial.html', '/spatial.html': 'spatial.html', '/dispatch': 'dispatch.html', '/dispatch.html': 'dispatch.html' };
     const page = pages[url.pathname];
     if (page) { return serveFile(res, page); }
 
