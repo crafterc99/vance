@@ -21,7 +21,7 @@
     3: { label: 'LAYER 3 \u2014 EXTERNAL', camera: { pos: [0, 6, -18], lookAt: [0, 0, -30] } },
   };
 
-  const KNOWN_VENTURES = ['soul-jam', 'athletes-blender', 'sos-train', 'blair', 'vantheah', 'promotifyy'] 'vantheah', 'promotifyy'];
+  const KNOWN_VENTURES = ['soul-jam', 'athletes-blender', 'sos-train', 'blair', 'vantheah', 'promotifyy'];
   const PROJECT_COLORS = {
     'vantheah': '#4488ff', 'promotifyy': '#ff8c00', 'soul-jam': '#00e5a0',
     'athletes-blender': '#ffc940', 'sos-train': '#ff3355', 'blair': '#a855f7',
